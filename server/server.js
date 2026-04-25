@@ -41,14 +41,14 @@ if (process.env.NODE_ENV === 'production') {
   // ✅ Serve Admin App
   app.use('/admin', express.static(adminBuildPath));
 
-  app.get('/admin/*', (req, res) => {
+  app.get('/admin/(.*)', (req, res) => {
     res.sendFile(path.join(adminBuildPath, 'index.html'));
   });
 
   // ✅ Serve Client App
   app.use(express.static(clientBuildPath));
 
-  app.get('*', (req, res) => {
+  app.get('(.*)', (req, res) => {
     if (
       !req.path.startsWith('/api') &&
       !req.path.startsWith('/uploads') &&
