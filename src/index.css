@@ -1,0 +1,192 @@
+/* ============================================================
+   Global Styles — Visa Booking App
+   Tailwind base directives + custom CSS variables +
+   glassmorphism utilities + scrollbar + typography
+   ============================================================ */
+
+/* ── Local Fonts Import ──────────────────────────────────── */
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/Inter/Inter-VariableFont_opsz,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Tailwind Directives ─────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Custom Properties ───────────────────────────────── */
+:root {
+  /* Color tokens mirrored from tailwind.config.js for use in CSS */
+  --color-background:  #0a0a0a;
+  --color-surface:     #171717;
+  --color-surface-2:   #1e1e1e;
+  --color-surface-3:   #252525;
+  --color-cyan:        #00d4ff;
+  --color-cyan-dim:    #00a8cc;
+  --color-gold:        #f5a623;
+  --color-text-primary:   #f5f5f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border:      #2a2a2a;
+
+  /* Glassmorphism variables */
+  --glass-bg:      rgba(23, 23, 23, 0.7);
+  --glass-border:  rgba(255, 255, 255, 0.07);
+  --glass-blur:    12px;
+}
+
+/* ── Base Reset & Typography ─────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark; /* Ensures native UI elements like calendars and selects are dark */
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Custom Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cyan-dim);
+}
+
+/* ── Glassmorphism Utility Class ─────────────────────────── */
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-strong {
+    background: rgba(23, 23, 23, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Cyan gradient text utility */
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gold gradient text */
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #f5a623, #c7861c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Cyan border glow effect */
+  .border-glow-cyan {
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.15);
+  }
+
+  /* Smooth focus ring for inputs */
+  .focus-ring {
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .focus-ring:focus {
+    border-color: var(--color-cyan);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+  }
+
+  /* Hide scrollbar but keep scrolling (for horizontal card lists) */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* ── Page Transition Wrapper ─────────────────────────────── */
+.page-enter {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* ── Hero Gradient Background ────────────────────────────── */
+.hero-gradient {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 255, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245, 166, 35, 0.05), transparent),
+    #0a0a0a;
+}
+
+/* ── Grid dot pattern overlay ────────────────────────────── */
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ── Animated gradient border ────────────────────────────── */
+@keyframes border-rotate {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-border {
+  background: linear-gradient(270deg, #00d4ff, #f5a623, #00d4ff);
+  background-size: 400% 400%;
+  animation: border-rotate 4s ease infinite;
+}
+
+/* ── Status indicator dot pulse ──────────────────────────── */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.4); }
+}
+.status-dot-pulse {
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+/* ── Number counter animation ────────────────────────────── */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.count-up {
+  animation: countUp 0.6s ease-out forwards;
+}
+
+/* ── Shimmer loading effect ──────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1e1e1e 25%, #252525 50%, #1e1e1e 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
