@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, Eye, CreditCard } from "lucide-react";
-import axios from "axios";
 import { useUIStore } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
 import Navbar from "../components/layout/Navbar";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { StatusBadge } from "../components/ui/Badge";
+import { useAuthStore, api, SERVER_URL } from "../store/authStore";
 
-const AdminApplicantDetails = () => {
+const Details = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useUIStore();
@@ -39,10 +39,7 @@ const AdminApplicantDetails = () => {
       }
 
       try {
-        const token = localStorage.getItem("token");
-        const { data } = await axios.get(`http://localhost:5000/api/admin/applications/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await api.get(`/admin/applications/${id}`);
         if (data.success) {
           setApplication(data.application);
         }
@@ -58,7 +55,7 @@ const AdminApplicantDetails = () => {
 
   const handleDownload = async (docUrl) => {
     try {
-      const fullUrl = `http://localhost:5000${docUrl}`;
+      const fullUrl = `${SERVER_URL}${docUrl}`;
       const response = await fetch(fullUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -85,10 +82,8 @@ const AdminApplicantDetails = () => {
         return;
       }
 
-      const token = localStorage.getItem("token");
-      const { data } = await axios.put(`http://localhost:5000/api/admin/applications/${id}/status`, 
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const { data } = await api.put(`/admin/applications/${id}/status`, 
+        { status: newStatus }
       );
       
       if (data.success) {
@@ -115,7 +110,7 @@ const AdminApplicantDetails = () => {
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center p-4">
           <h2 className="text-2xl font-bold text-text-primary mb-4">Applicant Not Found</h2>
-          <Button variant="primary" onClick={() => navigate("/admin")}>Back to Dashboard</Button>
+          <Button variant="primary" onClick={() => navigate("/")}>Back to Dashboard</Button>
         </div>
       </div>
     );
@@ -130,7 +125,7 @@ const AdminApplicantDetails = () => {
         <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
           <div>
             <button
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate("/")}
               className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors mb-4"
             >
               <ArrowLeft size={16} /> Back to Dashboard
@@ -218,7 +213,7 @@ const AdminApplicantDetails = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {application.documents.map((doc, idx) => {
                     const fileName = doc.split('/').pop();
-                    const fullUrl = `http://localhost:5000${doc}`;
+                    const fullUrl = `${SERVER_URL}${doc}`;
 
                     return (
                       <div key={idx} className="p-4 bg-surface-2 rounded-xl border border-border flex flex-col gap-4">
@@ -271,7 +266,7 @@ const AdminApplicantDetails = () => {
               <ul className="space-y-3 text-sm mb-6">
                 <li className="flex justify-between">
                   <span className="text-text-secondary">Fee Paid</span>
-                  <span className="font-medium text-text-primary">${application.fee}.00</span>
+                  <span className="font-medium text-text-primary">₹{application.fee}.00</span>
                 </li>
                 <li className="flex justify-between items-center">
                   <span className="text-text-secondary">Transaction ID</span>
@@ -328,4 +323,4 @@ const AdminApplicantDetails = () => {
   );
 };
 
-export default AdminApplicantDetails;
+export default Details;

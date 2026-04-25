@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
+import { getAdminAppUrl } from "../../utils/adminAppUrl";
 import Button from "../ui/Button";
 
 const Navbar = () => {
@@ -167,7 +168,14 @@ const Navbar = () => {
                         {/* Dashboard link */}
                         <button
                           id="nav-dashboard-link"
-                          onClick={() => { navigate(user.role === "admin" ? "/admin" : "/dashboard"); setUserMenuOpen(false); }}
+                          onClick={() => {
+                            if (user.role === "admin") {
+                              window.location.href = getAdminAppUrl("/");
+                            } else {
+                              navigate("/dashboard");
+                            }
+                            setUserMenuOpen(false);
+                          }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-3 transition-colors"
                         >
                           {user.role === "admin" ? <Shield size={15} /> : <LayoutDashboard size={15} />}
@@ -260,7 +268,13 @@ const Navbar = () => {
                   {isAuthenticated ? (
                     <>
                       <button
-                        onClick={() => navigate(user?.role === "admin" ? "/admin" : "/dashboard")}
+                        onClick={() => {
+                          if (user?.role === "admin") {
+                            window.location.href = getAdminAppUrl("/");
+                          } else {
+                            navigate("/dashboard");
+                          }
+                        }}
                         className="flex items-center gap-2 px-4 py-2.5 text-sm text-cyan hover:bg-cyan/10 rounded-lg transition-colors"
                       >
                         <LayoutDashboard size={15} />

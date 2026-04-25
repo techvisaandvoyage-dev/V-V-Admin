@@ -99,8 +99,8 @@ const LoginPage = () => {
     clearError();
     const { success, role } = await login(identifier, password);
     if (success) {
-      if (role !== "admin") showToast("Welcome back! You're now signed in.");
-      navigate(role === "admin" ? "/admin" : "/");
+      showToast("Welcome back! You're now signed in.");
+      navigate("/");
     }
   };
 
@@ -127,7 +127,7 @@ const LoginPage = () => {
     const { success, role } = await verifyLoginOtp(identifier, otp);
     if (success) {
       showToast("Logged in via OTP! Welcome back.");
-      navigate(role === "admin" ? "/admin" : "/");
+      navigate("/");
     }
   };
 
@@ -427,12 +427,6 @@ const LoginPage = () => {
                   Don&apos;t have an account?{" "}
                   <Link to="/register" className="text-cyan hover:text-cyan-dim font-medium transition-colors">
                     Create one free
-                  </Link>
-                </p>
-                <p className="pt-2 border-t border-border/50">
-                  Are you an employee?{" "}
-                  <Link to="/admin-login" className="text-gold hover:text-gold/80 font-medium transition-colors">
-                    Admin Portal
                   </Link>
                 </p>
               </div>

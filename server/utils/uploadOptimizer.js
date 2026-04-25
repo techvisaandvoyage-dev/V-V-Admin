@@ -44,28 +44,14 @@ const processFiles = async (req, res, next) => {
     await Promise.all(
       req.files.map(async (file) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const extension = path.extname(file.originalname).toLowerCase();
+        const filename = `doc-${uniqueSuffix}${extension}`;
+        const filepath = path.join(docsDir, filename);
+
+        // Save original file buffer directly to maintain exact type and size
+        fs.writeFileSync(filepath, file.buffer);
         
-        // If Image -> Optimize with Sharp
-        if (file.mimetype.startsWith('image/')) {
-          const filename = `doc-${uniqueSuffix}.webp`;
-          const filepath = path.join(docsDir, filename);
-
-          await sharp(file.buffer)
-            .resize({ width: 1200, withoutEnlargement: true })
-            .webp({ quality: 80 })
-            .toFile(filepath);
-
-          req.body.documents.push(`/uploads/documents/${filename}`);
-        } 
-        // If PDF -> Save directly
-        else if (file.mimetype === 'application/pdf') {
-          const filename = `doc-${uniqueSuffix}.pdf`;
-          const filepath = path.join(docsDir, filename);
-          
-          fs.writeFileSync(filepath, file.buffer);
-          
-          req.body.documents.push(`/uploads/documents/${filename}`);
-        }
+        req.body.documents.push(`/uploads/documents/${filename}`);
       })
     );
 

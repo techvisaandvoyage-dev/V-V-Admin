@@ -1,12 +1,12 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import { Loader2 } from "lucide-react";
+import { getAdminAppUrl } from "../utils/adminAppUrl";
 
 // ── Lazy loaded Pages ───────────────────────────────────────────
 const LandingPage         = lazy(() => import("../pages/LandingPage"));
 const LoginPage           = lazy(() => import("../pages/LoginPage"));
-const AdminLoginPage      = lazy(() => import("../pages/AdminLoginPage"));
 const RegisterPage        = lazy(() => import("../pages/RegisterPage"));
 const UserDashboard       = lazy(() => import("../pages/UserDashboard"));
 const ProfilePage         = lazy(() => import("../pages/ProfilePage"));
@@ -14,8 +14,6 @@ const ApplicationDetails  = lazy(() => import("../pages/ApplicationDetails"));
 const ApplicationForm     = lazy(() => import("../pages/ApplicationForm"));
 const CountryDetails      = lazy(() => import("../pages/CountryDetails"));
 const AllDestinationsPage = lazy(() => import("../pages/AllDestinationsPage"));
-const AdminDashboard      = lazy(() => import("../pages/AdminDashboard"));
-const AdminApplicantDetails = lazy(() => import("../pages/AdminApplicantDetails"));
 
 // ── Fallback Loader ────────────────────────────────────────
 const PageLoader = () => (
@@ -23,6 +21,18 @@ const PageLoader = () => (
     <Loader2 className="w-8 h-8 text-cyan animate-spin" />
   </div>
 );
+
+const AdminAppRedirect = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    const adminPath = location.pathname.replace(/^\/admin/, "") || "/";
+    const fullPath = `${adminPath}${location.search}${location.hash}`;
+    window.location.replace(getAdminAppUrl(fullPath));
+  }, [location]);
+
+  return <PageLoader />;
+};
 
 
 // ── 404 Not Found ──────────────────────────────────────────
@@ -52,7 +62,6 @@ const AppRoutes = () => {
       <Route path="/destinations" element={<AllDestinationsPage />} />
       <Route path="/destination/:countryId" element={<CountryDetails />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin-login" element={<AdminLoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
       {/* ── User-protected routes ── */}
@@ -107,33 +116,12 @@ const AppRoutes = () => {
         }
       />
 
-      {/* ── Admin-protected routes ── */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/application/:id"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminApplicantDetails />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/*"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
+
 
       {/* ── 404 fallback ── */}
+      {/* Redirect old client-side admin URLs to the dedicated admin app */}
+      <Route path="/admin/*" element={<AdminAppRedirect />} />
+
       <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
@@ -141,3 +129,4 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
+

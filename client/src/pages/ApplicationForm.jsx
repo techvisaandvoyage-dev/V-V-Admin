@@ -14,7 +14,6 @@ import {
   ArrowRight, ArrowLeft, CheckCircle, 
   UploadCloud, Upload, User, Mail, Calendar, Plane, CreditCard, ShieldCheck, X, FileText, AlertCircle
 } from "lucide-react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../components/layout/Navbar";
 import StepIndicator from "../components/ui/StepIndicator";
@@ -22,7 +21,7 @@ import Button from "../components/ui/Button";
 import Input, { Select } from "../components/ui/Input";
 import Card from "../components/ui/Card";
 import { useUIStore } from "../store/uiStore";
-import { useAuthStore } from "../store/authStore";
+import { useAuthStore, api } from "../store/authStore";
 import { getCountryById, COUNTRIES } from "../data/countries";
 import { useUIStore as useUI } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
@@ -168,7 +167,7 @@ const ApplicationForm = () => {
     // Fetch public Razorpay key configured by Admin
     let razorpayKeyId = "";
     try {
-      const configRes = await axios.get("http://localhost:5000/api/config/razorpay");
+      const configRes = await api.get("/config/razorpay");
       if (configRes.data.success) {
         razorpayKeyId = configRes.data.keyId;
       }
@@ -183,14 +182,11 @@ const ApplicationForm = () => {
     }
 
     // B. Backend se Order ID mangwayein
-    const orderRes = await axios.post(
-      "http://localhost:5000/api/users/payments/create-order",
+    const orderRes = await api.post(
+      "/users/payments/create-order",
       {
         amount: selectedCountry.basePrice + 3000,
         applicationId,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
       }
     );
 
@@ -213,18 +209,14 @@ const ApplicationForm = () => {
         order_id: order.id,
         handler: async function (response) {
           try {
-            const freshToken = localStorage.getItem("token");
-            const verifyRes = await axios.post(
-              "http://localhost:5000/api/users/payments/verify",
+            const verifyRes = await api.post(
+              "/users/payments/verify",
               {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
                 applicationId,
                 amount,
-              },
-              {
-                headers: { Authorization: `Bearer ${freshToken}` },
               }
             );
 
@@ -252,15 +244,11 @@ const ApplicationForm = () => {
           ondismiss: async function () {
             console.log("Razorpay modal closed by user");
             try {
-              const freshToken = localStorage.getItem("token");
-              await axios.post(
-                "http://localhost:5000/api/users/payments/cancel",
+              await api.post(
+                "/users/payments/cancel",
                 {
                   applicationId,
                   reason: "User closed the payment window",
-                },
-                {
-                  headers: { Authorization: `Bearer ${freshToken}` },
                 }
               );
               showToast("Payment cancelled. You can complete it later from your dashboard.", "info");
@@ -317,13 +305,12 @@ const ApplicationForm = () => {
       });
 
       // Submit to backend
-      const response = await axios.post(
-        "http://localhost:5000/api/users/application",
+      const response = await api.post(
+        "/users/application",
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`
+            "Content-Type": "multipart/form-data"
           }
         }
       );

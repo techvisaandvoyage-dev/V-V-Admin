@@ -32,14 +32,21 @@ app.get('/api/config/razorpay', getRazorpayKeyId);
 
 // ── Serve Static Assets in Production ──────────────────────
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder
   const clientBuildPath = path.join(__dirname, '../client/dist');
-  app.use(express.static(clientBuildPath));
+  const adminBuildPath = path.join(__dirname, '../admin/dist');
 
+  // Serve Admin App on /admin subpath
+  app.use('/admin', express.static(adminBuildPath));
+  app.get('/admin/*', (req, res) => {
+    res.sendFile(path.resolve(adminBuildPath, 'index.html'));
+  });
+
+  // Serve Client App on root
+  app.use(express.static(clientBuildPath));
   app.get('*', (req, res) => {
-    // Exclude API routes and uploads
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-      res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+    // Exclude API, uploads, and admin from the catch-all
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads') && !req.path.startsWith('/admin')) {
+      res.sendFile(path.resolve(clientBuildPath, 'index.html'));
     }
   });
 } else {

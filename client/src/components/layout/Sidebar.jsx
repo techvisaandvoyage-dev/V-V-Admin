@@ -23,13 +23,7 @@ const USER_NAV = [
   { label: "Settings",         icon: Settings,          to: "/dashboard/settings", id: "nav-settings" },
 ];
 
-const ADMIN_NAV = [
-  { label: "Analytics",        icon: BarChart2,         to: "/admin",             id: "nav-admin-analytics" },
-  { label: "Applications",     icon: FileText,          to: "/admin/applications", id: "nav-admin-apps" },
-  { label: "Country Manager",  icon: MapPin,            to: "/admin/countries",   id: "nav-admin-countries" },
-  { label: "Users",            icon: Users,             to: "/admin/users",       id: "nav-admin-users" },
-  { label: "Settings",         icon: Settings,          to: "/admin/settings",    id: "nav-admin-settings" },
-];
+
 
 const Sidebar = () => {
   const { user, logout } = useAuthStore();
@@ -37,8 +31,8 @@ const Sidebar = () => {
   const navigate = useNavigate();
 
   // Choose nav items based on user role
-  const navItems = user?.role === "admin" ? ADMIN_NAV : USER_NAV;
-  const isAdmin  = user?.role === "admin";
+  const navItems = USER_NAV;
+  const isAdmin  = false;
 
   const handleLogout = () => {
     logout();
@@ -127,7 +121,7 @@ const Sidebar = () => {
                 <NavLink
                   id={id}
                   to={to}
-                  end={to === "/dashboard" || to === "/admin"}
+                  end={to === "/dashboard"}
                   className={({ isActive }) => `
                     flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
                     transition-all duration-200 group relative

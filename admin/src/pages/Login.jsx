@@ -10,7 +10,7 @@ import { useAuthStore } from "../store/authStore";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 
-const AdminLoginPage = () => {
+const Login = () => {
   const navigate = useNavigate();
   const { loginAdmin, isLoading, error, clearError } = useAuthStore();
 
@@ -25,7 +25,7 @@ const AdminLoginPage = () => {
     clearError();
     const { success } = await loginAdmin(email, password);
     if (success) {
-      navigate("/admin");
+      navigate("/");
     }
   };
 
@@ -135,4 +135,4 @@ const AdminLoginPage = () => {
   );
 };
 
-export default AdminLoginPage;
+export default Login;

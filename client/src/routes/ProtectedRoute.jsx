@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+import { getAdminAppUrl } from "../utils/adminAppUrl";
 
 /**
  * @param {string} requiredRole — "user" | "admin" | undefined (any auth)
@@ -11,7 +12,8 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   // Not logged in OR session corrupted (token present but user null) → redirect to login
   if (!isAuthenticated || !user) {
     if (requiredRole === "admin") {
-      return <Navigate to="/admin-login" state={{ from: location }} replace />;
+      window.location.replace(getAdminAppUrl("/login"));
+      return null;
     }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -26,7 +28,11 @@ const ProtectedRoute = ({ children, requiredRole }) => {
       return children;
     }
     // Regular user trying to access admin → back to their dashboard
-    return <Navigate to={effectiveRole === "admin" ? "/admin" : "/dashboard"} replace />;
+    if (effectiveRole === "admin") {
+      window.location.replace(getAdminAppUrl("/"));
+      return null;
+    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

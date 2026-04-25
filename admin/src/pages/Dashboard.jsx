@@ -6,13 +6,12 @@
 //  3. Country Manager (add/edit countries via modal)
 // ============================================================
 import { useState, useRef, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   BarChart2, TrendingUp, DollarSign, Clock, CheckCircle,
   Search, Filter, ChevronDown, Plus, Edit3, Trash2,
-  MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard,
+  MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee,
 } from "lucide-react";
-import axios from "axios";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Legend,
@@ -37,7 +36,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p className="text-xs font-semibold text-text-primary mb-2">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="text-xs" style={{ color: p.color }}>
-          {p.name}: {p.dataKey === "revenue" ? `$${p.value}` : p.value}
+          {p.name}: {p.dataKey === "revenue" ? `₹${p.value}` : p.value}
         </p>
       ))}
     </div>
@@ -54,14 +53,13 @@ const fmtDate = (iso) => {
 // ─────────────────────────────────────────────────────────────
 //  COMPONENT
 // ─────────────────────────────────────────────────────────────
-const AdminDashboard = () => {
+const Dashboard = () => {
   const { showToast, countryModalOpen, countryModalMode, selectedCountry, openCountryModal, closeCountryModal } = useUIStore();
 
   // ── Route & State Navigation ──────────────────────────────
-  const location = useLocation();
-  const navigate = useNavigate();
-  const pathParts = location.pathname.split("/");
-  const activeTab = (pathParts.length > 2 && pathParts[2]) ? pathParts[2] : "analytics";
+  const navigate       = useNavigate();
+  const { activeTab: tabParam } = useParams();
+  const activeTab      = tabParam || "analytics";
 
   // ── Global Data Store ──────────────────────────────────────
   const { bookings, countries, fetchAllApplications, updateBookingStatus, addCountry, updateCountry, deleteCountry: storeDeleteCountry } = useDataStore();
@@ -292,9 +290,9 @@ const AdminDashboard = () => {
                 id={`admin-tab-${id}`}
                 onClick={() => {
                   if (id === "analytics") {
-                    navigate("/admin");
+                    navigate("/");
                   } else {
-                    navigate(`/admin/${id}`);
+                    navigate(`/${id}`);
                   }
                 }}
                 className={`
@@ -350,7 +348,7 @@ const AdminDashboard = () => {
                               {tx.razorpayPaymentId || tx.razorpayOrderId}
                             </td>
                             <td className="py-3 px-4 font-medium text-text-primary">
-                              ${tx.amount}.00
+                              ₹{tx.amount}.00
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
@@ -376,7 +374,7 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
-                  { label: "Total Revenue",   value: `$${liveAnalytics.revenue}`,   icon: DollarSign, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
+                  { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
                   { label: "Pending Review",  value: liveAnalytics.pending,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
                   { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
                 ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
@@ -436,7 +434,7 @@ const AdminDashboard = () => {
                       <LineChart data={MONTHLY_REVENUE}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
                         <XAxis dataKey="month" tick={{ fill: "#71717a", fontSize: 12 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#71717a", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                        <YAxis tick={{ fill: "#71717a", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#00d4ff', strokeWidth: 1, strokeDasharray: '4 4' }} />
                         <Line
                           type="monotone"
@@ -577,7 +575,7 @@ const AdminDashboard = () => {
                             <div className="flex items-center gap-2">
                               {/* View Details Button */}
                               <button
-                                onClick={() => navigate(`/admin/application/${b.id || b._id}`)}
+                                onClick={() => navigate(`/application/${b.id || b._id}`)}
                                 className="px-3 py-1.5 bg-cyan/10 text-cyan hover:bg-cyan/20 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
                                 title="View Application Details"
                               >
@@ -697,7 +695,7 @@ const AdminDashboard = () => {
                       {/* Details row */}
                       <div className="flex items-center gap-4 text-xs text-text-muted mt-auto pt-3 border-t border-border/40">
                         <span className="flex items-center gap-1">
-                          <DollarSign size={11} /> ${c.basePrice}
+                          <IndianRupee size={11} /> ₹{c.basePrice}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock size={11} /> {c.processingDays}d
@@ -895,7 +893,7 @@ const AdminDashboard = () => {
           {/* Base price + Processing days + Difficulty */}
           <div className="grid grid-cols-3 gap-3">
             <Input
-              label="Base Price ($)"
+              label="Base Price (₹)"
               type="number"
               value={countryForm.basePrice}
               onChange={(e) => setCountryForm((p) => ({ ...p, basePrice: e.target.value }))}
@@ -1019,4 +1017,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default Dashboard;

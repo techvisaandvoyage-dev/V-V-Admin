@@ -19,9 +19,8 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import { motion } from "framer-motion";
 import Sidebar from "../components/layout/Sidebar";
-import { useAuthStore } from "../store/authStore";
+import { useAuthStore, api } from "../store/authStore";
 import { useDataStore } from "../store/dataStore";
-import axios from "axios";
 
 // ── Format date helper ────────────────────────────────────
 const fmtDate = (iso) => {
@@ -57,11 +56,8 @@ const UserDashboard = () => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        if (token) {
-          const { data } = await axios.get("http://localhost:5000/api/users/payments/my-transactions", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+        if (user) {
+          const { data } = await api.get("/users/payments/my-transactions");
           if (data.success) setTransactions(data.transactions);
         }
         await fetchUserApplications();

@@ -1,7 +1,7 @@
 // ============================================================
 //  Zustand Auth Store
 //  Manages user authentication state globally.
-//  Mock login: user@visa.com / admin@visa.com
+//  Mock login: user@visa.com
 //  Replace login() action with real API call when backend ready.
 // ============================================================
 import { create } from "zustand";
@@ -43,12 +43,7 @@ export const useAuthStore = create(
       login: async (identifier, password) => {
         set({ isLoading: true, error: null });
         try {
-          let endpoint = "/users/login";
-          if (identifier.toLowerCase().includes("admin")) {
-            endpoint = "/admin/login";
-          }
-
-          const { data } = await api.post(endpoint, { identifier, email: identifier, password });
+          const { data } = await api.post("/users/login", { identifier, email: identifier, password });
           
           if (data.success) {
             const rawUser = data.user || data.admin;
@@ -61,26 +56,6 @@ export const useAuthStore = create(
           const message = error.response?.data?.message || "Login failed";
           set({ error: message, isLoading: false });
           return { success: false, role: null };
-        }
-      },
-
-      /**
-       * loginAdmin() — Dedicated Admin login, sends clean { email, password }
-       */
-      loginAdmin: async (email, password) => {
-        set({ isLoading: true, error: null });
-        try {
-          const { data } = await api.post("/admin/login", { email, password });
-          if (data.success) {
-            const userObj = { ...data.admin, role: "admin" };
-            localStorage.setItem("token", data.token);
-            set({ user: userObj, isAuthenticated: true, isLoading: false });
-            return { success: true };
-          }
-        } catch (error) {
-          const message = error.response?.data?.message || "Invalid credentials";
-          set({ error: message, isLoading: false });
-          return { success: false };
         }
       },
 
@@ -234,22 +209,6 @@ export const useAuthStore = create(
           return { success: true, message: data.message };
         } catch (error) {
           const message = error.response?.data?.message || "Reset request failed";
-          set({ isLoading: false, error: message });
-          return { success: false, message };
-        }
-      },
-
-      /**
-       * changeAdminPassword() — Admin changes their password
-       */
-      changeAdminPassword: async (currentPassword, newPassword) => {
-        set({ isLoading: true, error: null });
-        try {
-          const { data } = await api.put("/admin/change-password", { currentPassword, newPassword });
-          set({ isLoading: false });
-          return { success: true, message: data.message };
-        } catch (error) {
-          const message = error.response?.data?.message || "Password change failed";
           set({ isLoading: false, error: message });
           return { success: false, message };
         }
