@@ -1,0 +1,14 @@
+{
+  "name": "visa-and-voyage-root",
+  "version": "1.0.0",
+  "description": "Root package.json for Visa & Voyage monorepo deployment",
+  "scripts": {
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build-client": "cd client && npm run build",
+    "start": "cd server && node server.js",
+    "build": "npm run build-client"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
