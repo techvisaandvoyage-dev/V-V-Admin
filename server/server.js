@@ -36,10 +36,9 @@ if (process.env.NODE_ENV === 'production') {
   const adminBuildPath = path.join(__dirname, '../admin/dist');
 
   // Serve Admin App on /admin subpath
-  app.use('/admin', express.static(adminBuildPath));
-  app.get('/admin/*', (req, res) => {
-    res.sendFile(path.resolve(adminBuildPath, 'index.html'));
-  });
+app.get("/admin/:path(*)", (req, res) => {
+  res.send("Admin route");
+});
 
   // Serve Client App on root
   app.use(express.static(clientBuildPath));
