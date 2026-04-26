@@ -1,11 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   plugins: [react()],
-  // Serve admin at root in local dev, but keep /admin/ asset paths for production builds.
-  base: command === "serve" ? "/" : "/admin/",
+  base: "/",   // ✅ IMPORTANT FIX
   server: {
     port: 5174,
     strictPort: true,
@@ -13,4 +11,4 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: "dist",
   },
-}))
+})
