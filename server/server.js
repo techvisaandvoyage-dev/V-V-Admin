@@ -41,21 +41,15 @@ if (process.env.NODE_ENV === 'production') {
   // ✅ Serve Admin App
   app.use('/admin', express.static(adminBuildPath));
 
-  app.get('/admin/:path*', (req, res) => {
+  app.get(/^\/admin\/.*$/, (req, res) => {
     res.sendFile(path.join(adminBuildPath, 'index.html'));
   });
 
   // ✅ Serve Client App
   app.use(express.static(clientBuildPath));
 
-  app.get('/:path*', (req, res) => {
-    if (
-      !req.path.startsWith('/api') &&
-      !req.path.startsWith('/uploads') &&
-      !req.path.startsWith('/admin')
-    ) {
-      res.sendFile(path.join(clientBuildPath, 'index.html'));
-    }
+  app.get(/^(?!\/(api|uploads|admin)).*$/, (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 
 } else {
