@@ -11,9 +11,8 @@ import axios from "axios";
 const ADMIN_TOKEN_KEY = "admin_token";
 
 // ── Axios Instance ───────────────────────────────────────────
-const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-export const API_BASE_URL = isLocal ? "http://localhost:5000/api" : "/api";
-export const SERVER_URL = isLocal ? "http://localhost:5000" : "";
+export const SERVER_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+export const API_BASE_URL = `${SERVER_URL}/api`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
