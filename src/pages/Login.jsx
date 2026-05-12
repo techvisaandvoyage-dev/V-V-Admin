@@ -55,7 +55,7 @@ const Login = () => {
               </span>
             </div>
             <h1 className="text-2xl font-bold text-text-primary mb-1">Authorized Access</h1>
-            <p className="text-sm text-text-secondary">Please sign in to the dashboard</p>
+            <p className="text-sm text-text-secondary">Please log in to the dashboard</p>
           </div>
 
 

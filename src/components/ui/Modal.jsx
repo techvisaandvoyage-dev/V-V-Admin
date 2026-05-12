@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
  * @param {boolean}  isOpen      — Controls visibility
  * @param {function} onClose     — Called when backdrop/X is clicked
  * @param {string}   title       — Modal header title
- * @param {"sm"|"md"|"lg"|"xl"} size
+ * @param {"sm"|"md"|"lg"|"xl"|"full"} size
  */
 const Modal = ({
   isOpen,
@@ -45,7 +45,10 @@ const Modal = ({
     md: "max-w-md",
     lg: "max-w-lg",
     xl: "max-w-2xl",
+    full: "max-w-none",
   };
+
+  const isFullScreen = size === "full";
 
   return (
     <AnimatePresence>
@@ -57,7 +60,7 @@ const Modal = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className={`fixed inset-0 z-50 flex ${isFullScreen ? "items-stretch justify-stretch p-0" : "items-center justify-center p-4"}`}
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           onClick={onClose}
           aria-modal="true"
@@ -73,8 +76,9 @@ const Modal = ({
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className={`
               w-full ${sizes[size]}
-              bg-surface border border-border rounded-2xl shadow-modal
-              flex flex-col max-h-[90vh] overflow-hidden
+              bg-surface border border-border shadow-modal
+              flex flex-col overflow-hidden
+              ${isFullScreen ? "h-screen rounded-none border-0" : "max-h-[90vh] rounded-2xl"}
             `}
             onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside
           >
@@ -98,7 +102,7 @@ const Modal = ({
             )}
 
             {/* ── Body ── */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div className={`flex-1 overflow-y-auto ${isFullScreen ? "px-6 py-5" : "px-6 py-5"}`}>
               {children}
             </div>
 

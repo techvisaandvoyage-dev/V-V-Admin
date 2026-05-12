@@ -8,7 +8,7 @@ import { NavLink, useNavigate, Link } from "react-router-dom";
 import {
   LayoutDashboard, FileText, PlusCircle, Globe, Settings,
   LogOut, ChevronLeft, ChevronRight, Shield, BarChart2,
-  Users, MapPin, Plane, CreditCard,
+  MapPin, Plane, CreditCard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
@@ -25,10 +25,10 @@ const USER_NAV = [
 
 const ADMIN_NAV = [
   { label: "Analytics",        icon: BarChart2,         to: "/",             id: "nav-admin-analytics" },
+  { label: "Static Pages",     icon: Globe,             to: "/pages",        id: "nav-admin-pages" },
   { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
   { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
   { label: "Country Manager",  icon: MapPin,            to: "/countries",   id: "nav-admin-countries" },
-  { label: "Users",            icon: Users,             to: "/users",       id: "nav-admin-users" },
   { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
 ];
 
@@ -76,7 +76,7 @@ const Sidebar = () => {
                   transition={{ duration: 0.2 }}
                   className="font-bold text-lg tracking-tight overflow-hidden whitespace-nowrap"
                 >
-                  Visa & <span className="text-gradient-cyan">Voyage</span>
+                  <span className="text-gradient-cyan">VISAANDVOYAGE</span>
                 </motion.span>
               )}
             </AnimatePresence>

@@ -154,7 +154,7 @@ const Navbar = () => {
                       >
                         {/* Role badge */}
                         <div className="px-4 py-3 border-b border-border">
-                          <p className="text-xs text-text-muted">Signed in as</p>
+                          <p className="text-xs text-text-muted">Logged in as</p>
                           <p className="text-sm font-semibold text-text-primary truncate">{user.email}</p>
                           <span className="text-xs text-cyan capitalize">{user.role}</span>
                         </div>

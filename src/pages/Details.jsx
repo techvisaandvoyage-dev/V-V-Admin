@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, Eye, CreditCard } from "lucide-react";
+import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, Eye, CreditCard, Link, Upload, UploadCloud, Phone } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
 import Navbar from "../components/layout/Navbar";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
+import { Select } from "../components/ui/Input";
 import { StatusBadge } from "../components/ui/Badge";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
+import { getApplicationProgress } from "../utils/applicationProgress";
 
 const Details = () => {
   const { id } = useParams();
@@ -16,6 +18,8 @@ const Details = () => {
   const bookings = useDataStore((state) => state.bookings);
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [visaFileUploading, setVisaFileUploading] = useState(false);
+  const visaFileInputRef = useRef(null);
 
   useEffect(() => {
     const fetchApplication = async () => {
@@ -29,8 +33,13 @@ const Details = () => {
             firstName: mockBooking.userName.split(" ")[0],
             lastName: mockBooking.userName.split(" ").slice(1).join(" "),
             email: mockBooking.userEmail,
-            passportNo: mockBooking.passportNo || "MOCK-0000",
-            nationality: mockBooking.nationality || "Unknown",
+            user: {
+              name: mockBooking.userName || "",
+              email: mockBooking.userEmail || "",
+              phone: mockBooking.userPhone || "",
+              age: mockBooking.age ?? "",
+              gender: mockBooking.gender || "",
+            },
             dob: mockBooking.dob || "1990-01-01T00:00:00.000Z",
           });
         }
@@ -42,16 +51,63 @@ const Details = () => {
         const { data } = await api.get(`/admin/applications/${id}`);
         if (data.success) {
           setApplication(data.application);
+          return;
         }
       } catch (error) {
         console.error("Failed to fetch application:", error);
-        showToast("Failed to load applicant data", "error");
+        const localApplication = bookings.find((b) => (b._id === id || b.id === id));
+        if (localApplication) {
+          setApplication(localApplication);
+          return;
+        }
+        showToast(error?.response?.data?.message || "Failed to load applicant data", "error");
       } finally {
         setLoading(false);
       }
     };
     fetchApplication();
   }, [id, showToast]);
+
+  /** Paths already shown under per-traveler cards (server also mirrors them on application.documents). */
+  const applicationDocPathsInTravellers = useMemo(() => {
+    const s = new Set();
+    const travellers = application?.travellerDocuments;
+    if (!Array.isArray(travellers)) return s;
+    for (const t of travellers) {
+      Object.values(t.documents || {}).forEach((p) => {
+        if (p) s.add(p);
+      });
+      (t.otherDocuments || []).forEach((p) => {
+        if (p) s.add(p);
+      });
+    }
+    return s;
+  }, [application]);
+
+  const legacyDocumentsFiltered = useMemo(() => {
+    if (!application || !Array.isArray(application.documents)) return [];
+    return application.documents.filter((p) => p && !applicationDocPathsInTravellers.has(p));
+  }, [application, applicationDocPathsInTravellers]);
+
+  const hasTravelerUploadedFiles = useMemo(() => {
+    if (!application?.travellerDocuments) return false;
+    return application.travellerDocuments.some(
+      (t) =>
+        Object.values(t.documents || {}).some(Boolean) ||
+        (Array.isArray(t.otherDocuments) && t.otherDocuments.some(Boolean))
+    );
+  }, [application]);
+
+  const hasTravelerGdrive = useMemo(
+    () => (application?.travellerDocuments || []).some((t) => Boolean(t?.gdriveLink)),
+    [application]
+  );
+
+  const hasAnyUploadedDocs =
+    Boolean(application?.gdriveLink) ||
+    hasTravelerGdrive ||
+    hasTravelerUploadedFiles ||
+    legacyDocumentsFiltered.length > 0;
 
   const handleDownload = async (docUrl) => {
     try {
@@ -96,6 +152,46 @@ const Details = () => {
     }
   };
 
+  const handleVisaFileUpload = async (file) => {
+    if (!file) return;
+    const allowedTypes = [
+      "application/pdf",
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Only PDF, PNG, JPG, JPEG, and WEBP files are allowed.", "error");
+      return;
+    }
+
+    setVisaFileUploading(true);
+    try {
+      if (id.startsWith("bk-")) {
+        // Fallback for mock data
+        showToast("Cannot upload visa file for mock applications.", "info");
+        setVisaFileUploading(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("visaFile", file);
+      const { data } = await api.post(`/admin/applications/${id}/visa-file`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (data.success && data.application) {
+        setApplication(data.application);
+        showToast("Visa file uploaded successfully.", "success");
+      }
+    } catch (error) {
+      console.error("Error uploading visa file:", error);
+      showToast(error?.response?.data?.message || "Failed to upload visa file", "error");
+    } finally {
+      setVisaFileUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -115,6 +211,14 @@ const Details = () => {
       </div>
     );
   }
+
+  const progress = getApplicationProgress(application);
+  const applicantName = application.user?.name || [application.firstName, application.lastName].filter(Boolean).join(" ") || "N/A";
+  const applicantEmail = application.user?.email || application.email || "N/A";
+  const applicantPhone = application.user?.phone || "";
+  const applicantAge = application.user?.age ?? "";
+  const applicantGender = application.user?.gender || "";
+  const applicantDob = application.dob ? new Date(application.dob).toLocaleDateString() : "N/A";
 
   return (
     <div className="min-h-screen bg-background pb-30 ">
@@ -140,9 +244,9 @@ const Details = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols gap-6">
-          {/* Left Column: Applicant Data */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
+          {/* Main content: applicant, travel, documents */}
+          <div className="space-y-6">
             <Card>
               <h2 className="text-lg font-semibold text-text-primary border-b border-border pb-4 mb-6 flex items-center gap-2">
                 <User size={18} className="text-cyan" />
@@ -151,25 +255,37 @@ const Details = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                 <div>
                   <p className="text-sm text-text-muted mb-1">Full Name</p>
-                  <p className="font-medium text-text-primary">{application.firstName} {application.lastName}</p>
+                  <p className="font-medium text-text-primary">{applicantName}</p>
                 </div>
                 <div>
                   <p className="text-sm text-text-muted mb-1">Email Address</p>
                   <p className="font-medium text-text-primary flex items-center gap-2">
-                    {application.email}
+                    {applicantEmail}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-text-muted mb-1">Passport Number</p>
-                  <p className="font-medium text-text-primary font-mono">{application.passportNo}</p>
+                  <p className="text-sm text-text-muted mb-1 flex items-center gap-1">
+                    <Phone size={12} className="opacity-70" /> Mobile
+                  </p>
+                  <p className="font-medium text-text-primary">
+                    {applicantPhone
+                      ? String(applicantPhone).replace(/\D/g, "").length === 10
+                        ? `+91 ${String(applicantPhone).replace(/\D/g, "").slice(0, 5)} ${String(applicantPhone).replace(/\D/g, "").slice(5)}`
+                        : applicantPhone
+                      : "N/A"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-text-muted mb-1">Nationality</p>
-                  <p className="font-medium text-text-primary uppercase">{application.nationality}</p>
+                  <p className="text-sm text-text-muted mb-1">Age</p>
+                  <p className="font-medium text-text-primary">{applicantAge || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-text-muted mb-1">Gender</p>
+                  <p className="font-medium text-text-primary">{applicantGender || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-text-muted mb-1">Date of Birth</p>
-                  <p className="font-medium text-text-primary">{new Date(application.dob).toLocaleDateString()}</p>
+                  <p className="font-medium text-text-primary">{applicantDob}</p>
                 </div>
               </div>
             </Card>
@@ -204,14 +320,115 @@ const Details = () => {
             </Card>
 
             <Card>
+              <div className={`rounded-xl border p-4 mb-5 ${progress.allDocumentsUploaded ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+                <p className="text-xs text-text-muted">Document completion</p>
+                <p className={`text-sm font-semibold mt-1 ${progress.allDocumentsUploaded ? "text-emerald-400" : "text-amber-400"}`}>
+                  {progress.allDocumentsUploaded
+                    ? "All required documents uploaded."
+                    : `${progress.totalMissingDocuments} required document${progress.totalMissingDocuments === 1 ? "" : "s"} still missing.`}
+                </p>
+              </div>
               <h2 className="text-lg font-semibold text-text-primary border-b border-border pb-4 mb-4 flex items-center gap-2">
                 <FileText size={18} className="text-emerald-400" />
                 Uploaded Documents
               </h2>
-              
-              {application.documents && application.documents.length > 0 ? (
+
+              {application.gdriveLink && (
+                <div className="mb-5 p-4 bg-cyan/10 border border-cyan/30 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-surface-3 border border-cyan/30 flex items-center justify-center flex-shrink-0">
+                      <Link size={20} className="text-cyan" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">Google Drive Folder</p>
+                      <p className="text-xs text-text-muted truncate max-w-[200px] sm:max-w-xs">
+                        {application.gdriveLink}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => window.open(application.gdriveLink, "_blank")}
+                  >
+                    Open Link
+                  </Button>
+                </div>
+              )}
+
+              {Array.isArray(application.travellerDocuments) && application.travellerDocuments.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 items-start">
+                  {application.travellerDocuments.map((traveler, idx) => (
+                    <div key={`traveler-docs-${idx}`} className="rounded-xl border border-border bg-surface-2 p-3">
+                      <p className="text-sm font-semibold text-text-primary mb-2">
+                        Traveler {traveler.travelerNo || idx + 1}
+                        {traveler.travelerName ? ` — ${traveler.travelerName}` : ""}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {Object.entries(traveler.documents || {}).map(([labelKey, path]) => {
+                          if (!path) return null;
+                          const fullUrl = `${SERVER_URL}${path}`;
+                          return (
+                            <button
+                              key={`${traveler.travelerNo}-${labelKey}`}
+                              type="button"
+                              onClick={() => window.open(fullUrl, "_blank")}
+                              className="text-left text-xs rounded-lg border border-border px-2 py-2 hover:border-cyan/40 text-text-secondary"
+                            >
+                              <span className="font-medium text-text-primary block mb-0.5">{labelKey}</span>
+                              <span className="truncate block">{String(path).split("/").pop()}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {Array.isArray(traveler.otherDocuments) && traveler.otherDocuments.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs text-text-muted mb-2">Other Documents ({traveler.otherDocuments.length})</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {traveler.otherDocuments.map((path, docIdx) => {
+                              if (!path) return null;
+                              const fullUrl = `${SERVER_URL}${path}`;
+                              return (
+                                <button
+                                  key={`other-doc-${traveler.travelerNo || idx}-${docIdx}`}
+                                  type="button"
+                                  onClick={() => window.open(fullUrl, "_blank")}
+                                  className="text-left text-xs rounded-lg border border-border px-2 py-2 hover:border-cyan/40 text-text-secondary"
+                                >
+                                  <span className="font-medium text-text-primary block mb-0.5">Other Document {docIdx + 1}</span>
+                                  <span className="truncate block">{String(path).split("/").pop()}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {traveler.gdriveLink && (
+                        <div className="mt-3 p-3 bg-cyan/10 border border-cyan/30 rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Link size={16} className="text-cyan" />
+                            <div className="text-xs text-text-primary font-medium truncate max-w-[150px] sm:max-w-[200px]">
+                              {traveler.gdriveLink}
+                            </div>
+                          </div>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-7 text-[10px] px-2"
+                            onClick={() => window.open(traveler.gdriveLink, "_blank")}
+                          >
+                            Open
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {legacyDocumentsFiltered.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {application.documents.map((doc, idx) => {
+                  {legacyDocumentsFiltered.map((doc, idx) => {
                     const fileName = doc.split('/').pop();
                     const fullUrl = `${SERVER_URL}${doc}`;
 
@@ -254,16 +471,20 @@ const Details = () => {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-text-muted text-center py-6">No documents were uploaded.</p>
+                !hasAnyUploadedDocs && (
+                  <p className="text-sm text-text-muted text-center py-6">No documents were uploaded.</p>
+                )
               )}
             </Card>
           </div>
 
-          {/* Right Column: Financial & Actions */}
-          <div className="space-y-6">
-            <Card>
-              <h3 className="font-semibold text-text-primary mb-4 border-b border-border pb-3">Financial Overview</h3>
-              <ul className="space-y-3 text-sm mb-6">
+          {/* Financial + Visa side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="flex min-h-[280px] flex-col">
+              <h3 className="mb-4 shrink-0 border-b border-border pb-3 font-semibold text-text-primary">
+                Financial Overview
+              </h3>
+              <ul className="min-h-0 flex-1 space-y-3 text-sm">
                 <li className="flex justify-between">
                   <span className="text-text-secondary">Fee Paid</span>
                   <span className="font-medium text-text-primary">₹{application.fee}.00</span>
@@ -281,39 +502,109 @@ const Details = () => {
                     {application.paymentMethod || "Card (Default)"}
                   </span>
                 </li>
-                <li className="flex justify-between">
-                  <span className="text-text-secondary">Status</span>
-                  <span className="font-medium text-emerald-400 flex items-center gap-1">
-                    <CheckCircle size={14} /> {application.paymentStatus === 'completed' ? 'Verified' : 'Verified'}
+                <li className="flex justify-between items-start gap-2">
+                  <span className="text-text-secondary shrink-0">Payment</span>
+                  <span className={`font-medium text-right flex items-center gap-1 justify-end ${
+                    application.paymentStatus === "completed" ? "text-emerald-400" :
+                    application.paymentStatus === "pending_payment" ? "text-amber-400" :
+                    application.paymentStatus === "cancelled" ? "text-red-400" :
+                    application.paymentStatus === "failed" ? "text-red-400" : "text-text-secondary"
+                  }`}>
+                    <CheckCircle size={14} className="shrink-0" />
+                    {application.paymentStatus === "completed" ? "Paid" :
+                      application.paymentStatus === "pending_payment" ? "Pending payment" :
+                      application.paymentStatus === "cancelled" ? "Cancelled" :
+                      application.paymentStatus === "failed" ? "Failed" :
+                      application.paymentStatus || "—"}
                   </span>
                 </li>
               </ul>
 
-              <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Update Status</p>
-                <Button 
-                  variant="primary" 
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 h-10"
-                  onClick={() => handleUpdateStatus('approved')}
+              <div className="mt-auto shrink-0 border-t border-border bg-surface pt-4">
+                <Select
+                  id="admin-application-status"
+                  label="Application status"
+                  className="h-10 min-h-[2.5rem] bg-background py-0 pr-8 leading-[2.5rem]"
+                  value={application.status || "pending"}
+                  onChange={(e) => handleUpdateStatus(e.target.value)}
+                  options={[
+                    { value: "pending", label: "Pending" },
+                    { value: "review", label: "Under review" },
+                    { value: "approved", label: "Approved" },
+                    { value: "rejected", label: "Rejected" },
+                  ]}
+                />
+                <p className="mt-3 text-xs text-text-muted">Applies as soon as you select an option.</p>
+              </div>
+            </Card>
+
+            <Card className="flex min-h-[280px] flex-col">
+              <h3 className="mb-4 shrink-0 border-b border-border pb-3 font-semibold text-text-primary">
+                Visa Delivery
+              </h3>
+              <input
+                ref={visaFileInputRef}
+                type="file"
+                className="sr-only"
+                accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
+                disabled={visaFileUploading}
+                onChange={(e) => {
+                  handleVisaFileUpload(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
+
+              <div className="min-h-0 flex-1 space-y-3">
+                {application.visaFilePath ? (
+                  <>
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                      <p className="text-sm font-semibold text-emerald-400">Visa file uploaded</p>
+                      <p className="mt-1 break-all text-xs text-text-muted">
+                        {application.visaFileName || application.visaFilePath.split("/").pop()}
+                      </p>
+                      {application.visaFileUploadedAt && (
+                        <p className="mt-1 text-xs text-text-muted">
+                          Uploaded on {new Date(application.visaFileUploadedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      leftIcon={<Download size={14} />}
+                      onClick={() => window.open(`${SERVER_URL}${application.visaFilePath}`, "_blank")}
+                    >
+                      Open file
+                    </Button>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-border bg-surface-2 p-4 text-sm text-text-secondary">
+                    No visa file has been sent to the applicant yet.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-auto shrink-0 border-t border-border bg-surface pt-4">
+                <Button
+                  type="button"
+                  variant="primary"
+                  fullWidth
+                  className="bg-cyan hover:bg-cyan-dim"
+                  leftIcon={<Upload size={16} />}
+                  loading={visaFileUploading}
+                  disabled={visaFileUploading}
+                  onClick={() => visaFileInputRef.current?.click()}
                 >
-                  Approve Visa
+                  {visaFileUploading
+                    ? "Uploading…"
+                    : application.visaFilePath
+                      ? "Replace visa file"
+                      : "Upload visa file"}
                 </Button>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="ghost" 
-                    className="text-amber-400 hover:bg-amber-400/10 h-9 text-xs"
-                    onClick={() => handleUpdateStatus('review')}
-                  >
-                    Mark Review
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    className="text-red-400 hover:bg-red-400/10 h-9 text-xs"
-                    onClick={() => handleUpdateStatus('rejected')}
-                  >
-                    Reject
-                  </Button>
-                </div>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
+                  <UploadCloud size={14} className="shrink-0 text-cyan" />
+                  PDF, PNG, JPG, JPEG, WEBP
+                </p>
               </div>
             </Card>
           </div>

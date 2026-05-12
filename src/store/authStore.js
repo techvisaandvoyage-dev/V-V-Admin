@@ -11,8 +11,18 @@ import axios from "axios";
 const ADMIN_TOKEN_KEY = "admin_token";
 
 // ── Axios Instance ───────────────────────────────────────────
-export const SERVER_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-export const API_BASE_URL = `${SERVER_URL}/api`;
+const normalizeServerUrl = (url) => {
+  let s = String(url ?? "http://localhost:5000").trim();
+  if (!s) s = "http://localhost:5000";
+  s = s.replace(/\/+$/, "");
+  while (/\/api$/i.test(s)) {
+    s = s.replace(/\/api$/i, "").replace(/\/+$/, "");
+  }
+  return s;
+};
+
+export const SERVER_URL = normalizeServerUrl(import.meta.env.VITE_API_URL);
+export const API_BASE_URL = SERVER_URL ? `${SERVER_URL}/api` : "/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -147,12 +157,16 @@ export const useAuthStore = create(
       /**
        * forgotPasswordRequestOtp() — Send reset OTP to email
        */
-      forgotPasswordRequestOtp: async (email) => {
+      forgotPasswordRequestOtp: async (identifier) => {
         set({ isLoading: true, error: null });
         try {
-          const { data } = await api.post("/users/forgot-password/request-otp", { email });
+          const { data } = await api.post("/users/forgot-password/request-otp", { identifier });
           set({ isLoading: false });
-          return { success: !!data.success, message: data.message };
+          return {
+            success: !!data.success,
+            message: data.message,
+            devOtp: data.devOtp != null ? String(data.devOtp) : undefined,
+          };
         } catch (error) {
           const message = error.response?.data?.message || "Failed to send reset OTP";
           set({ isLoading: false, error: message });
@@ -163,10 +177,14 @@ export const useAuthStore = create(
       /**
        * forgotPasswordReset() — Verify OTP and reset password
        */
-      forgotPasswordReset: async (email, otp, newPassword) => {
+      forgotPasswordReset: async (identifier, otp, newPassword) => {
         set({ isLoading: true, error: null });
         try {
-          const { data } = await api.post("/users/forgot-password/reset", { email, otp, newPassword });
+          const { data } = await api.post("/users/forgot-password/reset", {
+            identifier,
+            otp,
+            newPassword,
+          });
           set({ isLoading: false });
           return { success: !!data.success, message: data.message };
         } catch (error) {

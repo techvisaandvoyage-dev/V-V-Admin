@@ -20,21 +20,21 @@ const AppRoutes = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
-        <Route
-          path="/:activeTab?"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        
+
         <Route
           path="/application/:id"
           element={
             <ProtectedRoute requiredRole="admin">
               <Details />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/:activeTab?"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Dashboard />
             </ProtectedRoute>
           }
         />

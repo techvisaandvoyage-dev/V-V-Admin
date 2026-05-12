@@ -3,10 +3,18 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: "/",   // ✅ IMPORTANT FIX
+  base: "/",
   server: {
     port: 5174,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        /** Unsplash country refresh can run 30s+ per batch — default proxy timeout was closing the connection. */
+        timeout: 0,
+      },
+    },
   },
   build: {
     outDir: "dist",

@@ -6,8 +6,15 @@ import { motion, AnimatePresence } from "framer-motion";
 
 function App() {
   const { toast, hideToast } = useUIStore();
-  const basePath = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-  const routerBase = basePath && basePath !== "/" ? basePath : undefined;
+  const configuredBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+  const runtimeBase =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/admin")
+      ? "/admin"
+      : "";
+  const routerBase =
+    configuredBase && configuredBase !== "/"
+      ? configuredBase
+      : runtimeBase || undefined;
 
   return (
     <BrowserRouter basename={routerBase}>

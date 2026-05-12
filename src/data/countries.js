@@ -16,7 +16,7 @@ export const COUNTRIES = [
     difficulty: "moderate",
     visaType: "B1/B2 Tourist",
     continent: "Americas",
-    imageUrl: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Land of opportunity — visit iconic cities, national parks, and more.",
     requirements: [
       "Valid passport (6+ months)",
@@ -38,7 +38,7 @@ export const COUNTRIES = [
     difficulty: "moderate",
     visaType: "Standard Visitor",
     continent: "Europe",
-    imageUrl: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "From London's culture to Scotland's highlands, an unforgettable journey.",
     requirements: [
       "Valid passport",
@@ -60,7 +60,7 @@ export const COUNTRIES = [
     difficulty: "moderate",
     visaType: "Type C Schengen",
     continent: "Europe",
-    imageUrl: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "27 countries, one visa. Explore Europe without borders.",
     requirements: [
       "Valid passport",
@@ -82,7 +82,7 @@ export const COUNTRIES = [
     difficulty: "moderate",
     visaType: "Temporary Resident",
     continent: "Americas",
-    imageUrl: "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Vast wilderness, world-class cities, and multicultural warmth.",
     requirements: [
       "Valid passport",
@@ -103,7 +103,7 @@ export const COUNTRIES = [
     difficulty: "easy",
     visaType: "Tourist Visa",
     continent: "Middle East",
-    imageUrl: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Luxury redefined — from Burj Khalifa to desert safaris.",
     requirements: [
       "Passport copy (6+ months valid)",
@@ -123,7 +123,7 @@ export const COUNTRIES = [
     difficulty: "easy",
     visaType: "Temporary Visitor",
     continent: "Asia",
-    imageUrl: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Ancient traditions meet futuristic innovation in this island nation.",
     requirements: [
       "Valid passport",
@@ -144,7 +144,7 @@ export const COUNTRIES = [
     difficulty: "hard",
     visaType: "Tourist Visa (600)",
     continent: "Oceania",
-    imageUrl: "https://images.unsplash.com/photo-1523482580672-f109ba8cb9be?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Outback adventures, Great Barrier Reef, and Sydney's iconic skyline.",
     requirements: [
       "Valid passport",
@@ -165,7 +165,7 @@ export const COUNTRIES = [
     difficulty: "easy",
     visaType: "Social Visit Pass",
     continent: "Asia",
-    imageUrl: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "A gleaming city-state where East meets West in perfect harmony.",
     requirements: [
       "Passport (6+ months)",
@@ -185,7 +185,7 @@ export const COUNTRIES = [
     difficulty: "easy",
     visaType: "e-Visa",
     continent: "Europe/Asia",
-    imageUrl: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Straddling two continents, Turkey offers unrivaled history and cuisine.",
     requirements: [
       "Valid passport",
@@ -205,7 +205,7 @@ export const COUNTRIES = [
     difficulty: "easy",
     visaType: "e-Tourist Visa",
     continent: "Asia",
-    imageUrl: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "A subcontinent of wonders — Taj Mahal, Kerala backwaters, and beyond.",
     requirements: [
       "Passport (6+ months)",
@@ -225,7 +225,7 @@ export const COUNTRIES = [
     difficulty: "moderate",
     visaType: "Type C Schengen",
     continent: "Europe",
-    imageUrl: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Paris, the Loire Valley, the Riviera — Europe's cultural crown jewel.",
     requirements: [
       "Valid passport",
@@ -246,7 +246,7 @@ export const COUNTRIES = [
     difficulty: "easy",
     visaType: "Tourist Visa",
     continent: "Asia",
-    imageUrl: "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?auto=format&fit=crop&q=80&w=800",
+    imageUrl: "/images/visa-card-fallback.svg",
     description: "Temples, tropical beaches, and world-famous street food await you.",
     requirements: [
       "Passport (6+ months)",

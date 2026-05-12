@@ -1,7 +1,6 @@
 /* ============================================================
-   Global Styles — Visa Booking App
-   Tailwind base directives + custom CSS variables +
-   glassmorphism utilities + scrollbar + typography
+   Global Styles — Admin Dashboard
+   Matches the client light theme exactly.
    ============================================================ */
 
 /* ── Local Fonts Import ──────────────────────────────────── */
@@ -20,22 +19,21 @@
 
 /* ── CSS Custom Properties ───────────────────────────────── */
 :root {
-  /* Color tokens mirrored from tailwind.config.js for use in CSS */
-  --color-background:  #0a0a0a;
-  --color-surface:     #171717;
-  --color-surface-2:   #1e1e1e;
-  --color-surface-3:   #252525;
-  --color-cyan:        #00d4ff;
-  --color-cyan-dim:    #00a8cc;
-  --color-gold:        #f5a623;
-  --color-text-primary:   #f5f5f5;
-  --color-text-secondary: #a1a1aa;
-  --color-border:      #2a2a2a;
+  --color-background:     #f0f4f8;
+  --color-surface:        #ffffff;
+  --color-surface-2:      #f8f9fa;
+  --color-surface-3:      #e9ecf1;
+  --color-cyan:           #0284c7;
+  --color-cyan-dim:       #0369a1;
+  --color-gold:           #d97706;
+  --color-text-primary:   #000000;
+  --color-text-secondary: #4b5563;
+  --color-border:         #e5e7eb;
 
   /* Glassmorphism variables */
-  --glass-bg:      rgba(23, 23, 23, 0.7);
-  --glass-border:  rgba(255, 255, 255, 0.07);
-  --glass-blur:    12px;
+  --glass-bg:     rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(2, 132, 199, 0.1);
+  --glass-blur:   12px;
 }
 
 /* ── Base Reset & Typography ─────────────────────────────── */
@@ -49,7 +47,7 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: dark; /* Ensures native UI elements like calendars and selects are dark */
+  color-scheme: light;
 }
 
 body {
@@ -62,22 +60,12 @@ body {
 }
 
 /* ── Custom Scrollbar ────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--color-surface);
-}
-::-webkit-scrollbar-thumb {
-  background: #3a3a3a;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-cyan-dim);
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: var(--color-surface-2); }
+::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-cyan); }
 
-/* ── Glassmorphism Utility Class ─────────────────────────── */
+/* ── Glassmorphism Utilities ─────────────────────────────── */
 @layer utilities {
   .glass {
     background: var(--glass-bg);
@@ -87,65 +75,58 @@ body {
   }
 
   .glass-strong {
-    background: rgba(23, 23, 23, 0.85);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(2, 132, 199, 0.15);
   }
 
-  /* Cyan gradient text utility */
   .text-gradient-cyan {
-    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    background: linear-gradient(135deg, #0284c7, #0369a1);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Gold gradient text */
   .text-gradient-gold {
-    background: linear-gradient(135deg, #f5a623, #c7861c);
+    background: linear-gradient(135deg, #d97706, #b45309);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Cyan border glow effect */
   .border-glow-cyan {
-    border: 1px solid rgba(0, 212, 255, 0.4);
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.15);
+    border: 1px solid rgba(2, 132, 199, 0.3);
+    box-shadow: 0 0 15px rgba(2, 132, 199, 0.12);
   }
 
-  /* Smooth focus ring for inputs */
   .focus-ring {
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .focus-ring:focus {
     border-color: var(--color-cyan);
-    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
   }
 
-  /* Hide scrollbar but keep scrolling (for horizontal card lists) */
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
-/* ── Page Transition Wrapper ─────────────────────────────── */
-.page-enter {
-  animation: fadeIn 0.4s ease-out;
-}
+/* ── Page Transition ─────────────────────────────────────── */
+.page-enter { animation: fadeIn 0.4s ease-out; }
 
-/* ── Hero Gradient Background ────────────────────────────── */
+/* ── Hero Gradient ───────────────────────────────────────── */
 .hero-gradient {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 255, 0.15), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245, 166, 35, 0.05), transparent),
-    #0a0a0a;
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(2, 132, 199, 0.1), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(217, 119, 6, 0.05), transparent),
+    #f0f4f8;
 }
 
-/* ── Grid dot pattern overlay ────────────────────────────── */
+/* ── Dot pattern overlay ─────────────────────────────────── */
 .dot-pattern {
-  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(2, 132, 199, 0.08) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -155,38 +136,33 @@ body {
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-
 .animated-border {
-  background: linear-gradient(270deg, #00d4ff, #f5a623, #00d4ff);
+  background: linear-gradient(270deg, #0284c7, #d97706, #0284c7);
   background-size: 400% 400%;
   animation: border-rotate 4s ease infinite;
 }
 
-/* ── Status indicator dot pulse ──────────────────────────── */
+/* ── Status pulse ────────────────────────────────────────── */
 @keyframes statusPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.6; transform: scale(1.4); }
 }
-.status-dot-pulse {
-  animation: statusPulse 2s ease-in-out infinite;
-}
+.status-dot-pulse { animation: statusPulse 2s ease-in-out infinite; }
 
-/* ── Number counter animation ────────────────────────────── */
+/* ── Count-up animation ──────────────────────────────────── */
 @keyframes countUp {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.count-up {
-  animation: countUp 0.6s ease-out forwards;
-}
+.count-up { animation: countUp 0.6s ease-out forwards; }
 
-/* ── Shimmer loading effect ──────────────────────────────── */
+/* ── Shimmer loading ─────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #1e1e1e 25%, #252525 50%, #1e1e1e 75%);
+  background: linear-gradient(90deg, #f8f9fa 25%, #e9ecf1 50%, #f8f9fa 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
