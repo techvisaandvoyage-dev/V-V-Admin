@@ -12,6 +12,10 @@ const fs = require('fs');
 const path = require('path');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const {
+  loadServiceAccountSources,
+  normalizePrivateKeyNewlines,
+} = require('../utils/parseFirebaseServiceAccountJson');
 const FIREBASE_ADMIN_APP_NAME = 'visa-voyage-auth';
 let firebaseAdminConfigSignature = '';
 
@@ -30,10 +34,10 @@ const EMAIL_OTP_CONFIG_HINT =
 const getFirebaseAdminApp = async () => {
   const settings = await Settings.findOne({ singleton: 'global' }).lean();
   const projectId = String(settings?.firebaseProjectId || process.env.FIREBASE_PROJECT_ID || '').trim();
-  const rawServiceAccount = String(
-    process.env.FIREBASE_SERVICE_ACCOUNT_JSON || settings?.firebaseServiceAccountJson || '',
-  ).trim();
-  const configSignature = `${projectId}:${rawServiceAccount}`;
+  const { parsed: parsedAccount, rawUsed } = loadServiceAccountSources({
+    rawFromDb: settings?.firebaseServiceAccountJson,
+  });
+  const configSignature = `${projectId}:${rawUsed}`;
   const existingApp = admin.apps.find((app) => app.name === FIREBASE_ADMIN_APP_NAME);
 
   if (existingApp && firebaseAdminConfigSignature === configSignature) {
@@ -44,17 +48,8 @@ const getFirebaseAdminApp = async () => {
     await existingApp.delete();
   }
 
-  if (rawServiceAccount) {
-    let serviceAccount;
-    try {
-      serviceAccount = JSON.parse(rawServiceAccount);
-    } catch {
-      throw new Error('Firebase service account JSON is invalid');
-    }
-
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
+  if (parsedAccount && typeof parsedAccount === 'object') {
+    const serviceAccount = normalizePrivateKeyNewlines(parsedAccount);
 
     firebaseAdminConfigSignature = configSignature;
     return admin.initializeApp({
