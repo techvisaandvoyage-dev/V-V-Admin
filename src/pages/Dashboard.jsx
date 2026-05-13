@@ -1738,7 +1738,7 @@ const Dashboard = () => {
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAuthDomain: e.target.value }))}
                     id="setting-firebase-auth-domain"
                     placeholder="your-project.firebaseapp.com"
-                    helper="SDK value only (…firebaseapp.com). If Google sign-in says unauthorized-domain, add your live site host in Firebase → Authentication → Settings → Authorized domains — not in this field."
+                    helper="Must be your-project-id.firebaseapp.com from Firebase → Project settings → Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate — add Render hostname there."
                   />
                   <Input
                     label="Project ID — paste here"
