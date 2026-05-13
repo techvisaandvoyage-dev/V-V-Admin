@@ -171,7 +171,7 @@ const mapApiSettingsToFormState = (s) => ({
   firebaseStorageBucket: s.firebaseStorageBucket || "",
   firebaseMessagingSenderId: s.firebaseMessagingSenderId || "",
   firebaseAppId: s.firebaseAppId || "",
-  firebaseServiceAccountJson: s.firebaseServiceAccountJson || "",
+  firebaseAdminFromEnv: Boolean(s.firebaseAdminFromEnv),
   sms91AuthKey: s.sms91AuthKey || "",
   sms91TemplateId: s.sms91TemplateId || "",
   sms91OtpLength: s.sms91OtpLength || "6",
@@ -196,7 +196,7 @@ const integrationFlagsFromSettings = (s) => {
   );
   return {
     isRazorpayConfigured: Boolean(s.razorpayKeyId?.trim() && s.razorpayKeySecret?.trim()),
-    isFirebaseConfigured: hasFirebasePublicConfig && Boolean(s.firebaseServiceAccountJson?.trim()),
+    isFirebaseConfigured: hasFirebasePublicConfig && Boolean(s.firebaseAdminFromEnv),
     isSmtpConfigured: Boolean(s.smtpEmailUser?.trim() && s.smtpEmailPass?.trim()),
     isSms91Configured: Boolean(s.sms91AuthKey?.trim() && s.sms91TemplateId?.trim()),
     isUnsplashConfigured: Boolean(s.unsplashAccessKey?.trim()),
@@ -234,7 +234,7 @@ const Dashboard = () => {
     firebaseStorageBucket: "",
     firebaseMessagingSenderId: "",
     firebaseAppId: "",
-    firebaseServiceAccountJson: "",
+    firebaseAdminFromEnv: false,
     sms91AuthKey: "",
     sms91TemplateId: "",
     sms91OtpLength: "6",
@@ -593,8 +593,7 @@ const Dashboard = () => {
                 payload.firebaseProjectId?.trim() &&
                 payload.firebaseAppId?.trim(),
             );
-            const srv = Boolean(payload.firebaseServiceAccountJson?.trim());
-            setIsFirebaseConfigured(pub && srv);
+            setIsFirebaseConfigured(pub && Boolean(data.settings?.firebaseAdminFromEnv));
             break;
           }
           case "smtp":
@@ -1691,18 +1690,20 @@ const Dashboard = () => {
 
               <SettingsSectionCard
                 title="Firebase — web app + server verification"
-                description="Paste the Firebase web config fields for the client, plus the service account JSON so the API can verify Google / email logins."
+                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here — set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
                 whereToFind={
                   <>
-                    Firebase Console → <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">General</span> → Your apps → copy each value into the matching field. For Service Account:{" "}
-                    <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">Service accounts</span> → <strong className="text-text-primary">Generate new private key</strong> → paste the whole JSON below.
+                    Firebase Console → <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">General</span> → Your apps (Web) → copy into the fields below. For the Admin SDK JSON:{" "}
+                    <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">Service accounts</span> → <strong className="text-text-primary">Generate new private key</strong> → put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
                   </>
                 }
                 statusSlot={
                   <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isFirebaseConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
                     {isFirebaseConfigured
-                      ? "Web config + service account JSON look complete."
-                      : "Fill all Firebase fields and the service account JSON, then save this card."}
+                      ? "Web config is saved and the server reports Firebase Admin credentials (env)."
+                      : settingsForm.firebaseAdminFromEnv
+                        ? "Server has Admin JSON in env — finish the web fields above and save."
+                        : "Save the web fields below, then set FIREBASE_SERVICE_ACCOUNT_JSON on the server and restart the API."}
                   </div>
                 }
                 saveLabel="Save Firebase"
@@ -1718,7 +1719,6 @@ const Dashboard = () => {
                       firebaseStorageBucket: settingsForm.firebaseStorageBucket,
                       firebaseMessagingSenderId: settingsForm.firebaseMessagingSenderId,
                       firebaseAppId: settingsForm.firebaseAppId,
-                      firebaseServiceAccountJson: settingsForm.firebaseServiceAccountJson,
                     },
                     "Firebase settings saved.",
                   )
@@ -1738,6 +1738,7 @@ const Dashboard = () => {
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAuthDomain: e.target.value }))}
                     id="setting-firebase-auth-domain"
                     placeholder="your-project.firebaseapp.com"
+                    helper="SDK value only (…firebaseapp.com). If Google sign-in says unauthorized-domain, add your live site host in Firebase → Authentication → Settings → Authorized domains — not in this field."
                   />
                   <Input
                     label="Project ID — paste here"
@@ -1765,15 +1766,16 @@ const Dashboard = () => {
                     id="setting-firebase-sender-id"
                   />
                 </div>
-                <Textarea
-                  label="Service account JSON — paste full file here"
-                  rows={5}
-                  value={settingsForm.firebaseServiceAccountJson}
-                  onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseServiceAccountJson: e.target.value }))}
-                  id="setting-firebase-service-account"
-                  placeholder='{"type":"service_account","project_id":"..."}'
-                  helper="Server-only: verifies Firebase ID tokens (Google sign-in, email/password, etc.)."
-                />
+                <div className="mt-4 rounded-xl border border-border bg-surface-2/80 px-4 py-3 text-xs text-text-secondary leading-relaxed">
+                  <p className="font-medium text-text-primary mb-1">Service account (server only)</p>
+                  <p>
+                    Set environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> on the machine that runs this API (see <code className="text-cyan">server/.env.example</code>). Value is the full JSON object as a string. After changing env, restart the server. Current API process:{" "}
+                    <span className={settingsForm.firebaseAdminFromEnv ? "text-emerald-400 font-medium" : "text-amber-300 font-medium"}>
+                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected — Google / token login will fail until set"}
+                    </span>
+                    .
+                  </p>
+                </div>
               </SettingsSectionCard>
 
               <SettingsSectionCard
