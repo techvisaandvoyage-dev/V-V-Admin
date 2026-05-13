@@ -24,8 +24,45 @@ const withBlankImageUrl = (country) => ({
  * is instant — without it, mobile users open a link and see blank cards until the
  * Render API responds (cold start can take 30–60s on the free tier).
  */
-const COUNTRIES_CACHE_KEY = "vb_countries_api_v7";
+const COUNTRIES_CACHE_KEY = "vb_countries_api_v12";
 const COUNTRIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+const DEFAULT_DISPLAY = Object.freeze({
+  showVisaType: true,
+  showValidity: true,
+  showProcessingDays: true,
+  showRequiredDocuments: true,
+});
+
+/**
+ * Normalise the display flags blob returned from /api/countries so a missing or
+ * malformed value falls back to "show everything".
+ */
+function normalizeDisplay(raw) {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_DISPLAY };
+  return {
+    showVisaType: raw.showVisaType !== false,
+    showValidity: raw.showValidity !== false,
+    showProcessingDays: raw.showProcessingDays !== false,
+    showRequiredDocuments: raw.showRequiredDocuments !== false,
+  };
+}
+
+/**
+ * Normalise the document catalog (built-in + custom doc types). Falls back to
+ * an empty array — `CountryDetails` ships with a built-in label map so labels
+ * still render even when the API hasn't responded yet.
+ */
+function normalizeDocumentCatalog(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((d) => ({
+      key: String(d?.key ?? "").trim(),
+      label: String(d?.label ?? "").trim(),
+      builtIn: d?.builtIn !== false,
+    }))
+    .filter((d) => d.key && d.label);
+}
 
 function loadCountriesCache() {
   if (typeof window === "undefined") return null;
@@ -36,23 +73,36 @@ function loadCountriesCache() {
       if (!legacy) return null;
       const legacyPayload = JSON.parse(legacy);
       if (!Array.isArray(legacyPayload?.countries) || legacyPayload.countries.length === 0) return null;
-      return legacyPayload.countries;
+      return {
+        countries: legacyPayload.countries,
+        display: normalizeDisplay(legacyPayload.display),
+        documentCatalog: normalizeDocumentCatalog(legacyPayload.documentCatalog),
+      };
     }
     const payload = JSON.parse(raw);
     if (!Array.isArray(payload?.countries) || payload.countries.length === 0) return null;
     if (payload.savedAt && Date.now() - payload.savedAt > COUNTRIES_CACHE_TTL_MS) return null;
-    return payload.countries;
+    return {
+      countries: payload.countries,
+      display: normalizeDisplay(payload.display),
+      documentCatalog: normalizeDocumentCatalog(payload.documentCatalog),
+    };
   } catch {
     return null;
   }
 }
 
-function saveCountriesCache(countries) {
+function saveCountriesCache(countries, display, documentCatalog) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(
       COUNTRIES_CACHE_KEY,
-      JSON.stringify({ countries, savedAt: Date.now() })
+      JSON.stringify({
+        countries,
+        display: normalizeDisplay(display),
+        documentCatalog: normalizeDocumentCatalog(documentCatalog),
+        savedAt: Date.now(),
+      })
     );
   } catch {
     /* ignore quota / private mode */
@@ -101,7 +151,18 @@ export function normalizeCountryFromApi(c) {
     basePrice: c.basePrice,
     processingDays: c.processingDays || "5-10",
     difficulty: c.difficulty || "moderate",
+    /**
+     * `visaType` and `validity` arrive pre-resolved from the server (global default
+     * when the per-country flag is true, otherwise the per-country override). The
+     * `*Override` + `useGlobal*` fields are passed through so admin tooling can show
+     * "Using global" vs "Custom override" hints.
+     */
     visaType: c.visaType || "Tourist Visa",
+    validity: typeof c.validity === "string" ? c.validity.trim() : "",
+    useGlobalVisaType: c.useGlobalVisaType !== false,
+    useGlobalValidity: c.useGlobalValidity !== false,
+    visaTypeOverride: typeof c.visaTypeOverride === "string" ? c.visaTypeOverride.trim() : "",
+    validityOverride: typeof c.validityOverride === "string" ? c.validityOverride.trim() : "",
     continent,
     locatedIn,
     regionLabel: locatedIn,
@@ -109,6 +170,10 @@ export function normalizeCountryFromApi(c) {
     description: c.description || "",
     requirements: Array.isArray(c.requirements) ? c.requirements : [],
     requiredDocuments: Array.isArray(c.requiredDocuments) ? c.requiredDocuments : ["passport"],
+    useGlobalRequiredDocuments: c.useGlobalRequiredDocuments !== false,
+    requiredDocumentsOverride: Array.isArray(c.requiredDocumentsOverride)
+      ? c.requiredDocumentsOverride.map((k) => String(k ?? "").trim()).filter(Boolean)
+      : [],
     trending: Boolean(c.trending),
     successRate: c.successRate || 80,
     whyBookNow: Array.isArray(c.whyBookNow)
@@ -144,6 +209,9 @@ export function normalizeCountryFromApi(c) {
       : [],
     excludeDestinationFaqQuestions: Array.isArray(c.excludeDestinationFaqQuestions)
       ? c.excludeDestinationFaqQuestions.map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)
+      : [],
+    excludeDestinationVisaRequirements: Array.isArray(c.excludeDestinationVisaRequirements)
+      ? c.excludeDestinationVisaRequirements.map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)
       : [],
   };
 }
@@ -198,7 +266,7 @@ export function useMergedCountry(countryId, listCountry) {
 function buildInitialCountriesState() {
   const cached = loadCountriesCache();
   if (cached) {
-    const withResolved = cached.map((c) =>
+    const withResolved = cached.countries.map((c) =>
       withRegionLabel({
         ...c,
         imageUrl: resolveImageUrl(c.imageUrl),
@@ -207,11 +275,15 @@ function buildInitialCountriesState() {
     return {
       countries: withResolved,
       trendingCountries: withResolved.filter((c) => c.trending),
+      display: cached.display,
+      documentCatalog: cached.documentCatalog,
     };
   }
   return {
     countries: COUNTRIES.map((c) => withRegionLabel(withBlankImageUrl(c))),
     trendingCountries: TRENDING_COUNTRIES.map((c) => withRegionLabel(withBlankImageUrl(c))),
+    display: { ...DEFAULT_DISPLAY },
+    documentCatalog: [],
   };
 }
 
@@ -219,6 +291,8 @@ export function useCountries() {
   const initial = buildInitialCountriesState();
   const [countries, setCountries] = useState(() => initial.countries);
   const [trendingCountries, setTrendingCountries] = useState(() => initial.trendingCountries);
+  const [display, setDisplay] = useState(() => initial.display);
+  const [documentCatalog, setDocumentCatalog] = useState(() => initial.documentCatalog);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -230,10 +304,14 @@ export function useCountries() {
 
         if (!cancelled && data.success && data.countries?.length > 0) {
           const normalised = data.countries.map((c) => normalizeCountryFromApi(c));
+          const nextDisplay = normalizeDisplay(data.display);
+          const nextCatalog = normalizeDocumentCatalog(data.documentCatalog);
 
-          saveCountriesCache(normalised);
+          saveCountriesCache(normalised, nextDisplay, nextCatalog);
           setCountries(normalised);
           setTrendingCountries(normalised.filter((c) => c.trending));
+          setDisplay(nextDisplay);
+          setDocumentCatalog(nextCatalog);
         } else if (!cancelled) {
           setCountries(COUNTRIES.map((c) => withRegionLabel(prepareCountry(c))));
           setTrendingCountries(TRENDING_COUNTRIES.map((c) => withRegionLabel(prepareCountry(c))));
@@ -254,5 +332,5 @@ export function useCountries() {
     return () => { cancelled = true; };
   }, []);
 
-  return { countries, trendingCountries, loading };
+  return { countries, trendingCountries, display, documentCatalog, loading };
 }

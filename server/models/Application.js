@@ -65,7 +65,10 @@ const applicationSchema = new mongoose.Schema({
   visaFileName: { type: String, default: "" },
   visaFileUploadedAt: { type: Date, default: null },
 
-  notes: { type: String }
+  /** Internal / system messages (e.g. checkout draft). */
+  notes: { type: String },
+  /** Free-text message from the applicant (special requests, extra context). */
+  applicantNotes: { type: String, default: '', maxlength: 8000 },
 }, {
   timestamps: true
 });

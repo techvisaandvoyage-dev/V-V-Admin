@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle, CreditCard, FileText, Loader2, ShieldCheck, Info } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
+import Modal from "../components/ui/Modal";
 import { api, useAuthStore } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
 import { openRazorpayForApplication, validateRazorpayCheckoutReadiness } from "../utils/razorpayCheckout";
@@ -17,6 +18,9 @@ const normalizeProcessingDays = (value) => {
 const SERVICE_FEE_PER_TRAVELLER = 1500;
 const GST_RATE = 0.18;
 
+/** Same slug as `/terms` and the CMS seed — public GET `/api/pages/:slug`. */
+const TERMS_CMS_SLUG = "terms-and-conditions";
+
 const ApplicationSummaryPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -27,6 +31,10 @@ const ApplicationSummaryPage = () => {
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [termsPage, setTermsPage] = useState(null);
+  const [termsPageLoading, setTermsPageLoading] = useState(false);
+  const [termsPageError, setTermsPageError] = useState("");
   const [paying, setPaying] = useState(false);
   const [razorpayReady, setRazorpayReady] = useState(false);
   const [razorpayMessage, setRazorpayMessage] = useState("");
@@ -79,6 +87,30 @@ const ApplicationSummaryPage = () => {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    if (!termsModalOpen) return;
+    if (termsPage) return;
+    let cancelled = false;
+    const loadTerms = async () => {
+      setTermsPageLoading(true);
+      setTermsPageError("");
+      try {
+        const { data } = await api.get(`/pages/${TERMS_CMS_SLUG}`);
+        if (cancelled) return;
+        if (data?.page) setTermsPage(data.page);
+        else setTermsPageError(data?.message || "Terms page is not available.");
+      } catch (err) {
+        if (!cancelled) {
+          setTermsPageError(err.response?.data?.message || "Could not load terms and conditions.");
+        }
+      } finally {
+        if (!cancelled) setTermsPageLoading(false);
+      }
+    };
+    loadTerms();
+    return () => { cancelled = true; };
+  }, [termsModalOpen, termsPage]);
+
   const travelerCount = Math.max(1, Number(application?.travellerCount || 1));
 
   const travelerNames = useMemo(() => {
@@ -96,10 +128,44 @@ const ApplicationSummaryPage = () => {
     };
   }, [application?.fee, travelerCount]);
 
-  const docsUploaded =
-    (summaryData && summaryData.docsUploaded === true) ||
-    Array.isArray(application?.travellerDocuments) &&
-    application.travellerDocuments.length >= travelerCount;
+  /**
+   * Compute the "documents uploaded" status for the status tile + step pill.
+   *
+   * IMPORTANT: `application.travellerDocuments` is created with one entry per
+   * traveler by the upload flow even when the user uploads no files (the form
+   * still calls `PUT /users/applications/:id` to save the traveler name /
+   * gdriveLink). So `travellerDocuments.length >= travelerCount` is NOT a
+   * reliable signal — we have to look at whether each entry actually contains
+   * a non-empty `documents` map (or any `otherDocuments` / `gdriveLink`).
+   *
+   * Priority:
+   *   1. If the caller explicitly told us via `location.state.docsSkipped`
+   *      that the user chose to skip the upload step → docsUploaded = false.
+   *   2. If `summaryData.docsUploaded` is an explicit boolean → trust it.
+   *   3. Otherwise inspect each traveler entry on the server record.
+   */
+  const docsUploaded = useMemo(() => {
+    if (docsSkipped) return false;
+    if (summaryData && typeof summaryData.docsUploaded === "boolean") {
+      return summaryData.docsUploaded;
+    }
+    const entries = Array.isArray(application?.travellerDocuments)
+      ? application.travellerDocuments
+      : [];
+    if (entries.length < travelerCount) return false;
+    const entryHasUpload = (entry) => {
+      if (!entry || typeof entry !== "object") return false;
+      const docs = entry.documents;
+      if (docs) {
+        if (docs instanceof Map && docs.size > 0) return true;
+        if (typeof docs === "object" && Object.keys(docs).length > 0) return true;
+      }
+      if (Array.isArray(entry.otherDocuments) && entry.otherDocuments.length > 0) return true;
+      if (typeof entry.gdriveLink === "string" && entry.gdriveLink.trim().length > 0) return true;
+      return false;
+    };
+    return entries.slice(0, travelerCount).every(entryHasUpload);
+  }, [docsSkipped, summaryData, application?.travellerDocuments, travelerCount]);
   const UPLOAD_SECTION_HASH = "#document-upload-section";
 
   const openDocumentUploadSection = () => {
@@ -383,9 +449,17 @@ const ApplicationSummaryPage = () => {
             />
             <span className="text-sm text-text-secondary leading-snug">
               I agree to the{" "}
-              <a href="/terms" className="text-cyan hover:underline font-medium" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="text-cyan hover:underline font-medium bg-transparent border-0 p-0 cursor-pointer inline align-baseline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTermsModalOpen(true);
+                }}
+              >
                 terms and conditions
-              </a>{" "}
+              </button>{" "}
               and understand that the amount above covers service charges only.
             </span>
           </label>
@@ -415,6 +489,48 @@ const ApplicationSummaryPage = () => {
         </div>
 
       </main>
+
+      <Modal
+        isOpen={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        title={termsPage?.title || "Terms and Conditions"}
+        size="md"
+        footer={
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-0.5 w-4 h-4 shrink-0 rounded border-border text-cyan accent-cyan"
+              />
+              <span className="text-sm text-text-secondary leading-snug">
+                I agree to the terms and conditions and understand that the amount above covers service charges only.
+              </span>
+            </label>
+            <Button variant="secondary" size="md" fullWidth onClick={() => setTermsModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        <div className="max-h-[min(52vh,400px)] overflow-y-auto overscroll-contain pr-0.5 -mr-0.5">
+          {termsPageLoading && (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-cyan animate-spin" />
+            </div>
+          )}
+          {!termsPageLoading && termsPageError && (
+            <p className="text-sm text-amber-400 text-center py-6">{termsPageError}</p>
+          )}
+          {!termsPageLoading && !termsPageError && termsPage?.content && (
+            <article
+              className="prose prose-sm prose-neutral max-w-none text-text-primary prose-headings:text-text-primary prose-p:text-text-secondary prose-li:text-text-secondary prose-strong:text-text-primary prose-a:text-cyan [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:p-2 [&_th]:border [&_th]:border-border [&_th]:bg-surface-2 [&_th]:p-2 [&_ul]:pl-4"
+              dangerouslySetInnerHTML={{ __html: termsPage.content }}
+            />
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

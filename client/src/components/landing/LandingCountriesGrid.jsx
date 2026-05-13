@@ -5,12 +5,68 @@ import Button from "../ui/Button";
 import ImageWithShimmer from "../ui/ImageWithShimmer";
 import { getCountryFlagEmoji, getCountryCardCodeBadge } from "../../utils/countrySearch";
 
-function getVisaCardTypeLabel(visaTypeValue) {
-  const value = String(visaTypeValue || "").toLowerCase();
-  if (value.includes("free")) return "Visa Free";
-  if (value.includes("e-visa") || value.includes("evisa")) return "e-Visa Only";
-  return "All Visa Types";
+/** Show the actual visa type set in admin (no longer collapsed to 3 buckets). */
+function getCardVisaTypeLabel(visaTypeValue) {
+  const value = String(visaTypeValue || "").trim();
+  return value || "Tourist Visa";
 }
+
+/** Same trick used on the details page — show "5-10 days" when only digits, else verbatim. */
+function getProcessingDaysLabel(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "—";
+  return /^\d+(\s*-\s*\d+)?$/.test(v) ? `${v} days` : v;
+}
+
+/**
+ * Build the ordered tile list shown at the bottom of each country card. We always
+ * cap the card at THREE tiles to keep the layout uniform. Priority order is:
+ *
+ *   1. Visa Type (if `showVisaType` is on)
+ *   2. Validity  (if `showValidity` is on)
+ *   3. Fee — always shown, never togglable
+ *
+ * Processing Days is a **fill-in tile**: it slides in only when one of Visa Type
+ * or Validity is hidden, taking that freed slot. If all three core tiles are on
+ * we never display Processing Days on the card (it still shows on the details
+ * page). Toggling Processing Days off simply prevents it from ever filling.
+ */
+function buildCountryTiles(country, display) {
+  const tiles = [];
+  if (display?.showVisaType !== false) {
+    tiles.push({
+      key: "visaType",
+      label: "VISA TYPE",
+      value: getCardVisaTypeLabel(country.visaType),
+    });
+  }
+  if (display?.showValidity !== false) {
+    tiles.push({
+      key: "validity",
+      label: "VALIDITY",
+      value: country.validity || "—",
+    });
+  }
+  // Only slot Processing Days in when there's free space before Fee (i.e. Type
+  // and/or Validity were toggled off). +1 reserves the Fee slot.
+  if (display?.showProcessingDays !== false && tiles.length + 1 < 3) {
+    tiles.push({
+      key: "processingDays",
+      label: "PROCESSING",
+      value: getProcessingDaysLabel(country.processingDays),
+    });
+  }
+  tiles.push({ key: "fees", label: "FEES", value: `₹${country.basePrice}` });
+  return tiles;
+}
+
+/** Tailwind cannot generate `grid-cols-N` from a runtime variable. */
+const GRID_COLS_BY_COUNT = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+};
 
 /**
  * Isolated grid so typing / geocode updates in the hero do not re-render these heavy cards.
@@ -18,6 +74,7 @@ function getVisaCardTypeLabel(visaTypeValue) {
 const LandingCountriesGrid = memo(function LandingCountriesGrid({
   filteredCountries,
   countryCardRefs,
+  display,
   onNavigateDestination,
   onNavigateAll,
 }) {
@@ -89,18 +146,25 @@ const LandingCountriesGrid = memo(function LandingCountriesGrid({
                 </div>
 
                 <div className="absolute bottom-0 left-0 w-full p-6">
-                  <div className="grid grid-cols-2 pb-2 gap-2 text-center">
-                    <div>
-                      <p className="text-[15px] tracking-widest text-white/65 mb-0.5">VISA TYPE</p>
-                      <p className="text-[13px] font-semibold text-white">
-                        {getVisaCardTypeLabel(country.visaType)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[15px] tracking-widest text-white/65 mb-0.5">FEES</p>
-                      <p className="text-[13px] font-semibold text-white">₹{country.basePrice}</p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const tiles = buildCountryTiles(country, display);
+                    const cols = GRID_COLS_BY_COUNT[tiles.length] || "grid-cols-3";
+                    return (
+                      <div className={`grid ${cols} pb-2 gap-2 text-center`}>
+                        {tiles.map((tile) => (
+                          <div key={tile.key} className="min-w-0">
+                            <p className="text-[11px] sm:text-[12px] tracking-widest text-white/65 mb-0.5">{tile.label}</p>
+                            <p
+                              className="text-[12px] sm:text-[13px] font-semibold text-white truncate"
+                              title={tile.value}
+                            >
+                              {tile.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </ImageWithShimmer>
             </div>

@@ -19,13 +19,38 @@ const fadeUp = {
 
 const AllDestinationsPage = () => {
   const navigate = useNavigate();
-  const { countries } = useCountries();
+  const { countries, display } = useCountries();
 
-  const getVisaCardTypeLabel = (visaTypeValue) => {
-    const value = String(visaTypeValue || "").toLowerCase();
-    if (value.includes("free")) return "Visa Free";
-    if (value.includes("e-visa") || value.includes("evisa")) return "e-Visa Only";
-    return "All Visa Types";
+  /** Show the actual admin-set visa type (no more 3-bucket collapse). */
+  const getCardVisaTypeLabel = (visaTypeValue) => {
+    const value = String(visaTypeValue || "").trim();
+    return value || "Tourist Visa";
+  };
+
+  /** "5-10 days" when only digits, else verbatim. Falls back to em-dash. */
+  const getProcessingDaysLabel = (value) => {
+    const v = String(value ?? "").trim();
+    if (!v) return "—";
+    return /^\d+(\s*-\s*\d+)?$/.test(v) ? `${v} days` : v;
+  };
+
+  /** Tailwind safelist hook — `grid-cols-N` must be a literal class name. */
+  const GRID_COLS = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" };
+
+  /**
+   * Same tile-building helper as the landing grid. Cap at 3 tiles with priority
+   * Visa Type → Validity → Fee. Processing Days slides in only when Visa Type
+   * or Validity is hidden, never displacing Fee.
+   */
+  const buildTiles = (country) => {
+    const tiles = [];
+    if (display?.showVisaType !== false) tiles.push({ key: "visaType", label: "VISA TYPE", value: getCardVisaTypeLabel(country.visaType) });
+    if (display?.showValidity !== false) tiles.push({ key: "validity", label: "VALIDITY", value: country.validity || "—" });
+    if (display?.showProcessingDays !== false && tiles.length + 1 < 3) {
+      tiles.push({ key: "processingDays", label: "PROCESSING", value: getProcessingDaysLabel(country.processingDays) });
+    }
+    tiles.push({ key: "fees", label: "FEES", value: `₹${country.basePrice}` });
+    return tiles;
   };
 
   // Always open this listing from the top when users arrive from the landing page CTA.
@@ -138,16 +163,25 @@ const AllDestinationsPage = () => {
                     </div>
 
                     <div className="absolute bottom-0 left-0 w-full p-6">
-                      <div className="grid grid-cols-2 pb-2 gap-2 text-center text-xs">
-                        <div>
-                          <p className="text-[15px] tracking-widest text-white/65 mb-0.5">VISA TYPE</p>
-                          <p className="text-[13px] font-semibold text-white">{getVisaCardTypeLabel(country.visaType)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[15px] tracking-widest text-white/65 mb-0.5">FEES</p>
-                          <p className="text-[13px] font-semibold text-white">₹{country.basePrice}</p>
-                        </div>
-                      </div>
+                      {(() => {
+                        const tiles = buildTiles(country);
+                        const cols = GRID_COLS[tiles.length] || "grid-cols-3";
+                        return (
+                          <div className={`grid ${cols} pb-2 gap-2 text-center text-xs`}>
+                            {tiles.map((tile) => (
+                              <div key={tile.key} className="min-w-0">
+                                <p className="text-[11px] sm:text-[12px] tracking-widest text-white/65 mb-0.5">{tile.label}</p>
+                                <p
+                                  className="text-[12px] sm:text-[13px] font-semibold text-white truncate"
+                                  title={tile.value}
+                                >
+                                  {tile.value}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </ImageWithShimmer>
                 </div>

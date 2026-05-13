@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -13,11 +13,28 @@ import {
   Plus,
   X,
   ListChecks,
+  ScrollText,
+  FileText,
+  CreditCard,
+  Image as ImageIcon,
+  Plane,
+  Building2,
+  Briefcase,
+  Banknote,
+  GraduationCap,
+  Stethoscope,
+  Stamp,
+  Receipt,
+  Home,
+  Car,
+  MapPin,
+  HeartHandshake,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import Button from "../components/ui/Button";
 import ImageWithShimmer from "../components/ui/ImageWithShimmer";
+import DateRangePicker from "../components/ui/DateRangePicker";
 import { useDataStore } from "../store/dataStore";
 import { useAuthStore, api } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
@@ -32,7 +49,7 @@ import {
   needsEmailContactGate,
 } from "../utils/contactVerificationGate";
 import { loadTravelDraft, saveTravelDraft } from "../utils/travelDraftStorage";
-import { getLocalDateYmd, maxYmd } from "../utils/dateInput";
+import { getLocalDateYmd } from "../utils/dateInput";
 
 const ease = [0.16, 1, 0.3, 1];
 const fadeUp = {
@@ -47,20 +64,85 @@ const normalizeProcessingDays = (value) => {
   return Number(matches[matches.length - 1]);
 };
 
+/**
+ * Per-document icon mapping shared with the admin Controls panel + the upload
+ * pages. Any unknown key (e.g. an admin-added custom document) falls back to
+ * a generic `FileText` icon.
+ */
+const DOCUMENT_ICONS = {
+  passport: FileText,
+  oldPassport: FileText,
+  photo: ImageIcon,
+  idCard: CreditCard,
+  panCard: CreditCard,
+  drivingLicense: Car,
+  birthCertificate: FileText,
+  dobCertificate: FileText,
+  marriageCertificate: HeartHandshake,
+  educationCertificate: GraduationCap,
+  employmentLetter: Briefcase,
+  offerLetter: Briefcase,
+  salarySlip: Receipt,
+  form16: Receipt,
+  taxReturn: Receipt,
+  bankStatement: Banknote,
+  bankCertificate: Banknote,
+  propertyDocuments: Home,
+  travelInsurance: ShieldCheck,
+  healthInsurance: ShieldCheck,
+  flightTicket: Plane,
+  hotelBooking: Building2,
+  itinerary: MapPin,
+  coverLetter: FileText,
+  invitationLetter: FileText,
+  sponsorLetter: FileText,
+  policeClearance: ScrollText,
+  noObjectionCertificate: ScrollText,
+  yellowFever: Stethoscope,
+  covidVaccination: Stethoscope,
+  visaApplicationForm: Stamp,
+  businessLicense: Briefcase,
+  companyRegistration: Briefcase,
+};
+const getDocumentIcon = (key) => DOCUMENT_ICONS[key] || FileText;
+
+// Built-in label fallbacks shown on the public destination page when the live
+// catalog hasn't been fetched yet (and for any built-in key the server might
+// emit). Custom admin docs are resolved via `documentCatalog` from useCountries.
 const DOCUMENT_LABELS = {
-  passport: "Passport Upload",
-  idCard: "Aadhaar Card Upload",
-  dobCertificate: "DOB Certificate Upload",
-  photo: "Passport Photo Upload",
-  bankStatement: "Bank Statement Upload",
-  travelInsurance: "Travel Insurance Upload",
-  flightTicket: "Flight Ticket Upload",
-  hotelBooking: "Hotel Booking Upload",
-  coverLetter: "Cover Letter Upload",
-  invitationLetter: "Invitation Letter Upload",
-  employmentLetter: "Employment Letter Upload",
-  taxReturn: "ITR / Tax Return Upload",
-  marriageCertificate: "Marriage Certificate Upload",
+  passport: "Passport",
+  oldPassport: "Old / Previous Passport",
+  photo: "Passport Photo",
+  idCard: "Aadhaar / ID Card",
+  panCard: "PAN Card",
+  drivingLicense: "Driving License",
+  birthCertificate: "Birth Certificate",
+  dobCertificate: "DOB Certificate",
+  marriageCertificate: "Marriage Certificate",
+  educationCertificate: "Education / Academic Records",
+  employmentLetter: "Employment Letter",
+  offerLetter: "Offer Letter",
+  salarySlip: "Salary Slip / Pay Stub",
+  form16: "Form 16",
+  taxReturn: "ITR / Tax Return",
+  bankStatement: "Bank Statement",
+  bankCertificate: "Bank Solvency Certificate",
+  propertyDocuments: "Property Documents",
+  travelInsurance: "Travel Insurance",
+  healthInsurance: "Health Insurance",
+  flightTicket: "Flight Ticket",
+  hotelBooking: "Hotel Booking",
+  itinerary: "Travel Itinerary",
+  coverLetter: "Cover Letter",
+  invitationLetter: "Invitation Letter",
+  sponsorLetter: "Sponsor / Affidavit Letter",
+  policeClearance: "Police Clearance Certificate",
+  noObjectionCertificate: "No Objection Certificate (NOC)",
+  yellowFever: "Yellow Fever Certificate",
+  covidVaccination: "COVID Vaccination Certificate",
+  visaApplicationForm: "Visa Application Form",
+  businessLicense: "Business License",
+  companyRegistration: "Company Registration Certificate",
 };
 
 const createTravelerState = () => ({
@@ -74,9 +156,21 @@ const CountryDetails = () => {
   const { fetchUserApplications, bookings } = useDataStore();
   const { isAuthenticated, user, sessionAuthMethod } = useAuthStore();
   const { showToast } = useUIStore();
-  const { countries: allCountries } = useCountries();
+  const { countries: allCountries, display: countryDisplay, documentCatalog } = useCountries();
   const listCountry = allCountries.find((c) => c.id === countryId);
   const country = useMergedCountry(countryId, listCountry);
+
+  /**
+   * Map document key → label using the universal catalog (built-in + admin's
+   * custom additions). Falls back to the hardcoded built-in map and finally to
+   * a humanised version of the key so an unknown doc never renders as garbage.
+   */
+  const getDocumentLabel = (key) => {
+    const fromCatalog = documentCatalog?.find?.((d) => d.key === key)?.label;
+    if (fromCatalog) return fromCatalog;
+    if (DOCUMENT_LABELS[key]) return DOCUMENT_LABELS[key];
+    return `${key.replace(/([A-Z])/g, " $1")} Upload`;
+  };
 
   // ── All hooks must be called before any conditional return (Rules of Hooks) ──
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
@@ -84,6 +178,8 @@ const CountryDetails = () => {
   const [visaOption, setVisaOption] = useState("e-Visa");
   const [travelDateFrom, setTravelDateFrom] = useState("");
   const [travelDateTo, setTravelDateTo] = useState("");
+  /** Open/closed state for the date-range calendar popup. */
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [travelers, setTravelers] = useState([createTravelerState()]);
   const [paymentSummaryOpen, setPaymentSummaryOpen] = useState(false);
   const [visaTermsAccepted, setVisaTermsAccepted] = useState(false);
@@ -98,6 +194,26 @@ const CountryDetails = () => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalMode, setContactModalMode] = useState("phone");
   const pendingContactAction = useRef(null);
+  /**
+   * When a guest hits an action that requires authentication ("Upload docs
+   * first" / "Upload docs later"), we attach a `?postLoginAction=<key>` to the
+   * redirect URL. The value is captured synchronously via the lazy `useState`
+   * initialiser so the splash overlay shows on the very first render — no
+   * flash of the destination page between the login redirect and the target
+   * route. A separate effect strips the param from the URL so a refresh
+   * doesn't keep re-triggering the same flow.
+   */
+  const [pendingPostLoginAction, setPendingPostLoginAction] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("postLoginAction") || null;
+  });
+  /**
+   * Stable map of "post-login action key → handler". Populated below in the
+   * render body (after the handlers are declared) so the dispatch effect can
+   * reach them despite the early-return Rules-of-Hooks dance.
+   */
+  const postLoginHandlersRef = useRef({});
 
   const SERVICE_FEE_PER_TRAVELLER = 1500;
   const GST_RATE = 0.18;
@@ -221,6 +337,24 @@ const CountryDetails = () => {
     ];
   }, [country, destinationPageContent]);
 
+  /**
+   * Visa requirements = global defaults (with country exclusions applied) + the country's
+   * free-text `requirements` array appended as country-specific extras. Duplicates skipped.
+   */
+  const visaRequirements = useMemo(() => {
+    const ex = new Set(country?.excludeDestinationVisaRequirements || []);
+    const g = (destinationPageContent?.visaRequirements || []).filter((line) => !ex.has(normKey(line)));
+    const merged = mergeStringLists(g, country?.requirements);
+    if (merged.length) return merged;
+    return [
+      "Original passport valid for at least 6 months with two blank pages",
+      "Recent passport-size photograph on white background",
+      "Confirmed return flight tickets",
+      "Hotel booking or proof of accommodation for the entire stay",
+      "Bank statements showing sufficient funds for the trip",
+    ];
+  }, [country, destinationPageContent]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -250,6 +384,42 @@ const CountryDetails = () => {
     checkReadiness();
     return () => { active = false; };
   }, [paymentSummaryOpen]);
+
+  /**
+   * Auto-focus the first empty traveler name input whenever the travel-details
+   * panel opens or a new traveler row is added. This gives the user the
+   * "blinking cursor ready to type" experience without an extra click. We do
+   * NOT steal focus on every render — only when the empty-slot count grows or
+   * the panel transitions from closed → open.
+   */
+  useEffect(() => {
+    if (!showTravelDetails) return;
+    const focusFirstEmpty = () => {
+      const firstEmptyIndex = travelers.findIndex(
+        (traveler) => !String(traveler?.name || "").trim()
+      );
+      if (firstEmptyIndex < 0) return;
+      const node = travelerNameInputRefs.current[firstEmptyIndex];
+      if (!node) return;
+      // Skip if the user is already typing somewhere else (e.g. date pickers).
+      const active = document.activeElement;
+      if (active && active !== document.body && active.tagName !== "BUTTON") return;
+      try {
+        node.focus({ preventScroll: true });
+        // Place caret at the end if there's any existing text.
+        const len = node.value?.length || 0;
+        if (len) node.setSelectionRange(len, len);
+      } catch {
+        /* ignore */
+      }
+    };
+    // Defer one frame so the panel's mount animation doesn't fight the focus.
+    const raf = window.requestAnimationFrame(focusFirstEmpty);
+    return () => window.cancelAnimationFrame(raf);
+    // We intentionally key off the traveler count + panel state — re-running on
+    // every keystroke would yank focus back from the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTravelDetails, travelers.length]);
 
   useEffect(() => {
     const handleGlobalTypingForTravelerName = (event) => {
@@ -337,6 +507,50 @@ const CountryDetails = () => {
     }
   }, [countryId]);
 
+  // Read `?postLoginAction=...` once on mount, then strip it from the URL so
+  // a manual refresh doesn't keep re-triggering the resumed flow. The actual
+  // dispatch happens in the next effect once everything is hydrated.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = params.get("postLoginAction");
+    if (!action) return;
+    setPendingPostLoginAction(action);
+    params.delete("postLoginAction");
+    const cleaned = params.toString();
+    navigate(`${location.pathname}${cleaned ? `?${cleaned}` : ""}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Freeze body scroll while the post-login resume splash is on top so the
+  // user can't accidentally interact with the destination page underneath.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!pendingPostLoginAction) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [pendingPostLoginAction]);
+
+  // Dispatch the saved action once the page has hydrated:
+  //   1. countries fetched (country becomes truthy),
+  //   2. user is authenticated,
+  //   3. travel draft has been read into state (dates + every traveler name).
+  // Looking everything up via the ref means we don't have to worry about the
+  // handler definitions living below the early return.
+  useEffect(() => {
+    if (!pendingPostLoginAction) return;
+    if (!country || !isAuthenticated) return;
+    if (!travelDateFrom || !travelDateTo) return;
+    if (!travelers.every((t) => String(t.name || "").trim())) return;
+    const fn = postLoginHandlersRef.current[pendingPostLoginAction];
+    if (typeof fn !== "function") return;
+    setPendingPostLoginAction(null);
+    const id = window.setTimeout(() => fn(), 60);
+    return () => window.clearTimeout(id);
+  }, [pendingPostLoginAction, country, isAuthenticated, travelDateFrom, travelDateTo, travelers]);
+
   // ── Safe to early-return after all hooks ──
   if (!country) {
     return (
@@ -348,14 +562,14 @@ const CountryDetails = () => {
   }
 
   const minDepartureYmd = getLocalDateYmd();
-  const minReturnYmd = maxYmd(minDepartureYmd, travelDateFrom);
 
   const requiredDocumentKeys = Array.isArray(country.requiredDocuments) && country.requiredDocuments.length
     ? country.requiredDocuments
     : ["passport"];
   const requiredDocumentFields = requiredDocumentKeys.map((key) => ({
     key,
-    label: DOCUMENT_LABELS[key] || `${key.replace(/([A-Z])/g, " $1")} Upload`,
+    label: getDocumentLabel(key),
+    Icon: getDocumentIcon(key),
   }));
 
   const handleBack = () => {
@@ -405,22 +619,26 @@ const CountryDetails = () => {
     }
   };
 
-  const getVisaCardTypeLabel = (visaTypeValue) => {
-    const value = String(visaTypeValue || "").toLowerCase();
-    if (value.includes("free")) return "Visa Free";
-    if (value.includes("e-visa") || value.includes("evisa")) return "e-Visa Only";
-    return "All Visa Types";
+  /** Show the actual admin-set visa type on the country basics card (no 3-bucket collapse). */
+  const getCardVisaTypeLabel = (visaTypeValue) => {
+    const value = String(visaTypeValue || "").trim();
+    return value || "Tourist Visa";
   };
 
   const SUB_NAV = showTravelDetails
     ? [{ id: "travel-details", label: "Travel Details" }]
     : [
-    { id: "how-it-works", label: "How it works" },
-    { id: "document-requirements", label: "Document Requirements" },
-    { id: "why-book-now", label: "Why book now?" },
-    { id: "whats-included", label: "What's Included" },
-    { id: "faqs", label: "FAQs" },
-  ];
+        { id: "how-it-works", label: "How it works" },
+        { id: "visa-requirements", label: "Visa Requirements" },
+        // Skip the Document Requirements nav entry when the universal toggle hides
+        // the entire section — clicking it would scroll to nothing.
+        ...(countryDisplay?.showRequiredDocuments !== false
+          ? [{ id: "document-requirements", label: "Document Requirements" }]
+          : []),
+        { id: "why-book-now", label: "Why book now?" },
+        { id: "whats-included", label: "What's Included" },
+        { id: "faqs", label: "FAQs" },
+      ];
 
   const scrollToSection = (sectionId) => {
     const node = document.getElementById(sectionId);
@@ -476,23 +694,43 @@ const CountryDetails = () => {
     gateContactOrRun(() => openTravelDetails());
   };
 
+  /**
+   * Persist whatever the guest has typed into the travel-details panel so the
+   * form is restored after they bounce through /login. Called from BOTH the
+   * "Upload docs now" / "Upload docs later" entry points before any auth
+   * redirect can swallow the state.
+   */
+  const persistCurrentTravelDraft = () => {
+    saveTravelDraft(country.id, {
+      travelDateFrom,
+      travelDateTo,
+      visaOption,
+      travelers: travelers.map((t) => ({ name: String(t.name || "") })),
+      showTravelDetails: true,
+    });
+  };
+
+  /** Build the `redirect=` value used when a guest needs to log in mid-flow. */
+  const buildLoginRedirect = (postAction) => {
+    const params = new URLSearchParams();
+    if (postAction) params.set("postLoginAction", postAction);
+    const qs = params.toString();
+    return `${location.pathname}${qs ? `?${qs}` : ""}`;
+  };
+
   const handleUploadDocsNow = () => {
     if (!validateTravelDetails("Upload documents now")) return;
     const token = localStorage.getItem("token");
+    // Save the form ALWAYS — even when bouncing through login — so the user
+    // returns to a fully-filled travel-details panel.
+    persistCurrentTravelDraft();
     if (!isAuthenticated && !token) {
-      const next = `${location.pathname}${location.search || ""}`;
+      const next = buildLoginRedirect("upload-now");
       navigate(`/login?redirect=${encodeURIComponent(next)}`);
-      showToast("Please log in to upload traveler documents.", "info");
+      showToast("Please log in to continue with uploading documents.", "info");
       return;
     }
     gateContactOrRun(() => {
-      saveTravelDraft(country.id, {
-        travelDateFrom,
-        travelDateTo,
-        visaOption,
-        travelers: travelers.map((t) => ({ name: String(t.name || "") })),
-        showTravelDetails: true,
-      });
       navigate(`/apply/${country.id}`, {
         state: {
           travelerNames: getTravelerNames(),
@@ -510,10 +748,11 @@ const CountryDetails = () => {
     const travelerNames = getTravelerNames();
 
     const token = localStorage.getItem("token");
+    persistCurrentTravelDraft();
     if (!isAuthenticated && !token) {
-      const next = `${location.pathname}${location.search || ""}`;
+      const next = buildLoginRedirect("upload-later");
       navigate(`/login?redirect=${encodeURIComponent(next)}`);
-      showToast("Please log in to upload traveler documents.", "info");
+      showToast("Please log in to continue with your application.", "info");
       return;
     }
 
@@ -523,13 +762,8 @@ const CountryDetails = () => {
         showToast("Could not create your application draft.", "error");
         return;
       }
-      saveTravelDraft(country.id, {
-        travelDateFrom,
-        travelDateTo,
-        visaOption,
-        travelers: travelers.map((t) => ({ name: String(t.name || "") })),
-        showTravelDetails: true,
-      });
+      // Travel draft is already saved by `persistCurrentTravelDraft()` above —
+      // just navigate forward.
       navigate(`/dashboard/application/${appId}/summary`, {
         state: {
           docsSkipped: true,
@@ -552,6 +786,13 @@ const CountryDetails = () => {
         },
       });
     });
+  };
+
+  // Bridge for the post-login resume effect (defined above the early return).
+  // Updating the ref each render keeps the resumed handler closure fresh.
+  postLoginHandlersRef.current = {
+    "upload-now": handleUploadDocsNow,
+    "upload-later": handleUploadDocsLater,
   };
 
   const closePaymentSummaryModal = () => {
@@ -583,9 +824,12 @@ const CountryDetails = () => {
   const createCheckoutDraftAndSetId = async () => {
     const token = localStorage.getItem("token");
     if (!isAuthenticated && !token) {
-      const next = `${location.pathname}${location.search || ""}`;
+      // Pull the draft persistence + post-login resume forward here too — this
+      // path is reached when the token silently expires mid-flow.
+      persistCurrentTravelDraft();
+      const next = buildLoginRedirect("upload-later");
       navigate(`/login?redirect=${encodeURIComponent(next)}`);
-      showToast("Please log in to upload traveler documents.", "info");
+      showToast("Please log in to continue with your application.", "info");
       return null;
     }
 
@@ -641,7 +885,8 @@ const CountryDetails = () => {
 
       if (err?.response?.status === 401) {
         localStorage.removeItem("token");
-        const next = `${location.pathname}${location.search || ""}`;
+        persistCurrentTravelDraft();
+        const next = buildLoginRedirect("upload-later");
         navigate(`/login?redirect=${encodeURIComponent(next)}`);
         showToast("Session expired. Please log in again.", "info");
         return null;
@@ -709,6 +954,26 @@ const CountryDetails = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
+      {/* Post-login resume splash — full-screen overlay shown when we're about
+          to forward the user to /apply/:id or the summary page. Sits on top of
+          everything (z-[100]) and matches the page background, so the user
+          never visibly returns to the destination page between login and the
+          target route. The dispatch effect (above) clears
+          `pendingPostLoginAction` once navigation kicks off. */}
+      {pendingPostLoginAction && (
+        <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center px-6">
+          <div className="h-12 w-12 rounded-full border-2 border-cyan/30 border-t-cyan animate-spin mb-5" />
+          <h2 className="text-lg font-semibold text-text-primary text-center">
+            Resuming your {country.name} application
+          </h2>
+          <p className="mt-2 text-sm text-text-muted text-center max-w-md">
+            {pendingPostLoginAction === "upload-now"
+              ? "Taking you to the document upload page…"
+              : "Preparing your application summary…"}
+          </p>
+        </div>
+      )}
+
       <Navbar />
 
       <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border/50 shadow-sm hidden sm:block">
@@ -801,42 +1066,25 @@ const CountryDetails = () => {
                 </div>
 
                 <div className="rounded-2xl border border-border bg-surface-2 p-4">
-                  <p className="text-xs text-text-muted mb-2">Select Travel Date</p>
-                  <div className="w-full rounded-xl border border-border bg-background px-3 py-3">
-                    <div className="flex items-center gap-2 mb-3 text-sm font-medium text-text-primary">
-                      <CalendarDays size={16} className="text-cyan" />
-                      Select Travel Date
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <input
-                        type="date"
-                        autoComplete="off"
-                        min={minDepartureYmd}
-                        value={travelDateFrom}
-                        onChange={(e) => setTravelDateFrom(e.target.value)}
-                        className={`w-full bg-surface border rounded-lg px-3 py-2 text-sm text-text-primary outline-none transition-colors ${
-                          dateWarning && !travelDateFrom
-                            ? "border-red-500 focus:border-red-400"
-                            : "border-border focus:border-cyan/50"
-                        }`}
-                      />
-                      <input
-                        type="date"
-                        autoComplete="off"
-                        min={minReturnYmd}
-                        value={travelDateTo}
-                        onChange={(e) => setTravelDateTo(e.target.value)}
-                        className={`w-full bg-surface border rounded-lg px-3 py-2 text-sm text-text-primary outline-none transition-colors ${
-                          dateWarning && !travelDateTo
-                            ? "border-red-500 focus:border-red-400"
-                            : "border-border focus:border-cyan/50"
-                        }`}
-                      />
-                    </div>
-                    {dateWarning && (
-                      <p className="text-xs text-red-400 mt-2">Select both travel dates to continue.</p>
-                    )}
+                  <div className="flex items-center gap-2 mb-3 text-sm font-medium text-text-primary">
+                    <CalendarDays size={16} className="text-cyan" />
+                    Select Travel Date
                   </div>
+                  <DateRangePicker
+                    startDate={travelDateFrom}
+                    endDate={travelDateTo}
+                    minDate={minDepartureYmd}
+                    open={calendarOpen}
+                    onOpenChange={setCalendarOpen}
+                    invalid={dateWarning}
+                    onChange={({ startDate, endDate }) => {
+                      setTravelDateFrom(startDate);
+                      setTravelDateTo(endDate);
+                    }}
+                  />
+                  {dateWarning && (
+                    <p className="text-xs text-red-400 mt-2">Select both travel dates to continue.</p>
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-border bg-surface-2 p-4">
@@ -891,8 +1139,34 @@ const CountryDetails = () => {
                           }}
                           type="text"
                           autoComplete="off"
+                          // First input gets the browser-native blinking cursor
+                          // on initial paint; subsequent inputs receive focus
+                          // programmatically via the Enter handler below.
+                          autoFocus={index === 0}
                           value={traveler.name}
                           onChange={(e) => updateTravelerName(index, e.target.value)}
+                          onKeyDown={(e) => {
+                            // Press Enter → jump to the next traveler row. On
+                            // the last row Enter blurs the input so the user
+                            // can immediately Tab to the Upload buttons.
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            const nextIndex = index + 1;
+                            const nextNode = travelerNameInputRefs.current[nextIndex];
+                            if (nextNode) {
+                              try {
+                                nextNode.focus({ preventScroll: true });
+                                const len = nextNode.value?.length || 0;
+                                if (len) nextNode.setSelectionRange(len, len);
+                              } catch {
+                                /* ignore */
+                              }
+                            } else {
+                              // Last traveler — drop focus so the global typing
+                              // capture stops, and let the user proceed.
+                              e.currentTarget.blur();
+                            }
+                          }}
                           placeholder="Enter name"
                           className={`w-full bg-background border rounded-xl px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted transition-colors ${
                             travelValidationAttempted && !String(traveler.name || "").trim()
@@ -956,19 +1230,47 @@ const CountryDetails = () => {
               </ol>
             </motion.section>
 
-            <motion.section id="document-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
-              <h2 className="text-xl font-bold text-text-primary mb-4">Document Requirements</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {requiredDocumentFields.length ? requiredDocumentFields.map((doc) => (
-                  <div key={doc.key} className="rounded-xl border border-border bg-surface-2 p-3 text-sm text-text-secondary flex items-start gap-2">
-                    <CircleCheck size={16} className="text-emerald-500 mt-0.5" />
-                    <span>{doc.label}</span>
+            <motion.section id="visa-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <ScrollText size={18} className="text-cyan" />
+                <h2 className="text-xl font-bold text-text-primary">Visa Requirements</h2>
+              </div>
+              <div className="space-y-3">
+                {visaRequirements.map((item, idx) => (
+                  <div key={`${item}-${idx}`} className="flex items-start gap-3">
+                    <CircleCheck size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-text-secondary leading-relaxed">{item}</p>
                   </div>
-                )) : (
-                  <p className="text-sm text-text-muted">No requirements configured yet.</p>
-                )}
+                ))}
               </div>
             </motion.section>
+
+            {/* Document Requirements section — hidden entirely when the admin
+                flips the universal `showRequiredDocuments` toggle off. */}
+            {countryDisplay?.showRequiredDocuments !== false && (
+              <motion.section id="document-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+                <h2 className="text-xl font-bold text-text-primary mb-4">Document Requirements</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {requiredDocumentFields.length ? requiredDocumentFields.map((doc) => {
+                    const Icon = doc.Icon;
+                    return (
+                      <div
+                        key={doc.key}
+                        className="rounded-xl border border-border bg-surface-2 p-3 text-sm text-text-secondary flex items-center gap-3"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan/10 text-cyan">
+                          <Icon size={16} strokeWidth={2} />
+                        </span>
+                        <span className="flex-1 leading-snug">{doc.label}</span>
+                        <CircleCheck size={16} className="text-emerald-500 shrink-0" />
+                      </div>
+                    );
+                  }) : (
+                    <p className="text-sm text-text-muted">No requirements configured yet.</p>
+                  )}
+                </div>
+              </motion.section>
+            )}
 
             <motion.section id="why-book-now" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -1061,12 +1363,34 @@ const CountryDetails = () => {
                     Start your application to enter travel details. Your selections will appear here.
                   </p>
                   <div className="grid grid-cols-1 gap-3">
-                    <div className="rounded-xl bg-surface-2 p-3">
-                      <p className="text-xs text-text-muted mb-1">VISA TYPE</p>
-                      <p className="text-sm font-semibold text-text-primary">
-                        {getVisaCardTypeLabel(country.visaType)}
-                      </p>
-                    </div>
+                    {countryDisplay?.showVisaType !== false && (
+                      <div className="rounded-xl bg-surface-2 p-3">
+                        <p className="text-xs text-text-muted mb-1">VISA TYPE</p>
+                        <p className="text-sm font-semibold text-text-primary">
+                          {getCardVisaTypeLabel(country.visaType)}
+                        </p>
+                      </div>
+                    )}
+                    {countryDisplay?.showValidity !== false && (
+                      <div className="rounded-xl bg-surface-2 p-3">
+                        <p className="text-xs text-text-muted mb-1">VALIDITY</p>
+                        <p className="text-sm font-semibold text-text-primary">
+                          {country.validity || "—"}
+                        </p>
+                      </div>
+                    )}
+                    {countryDisplay?.showProcessingDays !== false && (
+                      <div className="rounded-xl bg-surface-2 p-3">
+                        <p className="text-xs text-text-muted mb-1">PROCESSING DAYS</p>
+                        <p className="text-sm font-semibold text-text-primary">
+                          {country.processingDays
+                            ? /^\d+(\s*-\s*\d+)?$/.test(String(country.processingDays).trim())
+                              ? `${String(country.processingDays).trim()} days`
+                              : String(country.processingDays).trim()
+                            : "—"}
+                        </p>
+                      </div>
+                    )}
                     <div className="rounded-xl bg-surface-2 p-3">
                       <p className="text-xs text-text-muted mb-1">FEE</p>
                       <p className="text-sm font-semibold text-text-primary">
@@ -1216,9 +1540,15 @@ const CountryDetails = () => {
               />
               <span className="text-sm text-text-secondary leading-snug">
                 I agree to the{" "}
-                <a href="/terms" className="text-cyan hover:underline font-medium" onClick={(e) => e.stopPropagation()}>
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  rel="noopener"
+                  className="text-cyan hover:underline font-medium"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   terms and conditions
-                </a>{" "}
+                </Link>{" "}
                 and understand the fees above are service charges only.
               </span>
             </label>

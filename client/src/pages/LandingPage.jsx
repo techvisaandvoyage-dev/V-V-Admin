@@ -35,7 +35,7 @@ const LandingPage = () => {
   const searchInputRef = useRef(null);
   const geocodeAbortRef = useRef(null);
   const geocodeReqSeq = useRef(0);
-  const { countries: allCountries, trendingCountries } = useCountries();
+  const { countries: allCountries, trendingCountries, display: countryDisplay } = useCountries();
 
   // Search bar state
   const [searchDestination, setSearchDestination] = useState("");
@@ -406,6 +406,7 @@ const LandingPage = () => {
         countryIdsKey={countryIdsKey}
         filteredCountries={filteredCountries}
         countryCardRefs={countryCardRefs}
+        display={countryDisplay}
         onNavigateDestination={handleNavigateDestination}
         onNavigateAll={handleNavigateAll}
       />

@@ -162,9 +162,27 @@ const updateUserApplication = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
 
-    const canEdit = application.status === 'pending' || application.detailsPending === true;
-    if (!canEdit) {
-      return res.status(403).json({ success: false, message: 'This application cannot be edited' });
+    const canEditBasic = application.status === 'pending' || application.detailsPending === true;
+    const canSaveApplicantNotes =
+      application.status === 'pending' ||
+      application.status === 'review' ||
+      application.detailsPending === true;
+
+    const updates = {};
+
+    if (Object.prototype.hasOwnProperty.call(req.body, 'applicantNotes')) {
+      if (!canSaveApplicantNotes) {
+        return res.status(403).json({ success: false, message: 'Further information cannot be updated for this application.' });
+      }
+      updates.applicantNotes = String(req.body.applicantNotes ?? '').trim().slice(0, 8000);
+    }
+
+    if (!canEditBasic) {
+      if (Object.keys(updates).length === 0) {
+        return res.status(403).json({ success: false, message: 'This application cannot be edited' });
+      }
+      const updated = await Application.findByIdAndUpdate(req.params.id, updates, { new: true });
+      return res.json({ success: true, application: updated });
     }
 
     const {
@@ -178,8 +196,6 @@ const updateUserApplication = async (req, res) => {
       returnDate,
       gdriveLink,
     } = req.body;
-
-    const updates = {};
     if (firstName !== undefined) updates.firstName = String(firstName).trim() || application.firstName;
     if (lastName !== undefined) updates.lastName = String(lastName).trim() || application.lastName;
     if (email !== undefined) updates.email = String(email).trim() || application.email;
@@ -314,7 +330,11 @@ const appendApplicationDocuments = async (req, res) => {
         payload.travelerName = travelerName || payload.travelerName;
         if (gdriveLink) payload.gdriveLink = gdriveLink;
         payload.documents = { ...(payload.documents || {}), ...docMap };
-        payload.otherDocuments = otherDocuments;
+        const existingOther = Array.isArray(payload.otherDocuments)
+          ? payload.otherDocuments.map((p) => String(p || '').trim()).filter(Boolean)
+          : [];
+        const newOther = otherDocuments.map((p) => String(p || '').trim()).filter(Boolean);
+        payload.otherDocuments = [...existingOther, ...newOther];
         payload.uploadedAt = new Date();
       } else {
         payload = {

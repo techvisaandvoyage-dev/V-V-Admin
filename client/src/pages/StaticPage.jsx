@@ -25,8 +25,18 @@ const ensureMetaTag = (selector, creator) => {
   return element;
 };
 
-const StaticPage = () => {
-  const { slug } = useParams();
+/**
+ * Render a CMS-managed static page.
+ *
+ * Usually mounted at `/page/:slug` and reads the slug from the route params.
+ * Pages with a "fixed" public URL (e.g. `/terms` → Terms & Conditions) can
+ * mount this same component and supply `slugOverride` to pin the document
+ * being fetched. Falling back through the same UI keeps the look-and-feel,
+ * SEO meta handling and admin editability identical regardless of URL.
+ */
+const StaticPage = ({ slugOverride } = {}) => {
+  const { slug: paramSlug } = useParams();
+  const slug = slugOverride || paramSlug;
   const navigate = useNavigate();
   const location = useLocation();
   const [page, setPage] = useState(null);

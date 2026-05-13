@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PlusCircle, Clock, CheckCircle, FileText, ChevronRight, Calendar, Search, Filter,
   TrendingUp, Globe, ArrowLeft, User, Mail, Smartphone, Download,
+  CreditCard, Image as ImageIcon, ShieldCheck, Plane, Building2,
+  Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt,
+  Home, Car, MapPin, ScrollText, HeartHandshake,
 } from "lucide-react";
 import { StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
@@ -12,9 +15,51 @@ import Sidebar from "../components/layout/Sidebar";
 import { useAuthStore, SERVER_URL } from "../store/authStore";
 import { useDataStore } from "../store/dataStore";
 import { useUIStore } from "../store/uiStore";
-import { getApplicationProgress } from "../utils/applicationProgress";
+import { getApplicationProgress, DOCUMENT_LABELS } from "../utils/applicationProgress";
 import ContactVerificationModal from "../components/account/ContactVerificationModal";
 import { needsPhoneContactGate, needsEmailContactGate } from "../utils/contactVerificationGate";
+
+/**
+ * Map every built-in doc key → its lucide icon component. Used to render the
+ * tiny "missing documents" icon chips on each booking card. Unknown keys
+ * (custom admin-added docs) fall back to a generic FileText icon.
+ */
+const DOCUMENT_ICONS = {
+  passport: FileText,
+  oldPassport: FileText,
+  photo: ImageIcon,
+  idCard: CreditCard,
+  panCard: CreditCard,
+  drivingLicense: Car,
+  birthCertificate: FileText,
+  dobCertificate: FileText,
+  marriageCertificate: HeartHandshake,
+  educationCertificate: GraduationCap,
+  employmentLetter: Briefcase,
+  offerLetter: Briefcase,
+  salarySlip: Receipt,
+  form16: Receipt,
+  taxReturn: Receipt,
+  bankStatement: Banknote,
+  bankCertificate: Banknote,
+  propertyDocuments: Home,
+  travelInsurance: ShieldCheck,
+  healthInsurance: ShieldCheck,
+  flightTicket: Plane,
+  hotelBooking: Building2,
+  itinerary: MapPin,
+  coverLetter: FileText,
+  invitationLetter: FileText,
+  sponsorLetter: FileText,
+  policeClearance: ScrollText,
+  noObjectionCertificate: ScrollText,
+  yellowFever: Stethoscope,
+  covidVaccination: Stethoscope,
+  visaApplicationForm: Stamp,
+  businessLicense: Briefcase,
+  companyRegistration: Briefcase,
+};
+const getDocumentIcon = (key) => DOCUMENT_ICONS[key] || FileText;
 
 const fmtDate = (iso) => {
   if (!iso) return "N/A";
@@ -401,9 +446,40 @@ const UserDashboard = () => {
                                 </span>
                               )}
                               {!progress.allDocumentsUploaded && nextPendingTraveler && (
-                                <span className="text-xs text-text-muted">
-                                  {nextPendingTraveler.travelerName}: {nextPendingTraveler.missingLabels.slice(0, 2).join(", ")}
-                                </span>
+                                <div className="flex items-center gap-2 text-xs text-text-muted min-w-0">
+                                  <span className="shrink-0">{nextPendingTraveler.travelerName}:</span>
+                                  {/* Icon chip row for the first 5 missing docs.
+                                      Hover/tap each chip to see the full label.
+                                      Falls back to legacy comma text when keys
+                                      aren't available (older progress payloads). */}
+                                  {nextPendingTraveler.missingKeys?.length ? (
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      {nextPendingTraveler.missingKeys.slice(0, 5).map((key) => {
+                                        const Icon = getDocumentIcon(key);
+                                        const label = DOCUMENT_LABELS[key] || key;
+                                        return (
+                                          <span
+                                            key={key}
+                                            title={label}
+                                            aria-label={label}
+                                            className="h-5 w-5 inline-flex items-center justify-center rounded-md bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20"
+                                          >
+                                            <Icon size={11} strokeWidth={2} />
+                                          </span>
+                                        );
+                                      })}
+                                      {nextPendingTraveler.missingKeys.length > 5 && (
+                                        <span className="text-[11px] text-amber-400">
+                                          +{nextPendingTraveler.missingKeys.length - 5}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="truncate">
+                                      {nextPendingTraveler.missingLabels.slice(0, 2).join(", ")}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>

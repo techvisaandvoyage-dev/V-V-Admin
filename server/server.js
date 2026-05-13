@@ -22,6 +22,26 @@ app.use(express.json());
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Admin universal controls — mounted on `app` (not only inside the admin router) so
+// POST /api/admin/control/* always resolves the same way as other first-class routes.
+const { protect, requireAdmin } = require('./middleware/authMiddleware');
+const {
+  getGlobalCountryDefaults,
+  updateGlobalVisaType,
+  updateGlobalValidity,
+  updateGlobalProcessingDays,
+  updateGlobalRequiredDocuments,
+  manageCustomDocuments,
+  updateCountryDisplayToggles,
+} = require('./controllers/countryController');
+app.get('/api/admin/control/country-defaults', protect, requireAdmin, getGlobalCountryDefaults);
+app.post('/api/admin/control/visa-type', protect, requireAdmin, updateGlobalVisaType);
+app.post('/api/admin/control/validity', protect, requireAdmin, updateGlobalValidity);
+app.post('/api/admin/control/processing-days', protect, requireAdmin, updateGlobalProcessingDays);
+app.post('/api/admin/control/required-documents', protect, requireAdmin, updateGlobalRequiredDocuments);
+app.post('/api/admin/control/custom-documents', protect, requireAdmin, manageCustomDocuments);
+app.post('/api/admin/control/display-toggles', protect, requireAdmin, updateCountryDisplayToggles);
+
 // Routes
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
@@ -86,6 +106,16 @@ const PORT = process.env.PORT || 5000;
       await syncMissingCountries();
     } catch (err) {
       console.log('Skipping country seed:', err.message);
+    }
+
+    // ── Seed default static CMS pages (Terms & Conditions, etc.) ──
+    // Idempotent: inserts only when slug is missing, never overwrites admin
+    // edits. Failures here must not block server boot.
+    try {
+      const { seedStaticPages } = require('./seedStaticPages');
+      await seedStaticPages();
+    } catch (err) {
+      console.log('Skipping static page seed:', err.message);
     }
   });
 })();

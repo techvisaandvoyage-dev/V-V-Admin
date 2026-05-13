@@ -14,9 +14,21 @@ import {
   ShieldCheck,
   Upload,
   AlertCircle,
+  Briefcase,
+  Banknote,
+  GraduationCap,
+  Stethoscope,
+  Stamp,
+  Receipt,
+  Home,
+  Car,
+  MapPin,
+  ScrollText,
+  HeartHandshake,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
+import Modal from "../components/ui/Modal";
 import GoogleDriveLinkHint from "../components/application/GoogleDriveLinkHint";
 import { getCountryById, COUNTRIES } from "../data/countries";
 import { api, useAuthStore } from "../store/authStore";
@@ -40,19 +52,45 @@ const normalizeProcessingDays = (value) => {
 };
 
 const DOCUMENT_META = {
+  // Identity & personal
   passport: { label: "Passport Upload", Icon: FileText },
-  idCard: { label: "Aadhaar Card Upload", Icon: CreditCard },
-  dobCertificate: { label: "DOB Certificate Upload", Icon: FileText },
+  oldPassport: { label: "Old Passport Upload", Icon: FileText },
   photo: { label: "Passport Photo Upload", Icon: ImageIcon },
-  bankStatement: { label: "Bank Statement Upload", Icon: FileText },
+  idCard: { label: "Aadhaar / ID Card Upload", Icon: CreditCard },
+  panCard: { label: "PAN Card Upload", Icon: CreditCard },
+  drivingLicense: { label: "Driving License Upload", Icon: Car },
+  birthCertificate: { label: "Birth Certificate Upload", Icon: FileText },
+  dobCertificate: { label: "DOB Certificate Upload", Icon: FileText },
+  marriageCertificate: { label: "Marriage Certificate Upload", Icon: HeartHandshake },
+  educationCertificate: { label: "Education / Academic Records Upload", Icon: GraduationCap },
+  // Employment & finance
+  employmentLetter: { label: "Employment Letter Upload", Icon: Briefcase },
+  offerLetter: { label: "Offer Letter Upload", Icon: Briefcase },
+  salarySlip: { label: "Salary Slip / Pay Stub Upload", Icon: Receipt },
+  form16: { label: "Form 16 Upload", Icon: Receipt },
+  taxReturn: { label: "ITR / Tax Return Upload", Icon: Receipt },
+  bankStatement: { label: "Bank Statement Upload", Icon: Banknote },
+  bankCertificate: { label: "Bank Solvency Certificate Upload", Icon: Banknote },
+  propertyDocuments: { label: "Property Documents Upload", Icon: Home },
+  // Travel
   travelInsurance: { label: "Travel Insurance Upload", Icon: ShieldCheck },
+  healthInsurance: { label: "Health Insurance Upload", Icon: ShieldCheck },
   flightTicket: { label: "Flight Ticket Upload", Icon: Plane },
   hotelBooking: { label: "Hotel Booking Upload", Icon: Building2 },
+  itinerary: { label: "Travel Itinerary Upload", Icon: MapPin },
+  // Letters & supporting
   coverLetter: { label: "Cover Letter Upload", Icon: FileText },
   invitationLetter: { label: "Invitation Letter Upload", Icon: FileText },
-  employmentLetter: { label: "Employment Letter Upload", Icon: FileText },
-  taxReturn: { label: "ITR / Tax Return Upload", Icon: FileText },
-  marriageCertificate: { label: "Marriage Certificate Upload", Icon: FileText },
+  sponsorLetter: { label: "Sponsor / Affidavit Letter Upload", Icon: FileText },
+  // Certificates & clearances
+  policeClearance: { label: "Police Clearance Certificate Upload", Icon: ScrollText },
+  noObjectionCertificate: { label: "No Objection Certificate Upload", Icon: ScrollText },
+  yellowFever: { label: "Yellow Fever Certificate Upload", Icon: Stethoscope },
+  covidVaccination: { label: "COVID Vaccination Certificate Upload", Icon: Stethoscope },
+  // Forms & business
+  visaApplicationForm: { label: "Visa Application Form Upload", Icon: Stamp },
+  businessLicense: { label: "Business License Upload", Icon: Briefcase },
+  companyRegistration: { label: "Company Registration Certificate Upload", Icon: Briefcase },
 };
 
 const buildDocFields = (documentKeys = ["passport"]) => {
@@ -120,6 +158,14 @@ const ApplicationForm = () => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalMode, setContactModalMode] = useState("phone");
   const continueAfterContactRef = useRef(null);
+  /**
+   * Toggles the "Do you want to skip document upload?" confirmation modal.
+   * Shown when the user hits Continue without uploading every required
+   * document (or providing a Google Drive link). They can confirm to proceed
+   * straight to payment summary — the missing docs become uploadable later
+   * from their dashboard.
+   */
+  const [skipDocsConfirmOpen, setSkipDocsConfirmOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !localStorage.getItem("token")) return;
@@ -371,7 +417,17 @@ const ApplicationForm = () => {
     }
   };
 
-  const handleContinueSubmit = async () => {
+  /**
+   * Submit the application draft and jump to the payment summary.
+   *
+   * @param {object} [opts]
+   * @param {boolean} [opts.skipped] - true when the user explicitly chose to
+   *   continue without finishing the document uploads (from the "Skip document
+   *   upload?" confirmation). Forwarded to the summary page so the document
+   *   status tile shows "Pending Upload" instead of "All documents uploaded".
+   */
+  const handleContinueSubmit = async (opts = {}) => {
+    const skipped = Boolean(opts.skipped);
     const travelerNames = travelers.map((t, i) => String(t.name || "").trim() || `Traveler ${i + 1}`);
     const travelerGdriveLinks = travelers.map((t) => String(t.gdriveLink || "").trim());
     const flow = location.state;
@@ -399,9 +455,20 @@ const ApplicationForm = () => {
       }
 
       const appId = data.application._id;
+      // Persist whatever travelers already uploaded — when skipped, this may
+      // be partial / empty; that's fine. The summary tile and the dashboard
+      // missing-docs indicator will reflect reality from the application
+      // record, not from `docsUploaded` alone.
       await persistTravelerUploads(appId);
       clearTravelDraft(country.id);
-      showToast("Opening payment summary.", "success");
+      // Use `allComplete` (not the hardcoded `true`) to compute the real
+      // status. If the user clicked "Continue without docs" we additionally
+      // force it to false so the summary tile always reads as Pending Upload.
+      const everythingUploaded = !skipped && allComplete;
+      showToast(
+        everythingUploaded ? "Opening payment summary." : "Saved — you can upload remaining docs later.",
+        "success"
+      );
       const applyFlowState = {
         travelerNames,
         travellerCount: travelers.length,
@@ -411,6 +478,9 @@ const ApplicationForm = () => {
       };
       navigate(`/dashboard/application/${appId}/summary`, {
         state: {
+          // `docsSkipped` is the same flag CountryDetails → "Upload later"
+          // sets, so the summary page surfaces the consistent "skipped" banner.
+          docsSkipped: !everythingUploaded,
           summaryData: {
             applicationId: appId,
             countryId: country.id,
@@ -422,7 +492,7 @@ const ApplicationForm = () => {
             travelerGdriveLinks,
             travelDateFrom,
             travelDateTo,
-            docsUploaded: true,
+            docsUploaded: everythingUploaded,
           },
           applicationPrev: {
             path: `/apply/${country.id}`,
@@ -441,28 +511,51 @@ const ApplicationForm = () => {
     }
   };
 
-  const handleContinue = async () => {
-    if (!allComplete) {
-      showToast("Enter each traveler's name and either upload all required documents or add a Google Drive link.", "error");
-      return;
-    }
+  /**
+   * Run the contact-verification gate (phone/email) if it's still needed,
+   * otherwise jump straight to the checkout-draft submission. Extracted so
+   * both the "all docs uploaded" path and the "skip docs" confirmation share
+   * the same gating logic without duplication.
+   */
+  const proceedAfterContactGate = async (opts = {}) => {
+    const skipped = Boolean(opts.skipped);
+    // Bind the chosen skip state so the post-contact-gate continuation
+    // (run via continueAfterContactRef) preserves it, otherwise the user
+    // would lose the "skipped" intent after verifying phone/email.
+    const submit = () => handleContinueSubmit({ skipped });
     const token = localStorage.getItem("token");
     if (token && user) {
       const method = sessionAuthMethod ?? useAuthStore.getState().sessionAuthMethod;
       if (needsPhoneContactGate(method, user)) {
-        continueAfterContactRef.current = handleContinueSubmit;
+        continueAfterContactRef.current = submit;
         setContactModalMode("phone");
         setContactModalOpen(true);
         return;
       }
       if (needsEmailContactGate(method, user)) {
-        continueAfterContactRef.current = handleContinueSubmit;
+        continueAfterContactRef.current = submit;
         setContactModalMode("email");
         setContactModalOpen(true);
         return;
       }
     }
-    await handleContinueSubmit();
+    await submit();
+  };
+
+  const handleContinue = async () => {
+    // Names are mandatory regardless of skip choice — block & toast for them.
+    const missingNameIndex = travelers.findIndex((t) => !String(t?.name || "").trim());
+    if (missingNameIndex >= 0) {
+      showToast(`Please enter Traveler ${missingNameIndex + 1}'s name to continue.`, "error");
+      return;
+    }
+    // If documents are still missing, ask the user whether they want to
+    // proceed without them (they can upload later from their dashboard).
+    if (!allComplete) {
+      setSkipDocsConfirmOpen(true);
+      return;
+    }
+    await proceedAfterContactGate();
   };
 
   return (
@@ -752,6 +845,61 @@ const ApplicationForm = () => {
           if (fn) void fn();
         }}
       />
+
+      {/* ── Skip-documents confirmation ────────────────────────────────
+          Shown when the user clicks "Continue" without finishing every
+          required upload. Lets them deliberately proceed (docs become
+          uploadable later from the dashboard) instead of being blocked by
+          an error toast. */}
+      <Modal
+        isOpen={skipDocsConfirmOpen}
+        onClose={() => setSkipDocsConfirmOpen(false)}
+        title="Skip document upload?"
+        size="md"
+        footer={
+          // Grid + fullWidth so both buttons render at the exact same width on
+          // every viewport (the labels are different lengths, so without the
+          // grid the buttons auto-size and look uneven).
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <Button
+              variant="secondary"
+              size="md"
+              fullWidth
+              onClick={() => setSkipDocsConfirmOpen(false)}
+              disabled={checkoutStarting}
+            >
+              Keep uploading
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth
+              loading={checkoutStarting}
+              onClick={async () => {
+                setSkipDocsConfirmOpen(false);
+                await proceedAfterContactGate({ skipped: true });
+              }}
+            >
+              Continue without docs
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+            <AlertCircle size={20} />
+          </span>
+          <div className="space-y-1.5">
+            <p className="text-sm text-text-primary font-medium">
+              You haven't uploaded all required documents yet.
+            </p>
+            <p className="text-sm text-text-muted leading-relaxed">
+              You can still continue to the payment summary now and add the missing documents later from
+              your <span className="text-text-primary font-medium">Dashboard → Application details</span>.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

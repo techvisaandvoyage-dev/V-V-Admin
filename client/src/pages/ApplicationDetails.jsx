@@ -16,6 +16,18 @@ import {
   Users,
   Wallet,
   X,
+  Briefcase,
+  Banknote,
+  GraduationCap,
+  Stethoscope,
+  Stamp,
+  Receipt,
+  Home,
+  Car,
+  MapPin,
+  ScrollText,
+  HeartHandshake,
+  MessageSquare,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
@@ -31,19 +43,45 @@ const MAX_DOCUMENT_SIZE_BYTES = 500 * 1024;
 const FILE_SIZE_ERROR = "File must be below 500kb";
 
 const DOCUMENT_META = {
+  // Identity & personal
   passport: { label: "Passport Upload", Icon: FileText },
-  idCard: { label: "Aadhaar Card Upload", Icon: CreditCard },
-  dobCertificate: { label: "DOB Certificate Upload", Icon: FileText },
+  oldPassport: { label: "Old Passport Upload", Icon: FileText },
   photo: { label: "Passport Photo Upload", Icon: ImageIcon },
-  bankStatement: { label: "Bank Statement Upload", Icon: FileText },
+  idCard: { label: "Aadhaar / ID Card Upload", Icon: CreditCard },
+  panCard: { label: "PAN Card Upload", Icon: CreditCard },
+  drivingLicense: { label: "Driving License Upload", Icon: Car },
+  birthCertificate: { label: "Birth Certificate Upload", Icon: FileText },
+  dobCertificate: { label: "DOB Certificate Upload", Icon: FileText },
+  marriageCertificate: { label: "Marriage Certificate Upload", Icon: HeartHandshake },
+  educationCertificate: { label: "Education / Academic Records Upload", Icon: GraduationCap },
+  // Employment & finance
+  employmentLetter: { label: "Employment Letter Upload", Icon: Briefcase },
+  offerLetter: { label: "Offer Letter Upload", Icon: Briefcase },
+  salarySlip: { label: "Salary Slip / Pay Stub Upload", Icon: Receipt },
+  form16: { label: "Form 16 Upload", Icon: Receipt },
+  taxReturn: { label: "ITR / Tax Return Upload", Icon: Receipt },
+  bankStatement: { label: "Bank Statement Upload", Icon: Banknote },
+  bankCertificate: { label: "Bank Solvency Certificate Upload", Icon: Banknote },
+  propertyDocuments: { label: "Property Documents Upload", Icon: Home },
+  // Travel
   travelInsurance: { label: "Travel Insurance Upload", Icon: ShieldCheck },
+  healthInsurance: { label: "Health Insurance Upload", Icon: ShieldCheck },
   flightTicket: { label: "Flight Ticket Upload", Icon: Plane },
   hotelBooking: { label: "Hotel Booking Upload", Icon: Building2 },
+  itinerary: { label: "Travel Itinerary Upload", Icon: MapPin },
+  // Letters & supporting
   coverLetter: { label: "Cover Letter Upload", Icon: FileText },
   invitationLetter: { label: "Invitation Letter Upload", Icon: FileText },
-  employmentLetter: { label: "Employment Letter Upload", Icon: FileText },
-  taxReturn: { label: "ITR / Tax Return Upload", Icon: FileText },
-  marriageCertificate: { label: "Marriage Certificate Upload", Icon: FileText },
+  sponsorLetter: { label: "Sponsor / Affidavit Letter Upload", Icon: FileText },
+  // Certificates & clearances
+  policeClearance: { label: "Police Clearance Certificate Upload", Icon: ScrollText },
+  noObjectionCertificate: { label: "No Objection Certificate Upload", Icon: ScrollText },
+  yellowFever: { label: "Yellow Fever Certificate Upload", Icon: Stethoscope },
+  covidVaccination: { label: "COVID Vaccination Certificate Upload", Icon: Stethoscope },
+  // Forms & business
+  visaApplicationForm: { label: "Visa Application Form Upload", Icon: Stamp },
+  businessLicense: { label: "Business License Upload", Icon: Briefcase },
+  companyRegistration: { label: "Company Registration Certificate Upload", Icon: Briefcase },
 };
 
 const buildDocFields = (documentKeys = ["passport"]) => {
@@ -94,6 +132,8 @@ const ApplicationDetails = () => {
     enableFileUpload: true,
   });
   const [docErrors, setDocErrors] = useState({});
+  const [applicantNotes, setApplicantNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -131,6 +171,11 @@ const ApplicationDetails = () => {
   }, [booking?.countryId]);
 
   useEffect(() => {
+    if (!booking) return;
+    setApplicantNotes(String(booking.applicantNotes ?? ""));
+  }, [booking?.applicantNotes, id]);
+
+  useEffect(() => {
     if (loading || !booking) return;
     const raw = (location.hash || "").replace(/^#/, "");
     if (raw !== "document-upload-section") return;
@@ -165,6 +210,10 @@ const ApplicationDetails = () => {
 
   // Allow uploads unless application is fully approved or rejected
   const canUploadDocuments = booking.status !== "approved" && booking.status !== "rejected";
+  const canSaveApplicantNotes =
+    booking.status === "pending" ||
+    booking.status === "review" ||
+    booking.detailsPending === true;
 
   const travelerCount = Math.max(1, Number(booking.travellerCount || 1));
   const progress = getApplicationProgress(booking);
@@ -301,7 +350,26 @@ const ApplicationDetails = () => {
     const selectedOtherDocs = selectedDocs[`${travelerNoStr}-otherDocuments`];
     const otherDocs = Array.isArray(selectedOtherDocs) ? selectedOtherDocs : [];
 
-    if (!fileOn && gdOn) {
+    const serverComplete = travelerServerComplete(travelerNo);
+    const hasRequiredFileSelection =
+      fileOn && docFields.some((field) => selectedDocs[`${travelerNoStr}-${field.key}`] instanceof File);
+
+    const onlyAdditionalOtherUpload =
+      fileOn &&
+      serverComplete &&
+      otherDocs.length > 0 &&
+      !hasRequiredFileSelection;
+
+    if (onlyAdditionalOtherUpload) {
+      for (const f of otherDocs) {
+        if (!(f instanceof File)) continue;
+        if (f.size > MAX_DOCUMENT_SIZE_BYTES) {
+          showToast(FILE_SIZE_ERROR, "error");
+          return;
+        }
+        files.push({ field: { key: "otherDocument", kind: "other" }, file: f });
+      }
+    } else if (!fileOn && gdOn) {
       if (!hasGdriveLink) {
         showToast(`Traveler ${travelerNo}: Please add a Google Drive link.`, "error");
         return;
@@ -407,6 +475,33 @@ const ApplicationDetails = () => {
       setDocUploading(false);
     }
   };
+
+  const handleSaveApplicantNotes = async () => {
+    if (!canSaveApplicantNotes) return;
+    setNotesSaving(true);
+    try {
+      const appId = booking._id || booking.id;
+      const { data } = await api.put(`/users/applications/${appId}`, { applicantNotes });
+      if (data?.success && data.application) {
+        updateBookingDetails(appId, data.application);
+        await fetchUserApplications();
+        showToast("Further information saved.", "success");
+      } else {
+        showToast(data?.message || "Could not save.", "error");
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || "Could not save further information.", "error");
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
+  const notesDirty = applicantNotes !== String(booking.applicantNotes ?? "");
+  const showFurtherInfoCard =
+    booking.status !== "rejected" &&
+    (canSaveApplicantNotes ||
+      String(booking.applicantNotes || "").trim().length > 0 ||
+      (canUploadDocuments && uploadSettings.enableFileUpload));
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
@@ -574,6 +669,170 @@ const ApplicationDetails = () => {
           </div>
         </Card>
 
+        {showFurtherInfoCard && (
+          <Card>
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare size={18} className="text-cyan shrink-0" />
+              <h3 className="text-lg font-semibold text-text-primary">Further information & other documents</h3>
+            </div>
+            <p className="text-xs text-text-muted mb-5 max-w-3xl leading-relaxed">
+              Add anything else we should know, and attach optional supporting files (up to 10 per traveler, max 500 KB each). Choose required files in{" "}
+              <span className="text-text-secondary font-medium">Upload documents</span> below, add optional extras here, then press{" "}
+              <span className="text-text-secondary font-medium">Save traveler … & files</span> for that traveler in this card to upload everything together. Google Drive links can still be saved from each traveler card above.
+            </p>
+
+            {(canSaveApplicantNotes || String(booking.applicantNotes || "").trim()) && (
+              <div className="space-y-2 mb-6 pb-6 border-b border-border">
+                <label htmlFor="applicant-notes" className="text-xs text-text-muted block">
+                  Message for our team (optional)
+                </label>
+                {canSaveApplicantNotes ? (
+                  <>
+                    <textarea
+                      id="applicant-notes"
+                      value={applicantNotes}
+                      onChange={(e) => setApplicantNotes(e.target.value)}
+                      disabled={notesSaving}
+                      rows={5}
+                      maxLength={8000}
+                      placeholder="Special requests, travel context, document explanations…"
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-cyan/50 min-h-[120px] resize-y"
+                    />
+                    <div className="flex flex-wrap justify-between items-center gap-2">
+                      <p className="text-[10px] text-text-muted">{applicantNotes.length} / 8000</p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        loading={notesSaving}
+                        disabled={!notesDirty}
+                        onClick={handleSaveApplicantNotes}
+                      >
+                        Save message
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-border bg-surface-2 p-4 text-sm text-text-secondary whitespace-pre-wrap">
+                    {String(booking.applicantNotes || "").trim() || "—"}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {canUploadDocuments && uploadSettings.enableFileUpload && (
+              <div className="space-y-5">
+                <h4 className="text-sm font-semibold text-text-primary">Other documents (per traveler)</h4>
+                {Array.from({ length: travelerCount }).map((_, idx) => {
+                  const travelerNo = idx + 1;
+                  const travelerNoStr = String(travelerNo);
+                  const serverComplete = travelerServerComplete(travelerNo);
+                  const dirty = travelerHasUnsavedChanges(travelerNo);
+                  const saveDisabled = docUploading || (serverComplete && !dirty);
+                  const headerShowsComplete = serverComplete && !dirty;
+                  const travelerProgress = progress.missingByTraveler.find((item) => item.travelerNo === travelerNo);
+                  const otherList = selectedDocs[`${travelerNoStr}-otherDocuments`] || [];
+                  const hasOtherPending = Array.isArray(otherList) && otherList.length > 0;
+
+                  return (
+                    <div
+                      key={`further-other-${travelerNo}`}
+                      className="rounded-2xl border border-border bg-surface-2 p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-text-primary">Traveler {travelerNo}</p>
+                        {headerShowsComplete ? (
+                          <span className="text-[11px] font-medium text-emerald-400">Required docs done</span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-amber-400">Complete required docs above</span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan/10 text-cyan">
+                            <FileText size={14} strokeWidth={2} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-text-primary">Other documents</p>
+                            <p className="text-[10px] text-text-muted">
+                              {otherList.length} {otherList.length === 1 ? "file" : "files"} selected
+                            </p>
+                          </div>
+                          <label
+                            htmlFor={`further-other-docs-${travelerNoStr}`}
+                            className="shrink-0 cursor-pointer rounded-md bg-cyan/15 px-2.5 py-1.5 text-[11px] font-semibold text-cyan hover:bg-cyan/25 transition-colors"
+                          >
+                            Upload
+                          </label>
+                          <input
+                            id={`further-other-docs-${travelerNoStr}`}
+                            type="file"
+                            multiple
+                            accept=".pdf,image/jpeg,image/png,image/webp"
+                            disabled={docUploading}
+                            onChange={(e) => {
+                              handleOtherDocsChange(travelerNo, e.target.files || []);
+                              e.target.value = "";
+                            }}
+                            className="sr-only"
+                          />
+                        </div>
+                        {hasOtherPending && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {otherList.map((file, docIdx) => (
+                              <div
+                                key={`further-selected-other-${travelerNoStr}-${docIdx}`}
+                                className="relative rounded-lg border border-border bg-surface px-3 py-2"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => removeOtherDoc(travelerNo, docIdx)}
+                                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                                  aria-label={`Remove ${file?.name || `file ${docIdx + 1}`}`}
+                                >
+                                  <X size={12} />
+                                </button>
+                                <p className="text-xs text-text-primary truncate pr-3" title={file?.name || ""}>
+                                  {file?.name || `File ${docIdx + 1}`}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 pt-1">
+                        <Button
+                          type="button"
+                          variant={headerShowsComplete && !hasOtherPending ? "ghost" : "secondary"}
+                          size="sm"
+                          leftIcon={headerShowsComplete && !hasOtherPending ? <CheckCircle size={14} /> : <Upload size={14} />}
+                          loading={docUploading}
+                          disabled={saveDisabled}
+                          onClick={() => handleUploadTraveler(travelerNo)}
+                          className="w-full shrink-0 sm:w-auto sm:min-w-[200px]"
+                        >
+                          {headerShowsComplete && !hasOtherPending
+                            ? "Nothing to upload"
+                            : headerShowsComplete
+                              ? "Upload additional documents"
+                              : `Save traveler ${travelerNo} & files`}
+                        </Button>
+                        {!headerShowsComplete && travelerProgress?.missingLabels?.length > 0 && (
+                          <p className="text-xs text-amber-400 sm:min-w-0 sm:flex-1 sm:text-right">
+                            Missing: {travelerProgress.missingLabels.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        )}
+
         {booking.visaFilePath && (
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 space-y-3">
             <div>
@@ -603,13 +862,13 @@ const ApplicationDetails = () => {
         {/* Upload Sections */}
         {canUploadDocuments ? (
           allTravelersComplete ? (
-            <section id="document-upload-section" className="scroll-mt-28">
+            <section id="document-upload-section" className="scroll-mt-28 space-y-3">
               <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center">
                 <p className="text-sm font-semibold text-emerald-400">
-                  All documents successfully uploaded.
+                  All required documents are uploaded.
                 </p>
                 <p className="text-xs text-text-muted mt-1">
-                  No more document uploads are required for this application.
+                  You can still add optional supporting files in <span className="text-text-secondary font-medium">Further information & other documents</span> above.
                 </p>
               </div>
             </section>
@@ -773,88 +1032,9 @@ const ApplicationDetails = () => {
                       );
                     })}
                   </div>
-
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-2.5 py-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan/10 text-cyan">
-                          <FileText size={14} strokeWidth={2} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-text-primary">Other documents</p>
-                          <p className="text-[10px] text-text-muted">
-                            {(selectedDocs[`${travelerNoStr}-otherDocuments`] || []).length}{" "}
-                            {(selectedDocs[`${travelerNoStr}-otherDocuments`] || []).length === 1 ? "file" : "files"}{" "}
-                            selected
-                          </p>
-                        </div>
-                        <label
-                          htmlFor={`other-docs-${travelerNoStr}`}
-                          className="shrink-0 cursor-pointer rounded-md bg-cyan/15 px-2.5 py-1.5 text-[11px] font-semibold text-cyan hover:bg-cyan/25 transition-colors"
-                        >
-                          Upload
-                        </label>
-                        <input
-                          id={`other-docs-${travelerNoStr}`}
-                          type="file"
-                          multiple
-                          accept=".pdf,image/jpeg,image/png,image/webp"
-                          disabled={docUploading}
-                          onChange={(e) => {
-                            handleOtherDocsChange(travelerNo, e.target.files || []);
-                            e.target.value = "";
-                          }}
-                          className="sr-only"
-                        />
-                      </div>
-                      {Array.isArray(selectedDocs[`${travelerNoStr}-otherDocuments`]) &&
-                        selectedDocs[`${travelerNoStr}-otherDocuments`].length > 0 && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {selectedDocs[`${travelerNoStr}-otherDocuments`].map((file, docIdx) => (
-                              <div
-                                key={`selected-other-doc-${travelerNoStr}-${docIdx}`}
-                                className="relative rounded-lg border border-border bg-surface px-3 py-2"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => removeOtherDoc(travelerNo, docIdx)}
-                                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                                  aria-label={`Remove ${file?.name || `file ${docIdx + 1}`}`}
-                                >
-                                  <X size={12} />
-                                </button>
-                                <p className="text-xs text-text-primary truncate pr-3" title={file?.name || ""}>
-                                  {file?.name || `File ${docIdx + 1}`}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                    </div>
                     </>
                   )}
 
-                  {/* Save files + metadata (Drive-only flows use the Save link button above) */}
-                  {uploadSettings.enableFileUpload && (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                      <Button
-                        type="button"
-                        variant={headerShowsComplete ? "ghost" : "secondary"}
-                        size="sm"
-                        leftIcon={headerShowsComplete ? <CheckCircle size={14} /> : <Upload size={14} />}
-                        loading={docUploading}
-                        disabled={saveDisabled}
-                        onClick={() => handleUploadTraveler(travelerNo)}
-                        className="w-full shrink-0 sm:w-auto sm:min-w-[200px]"
-                      >
-                        {headerShowsComplete ? "Details Saved" : `Save traveler ${travelerNo} & files`}
-                      </Button>
-                      {!headerShowsComplete && travelerProgress?.missingLabels?.length > 0 && (
-                        <p className="text-xs text-amber-400 sm:min-w-0 sm:flex-1 sm:text-right">
-                          Missing: {travelerProgress.missingLabels.join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  )}
                   {!uploadSettings.enableFileUpload && uploadSettings.enableGDriveUpload && !headerShowsComplete && travelerProgress?.missingLabels?.length > 0 && (
                     <p className="text-xs text-amber-400">
                       Missing: {travelerProgress.missingLabels.join(", ")}

@@ -52,6 +52,14 @@ const DESTINATION_HOW_IT_WORKS_FALLBACK = [
   },
 ];
 
+const DESTINATION_VISA_REQUIREMENTS_FALLBACK = [
+  'Original passport valid for at least 6 months with two blank pages',
+  'Recent passport-size photograph on white background',
+  'Confirmed return flight tickets',
+  'Hotel booking or proof of accommodation for the entire stay',
+  'Bank statements showing sufficient funds for the trip',
+];
+
 const DESTINATION_FAQS_FALLBACK = [
   {
     question: 'How long does processing take?',
@@ -134,6 +142,7 @@ const updateSettings = async (req, res) => {
       destinationIncludedItems,
       destinationFaqs,
       destinationHowItWorks,
+      destinationVisaRequirements,
     } = req.body;
     console.log('Admin updating settings:', {
       razorpayKeyId,
@@ -210,6 +219,11 @@ const updateSettings = async (req, res) => {
               description: String(s?.description ?? '').trim(),
             }))
             .filter((s) => s.title && s.description)
+        : [];
+    }
+    if (destinationVisaRequirements !== undefined) {
+      settings.destinationVisaRequirements = Array.isArray(destinationVisaRequirements)
+        ? destinationVisaRequirements.map((s) => String(s ?? '').trim()).filter(Boolean)
         : [];
     }
 
@@ -335,7 +349,15 @@ const getDestinationPageContent = async (req, res) => {
             }))
             .filter((s) => s.title && s.description)
         : DESTINATION_HOW_IT_WORKS_FALLBACK;
-    res.json({ success: true, config: { whyBookNow, included, faqs, howItWorks } });
+    const rawVisaReq = settings?.destinationVisaRequirements;
+    const visaRequirements =
+      Array.isArray(rawVisaReq) && rawVisaReq.length
+        ? rawVisaReq.map((s) => String(s ?? '').trim()).filter(Boolean)
+        : DESTINATION_VISA_REQUIREMENTS_FALLBACK;
+    res.json({
+      success: true,
+      config: { whyBookNow, included, faqs, howItWorks, visaRequirements },
+    });
   } catch (error) {
     console.error('Error fetching destination page content:', error);
     res.status(500).json({ success: false, message: 'Server error' });

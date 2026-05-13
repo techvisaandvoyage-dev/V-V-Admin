@@ -83,6 +83,9 @@ const AppRoutes = () => {
       <Route path="/destinations" element={<AllDestinationsPage />} />
       <Route path="/destination/:countryId" element={<CountryDetails />} />
       <Route path="/page/:slug" element={<StaticPage />} />
+      {/* Fixed-URL alias for the Terms & Conditions CMS page. Admin can edit
+          the body from CMS → Static Pages → "Terms and Conditions". */}
+      <Route path="/terms" element={<StaticPage slugOverride="terms-and-conditions" />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 

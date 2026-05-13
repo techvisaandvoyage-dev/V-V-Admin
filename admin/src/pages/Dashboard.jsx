@@ -11,7 +11,8 @@ import {
   BarChart2, TrendingUp, DollarSign, Clock, CheckCircle,
   Search, Filter, ChevronDown, Plus, Edit3,
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle,
-  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks,
+  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays,
+  Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -31,6 +32,49 @@ import { useAuthStore, api, SERVER_URL } from "../store/authStore";
 import { ANALYTICS, MONTHLY_REVENUE } from "../data/bookings";
 import { getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
 import { getApplicationProgress } from "../utils/applicationProgress";
+
+/**
+ * Icon mapping for every built-in document key (mirrors `DOCUMENT_META` on the
+ * client). Any custom doc the admin adds falls back to a generic FileText icon
+ * since custom labels can't ship icons. Used by both the universal Required
+ * Documents control card and the per-country edit modal's checklist.
+ */
+const DOCUMENT_ICON_MAP = {
+  passport: FileText,
+  oldPassport: FileText,
+  photo: ImageIcon,
+  idCard: CreditCard,
+  panCard: CreditCard,
+  drivingLicense: Car,
+  birthCertificate: FileText,
+  dobCertificate: FileText,
+  marriageCertificate: HeartHandshake,
+  educationCertificate: GraduationCap,
+  employmentLetter: Briefcase,
+  offerLetter: Briefcase,
+  salarySlip: Receipt,
+  form16: Receipt,
+  taxReturn: Receipt,
+  bankStatement: Banknote,
+  bankCertificate: Banknote,
+  propertyDocuments: Home,
+  travelInsurance: ShieldCheck,
+  healthInsurance: ShieldCheck,
+  flightTicket: Plane,
+  hotelBooking: Building2,
+  itinerary: MapPin,
+  coverLetter: FileText,
+  invitationLetter: FileText,
+  sponsorLetter: FileText,
+  policeClearance: ScrollText,
+  noObjectionCertificate: ScrollText,
+  yellowFever: Stethoscope,
+  covidVaccination: Stethoscope,
+  visaApplicationForm: Stamp,
+  businessLicense: Briefcase,
+  companyRegistration: Briefcase,
+};
+const getDocumentIcon = (key) => DOCUMENT_ICON_MAP[key] || FileText;
 
 // ── Recharts custom tooltip ────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
@@ -156,6 +200,62 @@ const DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS = [
   { title: "Enjoy your vacation", description: "Thanks for choosing SprintVisa and we wish you an amazing journey." },
 ];
 
+/** Suggestions shown in the Visa Type combo-box on the country edit modal — admins can pick or type their own. */
+const VISA_TYPE_SUGGESTIONS = [
+  "Tourist Visa",
+  "Business Visa",
+  "Student Visa",
+  "Work Visa",
+  "Transit Visa",
+  "Schengen Visa",
+  "eVisa",
+  "Visa on Arrival",
+  "e-Tourist Visa",
+  "Sticker Visa",
+  "Visa Free",
+  "Medical Visa",
+  "Type C Schengen",
+  "Standard Visitor",
+  "B1/B2 Tourist",
+  "Temporary Visitor",
+  "Temporary Resident",
+  "Social Visit Pass",
+  "Tourist Visa (600)",
+];
+
+/** Suggestions shown in the universal Validity control + country edit modal. */
+const VALIDITY_SUGGESTIONS = [
+  "7 Days",
+  "15 Days",
+  "30 Days",
+  "60 Days",
+  "90 Days",
+  "180 Days",
+  "1 Year",
+  "5 Years",
+];
+
+/** Suggestions shown in the universal Processing Days control + country edit modal. */
+const PROCESSING_DAYS_SUGGESTIONS = [
+  "1-3 days",
+  "3-5 days",
+  "5-7 days",
+  "5-10 days",
+  "7-10 days",
+  "10-15 days",
+  "15-30 days",
+  "2-3 weeks",
+  "Per visa policy",
+];
+
+const DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS = [
+  "Original passport valid for at least 6 months with two blank pages",
+  "Recent passport-size photograph on white background",
+  "Confirmed return flight tickets",
+  "Hotel booking or proof of accommodation for the entire stay",
+  "Bank statements showing sufficient funds for the trip",
+];
+
 const mapDestinationWhyBookNowFromApi = (s) => {
   const a = s?.destinationWhyBookNow;
   return Array.isArray(a) && a.length
@@ -192,6 +292,13 @@ const mapDestinationHowItWorksFromApi = (s) => {
   return DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x }));
 };
 
+const mapDestinationVisaRequirementsFromApi = (s) => {
+  const a = s?.destinationVisaRequirements;
+  return Array.isArray(a) && a.length
+    ? a.map((x) => String(x ?? "").trim()).filter(Boolean)
+    : [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS];
+};
+
 /** Lowercase trim key for matching global destination bullets / FAQ questions. */
 const normDestKey = (s) => String(s ?? "").trim().toLowerCase();
 
@@ -223,6 +330,7 @@ const mapApiSettingsToFormState = (s) => ({
   destinationIncludedItems: mapDestinationIncludedFromApi(s),
   destinationFaqs: mapDestinationFaqsFromApi(s),
   destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
+  destinationVisaRequirements: mapDestinationVisaRequirementsFromApi(s),
 });
 
 const integrationFlagsFromSettings = (s) => {
@@ -239,6 +347,41 @@ const integrationFlagsFromSettings = (s) => {
     isSms91Configured: Boolean(s.sms91AuthKey?.trim() && s.sms91TemplateId?.trim()),
     isUnsplashConfigured: Boolean(s.unsplashAccessKey?.trim()),
   };
+};
+
+/**
+ * Compact "switch" used inside each universal control card header. Renders as a
+ * pill with an animated knob — green when the field is visible on the public
+ * client, neutral when hidden. While the API call is in flight the button is
+ * disabled so users can't double-click it.
+ */
+const DisplayToggle = ({ active, busy, onClick, labelOn = "Visible on client", labelOff = "Hidden on client" }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+        active
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60"
+          : "border-border bg-surface-3 text-text-muted hover:border-cyan/30"
+      } ${busy ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+      aria-pressed={active}
+    >
+      <span
+        className={`relative inline-flex h-3.5 w-7 rounded-full transition-colors ${
+          active ? "bg-emerald-500" : "bg-surface-2 border border-border"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-transform ${
+            active ? "translate-x-3.5" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+      {active ? labelOn : labelOff}
+    </button>
+  );
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -288,9 +431,56 @@ const Dashboard = () => {
     destinationIncludedItems: [...DESTINATION_PAGE_DEFAULT_INCLUDED],
     destinationFaqs: DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f })),
     destinationHowItWorks: DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x })),
+    destinationVisaRequirements: [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS],
   });
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
+  /**
+   * Universal control system — admin sets a single global Visa Type / Validity that
+   * applies to every country card and detail page unless an individual country edit
+   * carries a per-country override. `defaults` mirrors the server state, while the
+   * `*Picker`/`*Custom` pair drives the dropdown + free-text controls.
+   */
+  const [globalDefaults, setGlobalDefaults] = useState({
+    globalVisaType: "",
+    globalValidity: "",
+    globalProcessingDays: "",
+    globalRequiredDocuments: [],
+  });
+  const [globalDefaultStats, setGlobalDefaultStats] = useState({
+    totalCountries: 0,
+    usingGlobalVisaType: 0,
+    usingGlobalValidity: 0,
+    usingGlobalProcessingDays: 0,
+    usingGlobalRequiredDocuments: 0,
+    overridingVisaType: 0,
+    overridingValidity: 0,
+    overridingProcessingDays: 0,
+    overridingRequiredDocuments: 0,
+  });
+  /** Mirrors `Settings.show*` — when false, the public client hides that tile/section. */
+  const [displayToggles, setDisplayToggles] = useState({
+    showVisaType: true,
+    showValidity: true,
+    showProcessingDays: true,
+    showRequiredDocuments: true,
+  });
+  const [visaTypePicker, setVisaTypePicker] = useState("");
+  const [visaTypeCustom, setVisaTypeCustom] = useState("");
+  const [validityPicker, setValidityPicker] = useState("");
+  const [validityCustom, setValidityCustom] = useState("");
+  const [processingDaysPicker, setProcessingDaysPicker] = useState("");
+  const [processingDaysCustom, setProcessingDaysCustom] = useState("");
+  /** Merged built-in + admin's custom documents, populated from /admin/control/country-defaults. */
+  const [documentCatalog, setDocumentCatalog] = useState([]);
+  /** Current selection in the Required Documents universal-control checkbox grid. */
+  const [requiredDocsDraft, setRequiredDocsDraft] = useState([]);
+  /** Free-text field used to add a brand-new custom document type. */
+  const [newCustomDocLabel, setNewCustomDocLabel] = useState("");
+  const [savingCustomDoc, setSavingCustomDoc] = useState(false);
+  const [savingControlKey, setSavingControlKey] = useState(null);
+  /** Tracks which toggle is currently flipping (so we can disable just that switch). */
+  const [togglingDisplayKey, setTogglingDisplayKey] = useState(null);
   const [unsplashFetchRunning, setUnsplashFetchRunning] = useState(false);
   /** Shown under the Unsplash fetch buttons while batches run. */
   const [unsplashFetchProgress, setUnsplashFetchProgress] = useState("");
@@ -367,7 +557,7 @@ const Dashboard = () => {
 
       try {
         if (activeTab === "countries") {
-          await fetchCountries();
+          await Promise.all([fetchCountries(), loadGlobalCountryDefaults()]);
         } else if (activeTab === "pages") {
           await fetchPages({ page: 1, limit: 8 });
         } else if (activeTab === "transactions") {
@@ -396,8 +586,10 @@ const Dashboard = () => {
               destinationIncludedItems: mapDestinationIncludedFromApi(s),
               destinationFaqs: mapDestinationFaqsFromApi(s),
               destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
+              destinationVisaRequirements: mapDestinationVisaRequirementsFromApi(s),
             }));
           }
+          await loadGlobalCountryDefaults();
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -422,33 +614,57 @@ const Dashboard = () => {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef                         = useRef(null);
 
-  // Document type options admin can require per country
+  // Fallback document catalog used before the API returns the live list. The
+  // canonical source is `Settings.customDocuments` + the server's built-in
+  // catalog (see `server/controllers/countryController.js`). Keep this in
+  // sync with that file so the admin sees the same set on first paint.
   const DOC_OPTIONS = [
-    { key: "passport",        label: "Passport" },
-    { key: "idCard",          label: "Aadhaar / ID Card" },
-    { key: "dobCertificate",  label: "DOB Certificate" },
-    { key: "photo",           label: "Passport Photo" },
-    { key: "bankStatement",   label: "Bank Statement" },
-    { key: "travelInsurance", label: "Travel Insurance" },
-    { key: "flightTicket",    label: "Flight Ticket" },
-    { key: "hotelBooking",    label: "Hotel Booking" },
-    { key: "coverLetter",     label: "Cover Letter" },
-    { key: "invitationLetter", label: "Invitation Letter" },
-    { key: "employmentLetter", label: "Employment Letter" },
-    { key: "taxReturn",       label: "ITR / Tax Return" },
+    { key: "passport", label: "Passport" },
+    { key: "oldPassport", label: "Old / Previous Passport" },
+    { key: "photo", label: "Passport Photo" },
+    { key: "idCard", label: "Aadhaar / ID Card" },
+    { key: "panCard", label: "PAN Card" },
+    { key: "drivingLicense", label: "Driving License" },
+    { key: "birthCertificate", label: "Birth Certificate" },
+    { key: "dobCertificate", label: "DOB Certificate" },
     { key: "marriageCertificate", label: "Marriage Certificate" },
+    { key: "educationCertificate", label: "Education / Academic Records" },
+    { key: "employmentLetter", label: "Employment Letter" },
+    { key: "offerLetter", label: "Offer Letter" },
+    { key: "salarySlip", label: "Salary Slip / Pay Stub" },
+    { key: "form16", label: "Form 16" },
+    { key: "taxReturn", label: "ITR / Tax Return" },
+    { key: "bankStatement", label: "Bank Statement" },
+    { key: "bankCertificate", label: "Bank Solvency Certificate" },
+    { key: "propertyDocuments", label: "Property Documents" },
+    { key: "travelInsurance", label: "Travel Insurance" },
+    { key: "healthInsurance", label: "Health Insurance" },
+    { key: "flightTicket", label: "Flight Ticket" },
+    { key: "hotelBooking", label: "Hotel Booking" },
+    { key: "itinerary", label: "Travel Itinerary" },
+    { key: "coverLetter", label: "Cover Letter" },
+    { key: "invitationLetter", label: "Invitation Letter" },
+    { key: "sponsorLetter", label: "Sponsor / Affidavit Letter" },
+    { key: "policeClearance", label: "Police Clearance Certificate" },
+    { key: "noObjectionCertificate", label: "No Objection Certificate (NOC)" },
+    { key: "yellowFever", label: "Yellow Fever Certificate" },
+    { key: "covidVaccination", label: "COVID Vaccination Certificate" },
+    { key: "visaApplicationForm", label: "Visa Application Form" },
+    { key: "businessLicense", label: "Business License" },
+    { key: "companyRegistration", label: "Company Registration Certificate" },
   ];
 
   // Country form state
   const [countryForm, setCountryForm] = useState({
     name: "", flagEmoji: "🌍", basePrice: "", processingDays: "", difficulty: "moderate",
-    visaType: "", continent: "", description: "", requirements: [""], imageUrl: "",
+    visaType: "", validity: "", continent: "", description: "", requirements: [""], imageUrl: "",
     requiredDocuments: ["passport"], successRate: "80", trending: false,
     whyBookNow: [], includedItems: [], faqs: [], howItWorks: [],
     excludeDestinationWhyBookNow: [],
     excludeDestinationIncludedItems: [],
     excludeDestinationFaqQuestions: [],
     excludeDestinationHowItWorksTitles: [],
+    excludeDestinationVisaRequirements: [],
   });
 
   /** Snapshot of Settings → Destinations (for merging in the country edit modal). */
@@ -457,6 +673,7 @@ const Dashboard = () => {
     includedItems: [],
     faqs: [],
     howItWorks: [],
+    visaRequirements: [],
   });
 
   // ── Filter applications ───────────────────────────────────
@@ -540,6 +757,7 @@ const Dashboard = () => {
           includedItems: mapDestinationIncludedFromApi(s),
           faqs: mapDestinationFaqsFromApi(s),
           howItWorks: mapDestinationHowItWorksFromApi(s),
+          visaRequirements: mapDestinationVisaRequirementsFromApi(s),
         });
       } catch (err) {
         if (cancelled) return;
@@ -552,6 +770,7 @@ const Dashboard = () => {
           includedItems: [...DESTINATION_PAGE_DEFAULT_INCLUDED],
           faqs: DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f })),
           howItWorks: DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x })),
+          visaRequirements: [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS],
         });
       }
     })();
@@ -568,6 +787,7 @@ const Dashboard = () => {
       basePrice: String(country.basePrice),
       successRate: String(country.successRate ?? 80),
       trending: Boolean(country.trending),
+      validity: String(country.validity ?? ""),
       requirements: country.requirements?.length ? country.requirements : [""],
       requiredDocuments: country.requiredDocuments || ["passport"],
       whyBookNow: Array.isArray(country.whyBookNow) ? [...country.whyBookNow] : [],
@@ -596,6 +816,9 @@ const Dashboard = () => {
       excludeDestinationHowItWorksTitles: Array.isArray(country.excludeDestinationHowItWorksTitles)
         ? [...country.excludeDestinationHowItWorksTitles]
         : [],
+      excludeDestinationVisaRequirements: Array.isArray(country.excludeDestinationVisaRequirements)
+        ? [...country.excludeDestinationVisaRequirements]
+        : [],
     });
     openCountryModal("edit", country);
   };
@@ -609,7 +832,12 @@ const Dashboard = () => {
     const payload = {
       ...countryForm,
       basePrice: Number(countryForm.basePrice),
-      processingDays: countryForm.processingDays || "5-10",
+      // Sent raw (no "5-10" fallback) so the server can auto-flip
+      // `useGlobalProcessingDays = true` when the admin clears the field or
+      // re-matches the global default. The DB-level default already supplies
+      // "5-10" for brand-new countries created from `addCountry`.
+      processingDays: String(countryForm.processingDays ?? "").trim(),
+      validity: String(countryForm.validity ?? "").trim(),
       requirements: countryForm.requirements.filter(Boolean),
       requiredDocuments: countryForm.requiredDocuments,
       successRate: Number(countryForm.successRate) || 80,
@@ -642,6 +870,9 @@ const Dashboard = () => {
         .map((s) => normDestKey(s))
         .filter(Boolean),
       excludeDestinationHowItWorksTitles: (countryForm.excludeDestinationHowItWorksTitles || [])
+        .map((s) => normDestKey(s))
+        .filter(Boolean),
+      excludeDestinationVisaRequirements: (countryForm.excludeDestinationVisaRequirements || [])
         .map((s) => normDestKey(s))
         .filter(Boolean),
     };
@@ -764,6 +995,400 @@ const Dashboard = () => {
       showToast(error.response?.data?.message || "Failed to save settings", "error");
     } finally {
       setSavingSettingsKey(null);
+    }
+  };
+
+  /**
+   * Fetch the universal Visa Type / Validity defaults plus override stats. Called
+   * when the Controls tab mounts and after each successful global update.
+   */
+  const loadGlobalCountryDefaults = async () => {
+    try {
+      const { data } = await api.get("/admin/control/country-defaults");
+      if (data?.success) {
+        const next = {
+          globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
+          globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
+          globalProcessingDays: String(data.defaults?.globalProcessingDays ?? "").trim(),
+          globalRequiredDocuments: Array.isArray(data.defaults?.globalRequiredDocuments)
+            ? data.defaults.globalRequiredDocuments
+                .map((k) => String(k ?? "").trim())
+                .filter(Boolean)
+            : [],
+        };
+        setGlobalDefaults(next);
+        setGlobalDefaultStats({
+          totalCountries: data.stats?.totalCountries ?? 0,
+          usingGlobalVisaType: data.stats?.usingGlobalVisaType ?? 0,
+          usingGlobalValidity: data.stats?.usingGlobalValidity ?? 0,
+          usingGlobalProcessingDays: data.stats?.usingGlobalProcessingDays ?? 0,
+          usingGlobalRequiredDocuments: data.stats?.usingGlobalRequiredDocuments ?? 0,
+          overridingVisaType: data.stats?.overridingVisaType ?? 0,
+          overridingValidity: data.stats?.overridingValidity ?? 0,
+          overridingProcessingDays: data.stats?.overridingProcessingDays ?? 0,
+          overridingRequiredDocuments: data.stats?.overridingRequiredDocuments ?? 0,
+        });
+        if (data.display) {
+          setDisplayToggles({
+            showVisaType: data.display.showVisaType !== false,
+            showValidity: data.display.showValidity !== false,
+            showProcessingDays: data.display.showProcessingDays !== false,
+            showRequiredDocuments: data.display.showRequiredDocuments !== false,
+          });
+        }
+        if (Array.isArray(data.documentCatalog)) {
+          setDocumentCatalog(
+            data.documentCatalog
+              .map((d) => ({
+                key: String(d?.key ?? "").trim(),
+                label: String(d?.label ?? "").trim(),
+                builtIn: d?.builtIn !== false,
+              }))
+              .filter((d) => d.key && d.label)
+          );
+        }
+        // Pre-populate the required-docs draft from the live global selection so
+        // the admin sees exactly what's currently applied. Falls back to just
+        // "passport" if no global has been set yet — matches the legacy default.
+        setRequiredDocsDraft(
+          next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
+        );
+        // Pre-fill the dropdowns with whatever the global currently is so admins can
+        // see at a glance what's live without first clicking around.
+        if (next.globalVisaType && VISA_TYPE_SUGGESTIONS.includes(next.globalVisaType)) {
+          setVisaTypePicker(next.globalVisaType);
+          setVisaTypeCustom("");
+        } else if (next.globalVisaType) {
+          setVisaTypePicker("");
+          setVisaTypeCustom(next.globalVisaType);
+        }
+        if (next.globalValidity && VALIDITY_SUGGESTIONS.includes(next.globalValidity)) {
+          setValidityPicker(next.globalValidity);
+          setValidityCustom("");
+        } else if (next.globalValidity) {
+          setValidityPicker("");
+          setValidityCustom(next.globalValidity);
+        }
+        if (next.globalProcessingDays && PROCESSING_DAYS_SUGGESTIONS.includes(next.globalProcessingDays)) {
+          setProcessingDaysPicker(next.globalProcessingDays);
+          setProcessingDaysCustom("");
+        } else if (next.globalProcessingDays) {
+          setProcessingDaysPicker("");
+          setProcessingDaysCustom(next.globalProcessingDays);
+        }
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+      }
+      // Defaults stay at their initial empty values — the UI will show "Not set yet".
+    }
+  };
+
+  /**
+   * Resolve the value the admin actually wants to apply. Custom input wins over the
+   * dropdown so an admin can override one without clearing the other manually.
+   */
+  const resolveControlValue = (picker, custom) => {
+    const trimmedCustom = String(custom ?? "").trim();
+    if (trimmedCustom) return trimmedCustom;
+    return String(picker ?? "").trim();
+  };
+
+  /**
+   * POST the chosen Visa Type to the universal control endpoint. On success the
+   * server flips `useGlobalVisaType=true` on every country so the change is visible
+   * immediately on cards / details.
+   */
+  const runUpdateGlobalVisaType = async () => {
+    const visaType = resolveControlValue(visaTypePicker, visaTypeCustom);
+    if (!visaType) {
+      showToast("Pick a Visa Type from the dropdown or type your own.", "error");
+      return;
+    }
+    setSavingControlKey("visa-type");
+    try {
+      const { data } = await api.post("/admin/control/visa-type", { visaType });
+      if (data?.success) {
+        showToast(data.message || `Visa Type set to "${visaType}".`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        setVisaTypeCustom("");
+      } else {
+        showToast(data?.message || "Failed to update global visa type.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global visa type.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      // eslint-disable-next-line no-console
+      console.error("Update global visa type failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  /** Same as `runUpdateGlobalVisaType` but for the universal Validity control. */
+  const runUpdateGlobalValidity = async () => {
+    const validity = resolveControlValue(validityPicker, validityCustom);
+    if (!validity) {
+      showToast("Pick a Validity from the dropdown or type your own.", "error");
+      return;
+    }
+    setSavingControlKey("validity");
+    try {
+      const { data } = await api.post("/admin/control/validity", { validity });
+      if (data?.success) {
+        showToast(data.message || `Validity set to "${validity}".`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        setValidityCustom("");
+      } else {
+        showToast(data?.message || "Failed to update global validity.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global validity.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/validity is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      // eslint-disable-next-line no-console
+      console.error("Update global validity failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  /** Same as the other two but for the universal Processing Days control. */
+  const runUpdateGlobalProcessingDays = async () => {
+    const processingDays = resolveControlValue(processingDaysPicker, processingDaysCustom);
+    if (!processingDays) {
+      showToast("Pick Processing Days from the dropdown or type your own.", "error");
+      return;
+    }
+    setSavingControlKey("processing-days");
+    try {
+      const { data } = await api.post("/admin/control/processing-days", { processingDays });
+      if (data?.success) {
+        showToast(data.message || `Processing Days set to "${processingDays}".`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        setProcessingDaysCustom("");
+      } else {
+        showToast(data?.message || "Failed to update global processing days.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global processing days.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      // eslint-disable-next-line no-console
+      console.error("Update global processing days failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  /**
+   * Apply the current Required Documents draft as the new universal default.
+   * On success the server flips `useGlobalRequiredDocuments=true` on every
+   * country so this list shows up immediately on the public site.
+   */
+  const runUpdateGlobalRequiredDocuments = async () => {
+    const docs = Array.isArray(requiredDocsDraft) ? requiredDocsDraft.filter(Boolean) : [];
+    setSavingControlKey("required-documents");
+    try {
+      const { data } = await api.post("/admin/control/required-documents", {
+        requiredDocuments: docs,
+      });
+      if (data?.success) {
+        showToast(
+          data.message || `Required Documents set on all countries (${docs.length} item${docs.length === 1 ? "" : "s"}).`,
+          "success"
+        );
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+      } else {
+        showToast(data?.message || "Failed to update required documents.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update required documents.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API so /api/admin/control/required-documents is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      // eslint-disable-next-line no-console
+      console.error("Update global required documents failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  /** POST a new admin-defined document type to the catalog. */
+  const runAddCustomDocument = async () => {
+    const label = String(newCustomDocLabel ?? "").trim();
+    if (!label) {
+      showToast("Type a document label first.", "error");
+      return;
+    }
+    setSavingCustomDoc(true);
+    try {
+      const { data } = await api.post("/admin/control/custom-documents", {
+        action: "add",
+        label,
+      });
+      if (data?.success) {
+        showToast(data.message || `"${label}" added.`, "success");
+        setNewCustomDocLabel("");
+        await loadGlobalCountryDefaults();
+      } else {
+        showToast(data?.message || "Failed to add custom document.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to add custom document.";
+      if (status === 404) {
+        toastMsg =
+          "Endpoint not found — restart the API so /api/admin/control/custom-documents is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      // eslint-disable-next-line no-console
+      console.error("Add custom doc failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingCustomDoc(false);
+    }
+  };
+
+  /** Remove a custom document type from the catalog and every country. */
+  const runRemoveCustomDocument = async (key, label) => {
+    if (!key) return;
+    if (!window.confirm(`Remove "${label}" from the document catalog and every country?`)) return;
+    setSavingCustomDoc(true);
+    try {
+      const { data } = await api.post("/admin/control/custom-documents", {
+        action: "remove",
+        key,
+      });
+      if (data?.success) {
+        showToast(data.message || "Custom document removed.", "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        // Drop the removed key from the local draft so the "Apply" payload
+        // doesn't try to re-introduce a doc that no longer exists.
+        setRequiredDocsDraft((prev) => prev.filter((k) => k !== key));
+      } else {
+        showToast(data?.message || "Failed to remove custom document.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      const toastMsg = serverMsg || error?.message || "Failed to remove custom document.";
+      // eslint-disable-next-line no-console
+      console.error("Remove custom doc failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingCustomDoc(false);
+    }
+  };
+
+  /**
+   * Flip one of the universal "show on client" toggles. We update local state
+   * optimistically, then call the API. On failure we revert and surface a toast so
+   * the admin sees that the switch didn't actually persist.
+   */
+  const runToggleDisplay = async (key) => {
+    const next = !displayToggles[key];
+    setDisplayToggles((prev) => ({ ...prev, [key]: next }));
+    setTogglingDisplayKey(key);
+    try {
+      const { data } = await api.post("/admin/control/display-toggles", { [key]: next });
+      if (data?.success) {
+        const live = data.display || {};
+        setDisplayToggles({
+          showVisaType: live.showVisaType !== false,
+          showValidity: live.showValidity !== false,
+          showProcessingDays: live.showProcessingDays !== false,
+          showRequiredDocuments: live.showRequiredDocuments !== false,
+        });
+        const labels = {
+          showVisaType: "Visa Type",
+          showValidity: "Validity",
+          showProcessingDays: "Processing Days",
+          showRequiredDocuments: "Required Documents",
+        };
+        showToast(`${labels[key]} ${next ? "shown" : "hidden"} on the public site.`, "success");
+        // Bump country fetch so admin tables re-pull resolved values right away.
+        await fetchCountries();
+      } else {
+        // Revert optimistic update if the server reports failure.
+        setDisplayToggles((prev) => ({ ...prev, [key]: !next }));
+        showToast(data?.message || "Failed to update display toggle.", "error");
+      }
+    } catch (error) {
+      setDisplayToggles((prev) => ({ ...prev, [key]: !next }));
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update display toggle.";
+      if (status === 404) {
+        toastMsg =
+          "Toggle endpoint not found — restart the API so /api/admin/control/display-toggles is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      // eslint-disable-next-line no-console
+      console.error("Toggle display failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setTogglingDisplayKey(null);
     }
   };
 
@@ -1464,14 +2089,413 @@ const Dashboard = () => {
                 </div>
               </Card>
 
+              {/* ══════════════════════════════════════════════════════════
+                  Universal Visa Type control — sets `Settings.globalVisaType`
+                  and resets every country's `useGlobalVisaType=true`. Admins
+                  can later override one country individually in Country Manager.
+                  The toggle in the header hides the Visa Type tile on every
+                  public card / details page when switched off.
+                  ══════════════════════════════════════════════════════════ */}
+              <Card>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <ShieldCheck size={18} className="text-cyan" />
+                        Update Visa Type (universal)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showVisaType}
+                        busy={togglingDisplayKey === "showVisaType"}
+                        onClick={() => runToggleDisplay("showVisaType")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Sets a single <span className="text-text-primary font-medium">Visa Type</span> on every country card
+                      and detail page. Pick a value from the dropdown <span className="text-text-primary font-medium">or</span>{" "}
+                      type your own. Per-country overrides set in{" "}
+                      <span className="text-text-primary font-medium">Country Manager</span> are restored to the global value
+                      when you click <span className="text-text-primary font-medium">Update All Visa Types</span>. You can
+                      re-introduce a per-country override at any time afterwards.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {globalDefaults.globalVisaType || "Not set yet (cards fall back to each country's stored value)"}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalVisaType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingVisaType}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "visa-type"}
+                    disabled={!resolveControlValue(visaTypePicker, visaTypeCustom)}
+                    onClick={runUpdateGlobalVisaType}
+                  >
+                    Update All Visa Types
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Pick a Visa Type"
+                    value={visaTypePicker}
+                    onChange={(e) => {
+                      setVisaTypePicker(e.target.value);
+                      setVisaTypeCustom("");
+                    }}
+                    options={VISA_TYPE_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
+                    placeholder="— choose one —"
+                    id="control-visa-type-picker"
+                  />
+                  <Input
+                    label="Or type a custom value"
+                    value={visaTypeCustom}
+                    onChange={(e) => {
+                      setVisaTypeCustom(e.target.value);
+                      if (e.target.value.trim()) setVisaTypePicker("");
+                    }}
+                    placeholder="e.g. Sticker Visa, Diplomatic Visa…"
+                    id="control-visa-type-custom"
+                    helper="Custom value overrides the dropdown above."
+                  />
+                </div>
+              </Card>
+
+              {/* ══════════════════════════════════════════════════════════
+                  Universal Validity control — mirror of the Visa Type card.
+                  ══════════════════════════════════════════════════════════ */}
+              <Card>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <CalendarDays size={18} className="text-cyan" />
+                        Update Validity (universal)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showValidity}
+                        busy={togglingDisplayKey === "showValidity"}
+                        onClick={() => runToggleDisplay("showValidity")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Same model as Visa Type — picks a single global <span className="text-text-primary font-medium">Validity</span>{" "}
+                      (e.g. <span className="text-text-primary font-medium">90 Days</span>) applied to every country card and detail
+                      page. Per-country overrides are restored to the global value when you click{" "}
+                      <span className="text-text-primary font-medium">Update All Validities</span>.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {globalDefaults.globalValidity || "Not set yet (cards show '—' when neither global nor per-country exists)"}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalValidity}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingValidity}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "validity"}
+                    disabled={!resolveControlValue(validityPicker, validityCustom)}
+                    onClick={runUpdateGlobalValidity}
+                  >
+                    Update All Validities
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Pick a Validity"
+                    value={validityPicker}
+                    onChange={(e) => {
+                      setValidityPicker(e.target.value);
+                      setValidityCustom("");
+                    }}
+                    options={VALIDITY_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
+                    placeholder="— choose one —"
+                    id="control-validity-picker"
+                  />
+                  <Input
+                    label="Or type a custom value"
+                    value={validityCustom}
+                    onChange={(e) => {
+                      setValidityCustom(e.target.value);
+                      if (e.target.value.trim()) setValidityPicker("");
+                    }}
+                    placeholder="e.g. 45 Days, 18 Months, Per visa policy…"
+                    id="control-validity-custom"
+                    helper="Custom value overrides the dropdown above."
+                  />
+                </div>
+              </Card>
+
+              {/* ══════════════════════════════════════════════════════════
+                  Universal Processing Days control — mirror of the other two.
+                  The toggle hides the Processing tile on the public client.
+                  ══════════════════════════════════════════════════════════ */}
+              <Card>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <Clock size={18} className="text-cyan" />
+                        Update Processing Days (universal)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showProcessingDays}
+                        busy={togglingDisplayKey === "showProcessingDays"}
+                        onClick={() => runToggleDisplay("showProcessingDays")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Same model as Visa Type / Validity — sets a single global{" "}
+                      <span className="text-text-primary font-medium">Processing Days</span>{" "}
+                      (e.g. <span className="text-text-primary font-medium">5-10 days</span>) on every country card and detail page.
+                      Per-country overrides are restored to the global value when you click{" "}
+                      <span className="text-text-primary font-medium">Update All Processing Days</span>.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {globalDefaults.globalProcessingDays || "Not set yet (cards fall back to each country's stored value)"}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalProcessingDays}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingProcessingDays}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "processing-days"}
+                    disabled={!resolveControlValue(processingDaysPicker, processingDaysCustom)}
+                    onClick={runUpdateGlobalProcessingDays}
+                  >
+                    Update All Processing Days
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Pick Processing Days"
+                    value={processingDaysPicker}
+                    onChange={(e) => {
+                      setProcessingDaysPicker(e.target.value);
+                      setProcessingDaysCustom("");
+                    }}
+                    options={PROCESSING_DAYS_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
+                    placeholder="— choose one —"
+                    id="control-processing-days-picker"
+                  />
+                  <Input
+                    label="Or type a custom value"
+                    value={processingDaysCustom}
+                    onChange={(e) => {
+                      setProcessingDaysCustom(e.target.value);
+                      if (e.target.value.trim()) setProcessingDaysPicker("");
+                    }}
+                    placeholder="e.g. 4-6 days, 2 weeks, Per visa policy…"
+                    id="control-processing-days-custom"
+                    helper="Custom value overrides the dropdown above."
+                  />
+                </div>
+              </Card>
+
+              {/* ══════════════════════════════════════════════════════════
+                  Universal Required Documents control — admin picks the
+                  catalog rows that apply to every country, can add custom
+                  document types, and toggles the whole section on/off for
+                  the public client.
+                  ══════════════════════════════════════════════════════════ */}
+              <Card>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <FileText size={18} className="text-cyan" />
+                        Required Documents (universal)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showRequiredDocuments}
+                        busy={togglingDisplayKey === "showRequiredDocuments"}
+                        onClick={() => runToggleDisplay("showRequiredDocuments")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Tick every document type applicants must upload globally. Click{" "}
+                      <span className="text-text-primary font-medium">Update All Required Documents</span>{" "}
+                      to apply it to every country. Per-country edits in{" "}
+                      <span className="text-text-primary font-medium">Country Manager</span> are restored to the
+                      global list. Need a new document type? Add it below — it appears in this checklist and on
+                      every country edit modal instantly.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {globalDefaults.globalRequiredDocuments.length
+                          ? `${globalDefaults.globalRequiredDocuments.length} document${
+                              globalDefaults.globalRequiredDocuments.length === 1 ? "" : "s"
+                            }`
+                          : "Not set yet (countries fall back to their stored override)"}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalRequiredDocuments}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingRequiredDocuments}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "required-documents"}
+                    onClick={runUpdateGlobalRequiredDocuments}
+                  >
+                    Update All Required Documents
+                  </Button>
+                </div>
+
+                {/* Checkbox grid built from the merged catalog. Built-in rows
+                    are non-removable; custom rows expose a small "Delete" pill. */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {documentCatalog.length === 0 && (
+                    <p className="col-span-full text-sm text-text-muted">
+                      Loading document catalog…
+                    </p>
+                  )}
+                  {documentCatalog.map(({ key, label, builtIn }) => {
+                    const checked = requiredDocsDraft.includes(key);
+                    const DocIcon = getDocumentIcon(key);
+                    return (
+                      <div
+                        key={key}
+                        className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 ${
+                          checked
+                            ? "border-cyan/60 bg-cyan/10 text-cyan"
+                            : "border-border bg-surface-2 text-text-muted hover:border-cyan/30 hover:text-text-primary"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRequiredDocsDraft((prev) =>
+                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+                            )
+                          }
+                          className="flex items-center gap-2 flex-1 text-left min-w-0"
+                          id={`control-doc-toggle-${key}`}
+                        >
+                          <span
+                            className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${
+                              checked ? "bg-cyan border-cyan" : "border-border"
+                            }`}
+                          >
+                            {checked && <CheckCircle size={10} className="text-background" />}
+                          </span>
+                          <DocIcon size={15} className={`flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`} />
+                          <span className="truncate" title={label}>{label}</span>
+                          {!builtIn && (
+                            <span className="ml-auto text-[10px] uppercase tracking-wider text-cyan/70">custom</span>
+                          )}
+                        </button>
+                        {!builtIn && (
+                          <button
+                            type="button"
+                            onClick={() => runRemoveCustomDocument(key, label)}
+                            disabled={savingCustomDoc}
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full border border-red-500/40 bg-background text-red-300 hover:bg-red-500/15 flex items-center justify-center transition-colors disabled:opacity-50"
+                            title={`Remove "${label}"`}
+                            aria-label={`Remove ${label}`}
+                          >
+                            <X size={11} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {requiredDocsDraft.length === 0 && (
+                  <p className="text-xs text-amber-400 mt-3">
+                    ⚠ With zero documents selected the public site will fall back to each country's stored override.
+                  </p>
+                )}
+
+                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                <div className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-4">
+                  <p className="text-xs font-semibold text-text-primary mb-2 flex items-center gap-2">
+                    <Plus size={14} className="text-cyan" />
+                    Add a custom document type
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      placeholder='e.g. "Medical Insurance Certificate"'
+                      value={newCustomDocLabel}
+                      onChange={(e) => setNewCustomDocLabel(e.target.value)}
+                      id="control-custom-doc-label"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<Plus size={14} />}
+                      loading={savingCustomDoc}
+                      disabled={!newCustomDocLabel.trim()}
+                      onClick={runAddCustomDocument}
+                    >
+                      Add to catalog
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
+                    Custom types use a <span className="font-mono text-text-primary">custom_xxx</span> key under the hood
+                    and appear in every country edit modal. Removing one strips it from the catalog{" "}
+                    <span className="text-text-primary font-medium">and</span> every country that referenced it.
+                  </p>
+                </div>
+              </Card>
+
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                   <div>
                     <h2 className="font-semibold text-text-primary">Destination pages (all countries)</h2>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
                       The sections <span className="text-text-primary font-medium">Why book now?</span>,{" "}
-                      <span className="text-text-primary font-medium">What&apos;s included</span> and{" "}
-                      <span className="text-text-primary font-medium">FAQs</span> on every public destination page read from here.
+                      <span className="text-text-primary font-medium">What&apos;s included</span>,{" "}
+                      <span className="text-text-primary font-medium">FAQs</span>,{" "}
+                      <span className="text-text-primary font-medium">How it works</span> and{" "}
+                      <span className="text-text-primary font-medium">Visa Requirements</span> on every public destination page read from here.
                       These items show on <span className="text-text-primary font-medium">every country</span>. Any extras you add in{" "}
                       <span className="text-text-primary font-medium">Country Manager → Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
                     </p>
@@ -1501,6 +2525,9 @@ const Dashboard = () => {
                           description: String(s?.description ?? "").trim(),
                         }))
                         .filter((s) => s.title && s.description);
+                      const visaRequirements = (settingsForm.destinationVisaRequirements || [])
+                        .map((s) => String(s ?? "").trim())
+                        .filter(Boolean);
                       saveSettingsPartial(
                         "destination-content",
                         {
@@ -1508,6 +2535,7 @@ const Dashboard = () => {
                           destinationIncludedItems: included,
                           destinationFaqs: faqs,
                           destinationHowItWorks: howItWorks,
+                          destinationVisaRequirements: visaRequirements,
                         },
                         "Destination copy saved — visible on all country pages.",
                       );
@@ -1776,6 +2804,64 @@ const Dashboard = () => {
                         }
                       >
                         Add step
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface-2 border border-border rounded-xl p-5">
+                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
+                      <ScrollText size={18} className="text-cyan" />
+                      Visa Requirements
+                    </h3>
+                    <p className="text-xs text-text-muted mb-4">
+                      One requirement per line. These show on every destination page (below &quot;How it works&quot;). Per-country
+                      extras you add inside Country Manager are appended below — duplicates are skipped.
+                    </p>
+                    <div className="space-y-3 max-w-2xl">
+                      {(settingsForm.destinationVisaRequirements || []).map((line, idx) => (
+                        <div key={`visa-${idx}`} className="flex gap-2 items-start">
+                          <Textarea
+                            rows={2}
+                            value={line}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationVisaRequirements || [])];
+                                next[idx] = v;
+                                return { ...p, destinationVisaRequirements: next };
+                              });
+                            }}
+                            placeholder="e.g. Original passport valid for at least 6 months"
+                          />
+                          <button
+                            type="button"
+                            className="mt-1.5 p-2 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            onClick={() =>
+                              setSettingsForm((p) => ({
+                                ...p,
+                                destinationVisaRequirements: (p.destinationVisaRequirements || []).filter((_, i) => i !== idx),
+                              }))
+                            }
+                            aria-label={`Remove requirement ${idx + 1}`}
+                            title="Remove"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Plus size={15} />}
+                        onClick={() =>
+                          setSettingsForm((p) => ({
+                            ...p,
+                            destinationVisaRequirements: [...(p.destinationVisaRequirements || []), ""],
+                          }))
+                        }
+                      >
+                        Add requirement
                       </Button>
                     </div>
                   </div>
@@ -2397,7 +3483,7 @@ const Dashboard = () => {
         isOpen={countryModalOpen}
         onClose={closeCountryModal}
         title={`Edit ${selectedCountry?.name || "Country"}`}
-        size="lg"
+        size="full"
         footer={
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={closeCountryModal} id="country-modal-cancel">Cancel</Button>
@@ -2413,7 +3499,16 @@ const Dashboard = () => {
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch max-w-[1400px] mx-auto w-full lg:h-[calc(100vh-11.5rem)]">
+          {/* ════════════════════════════════════════════════════════════
+              LEFT — country basics, cover image, fees, type, etc.
+              Independent scrollbar on lg+ so left + right scroll separately.
+              ════════════════════════════════════════════════════════════ */}
+          <div className="lg:col-span-5 xl:col-span-4 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
+            <div className="flex items-center gap-2">
+              <BadgeCheck size={14} className="text-cyan" />
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-text-primary">Country basics</h3>
+            </div>
           {/* Name + Flag emoji */}
           <div className="grid grid-cols-3 gap-3">
             <Input
@@ -2434,15 +3529,66 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Visa type + Continent */}
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Visa Type"
-              value={countryForm.visaType}
-              onChange={(e) => setCountryForm((p) => ({ ...p, visaType: e.target.value }))}
-              id="country-visa-type"
-              placeholder="e.g. Tourist Visa"
-            />
+          {/* Visa type (dropdown + editable) + Validity + Continent */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <Input
+                label="Visa Type"
+                value={countryForm.visaType}
+                onChange={(e) => setCountryForm((p) => ({ ...p, visaType: e.target.value }))}
+                id="country-visa-type"
+                placeholder="Pick or type a visa type"
+                list="country-visa-type-options"
+                helper="Pick from the dropdown or type a custom value."
+              />
+              <datalist id="country-visa-type-options">
+                {VISA_TYPE_SUGGESTIONS.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              {/* Universal control hint: shows whether this country is following the
+                  global default or carrying a per-country override. Toggles
+                  automatically based on what the admin types — clear the field or
+                  match the global value to revert to global. */}
+              {selectedCountry?.useGlobalVisaType === false ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override — clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value{globalDefaults.globalVisaType ? ` (${globalDefaults.globalVisaType})` : ""}. Type something different to override.
+                </p>
+              )}
+            </div>
+            <div>
+              <Input
+                label="Validity"
+                value={countryForm.validity}
+                onChange={(e) => setCountryForm((p) => ({ ...p, validity: e.target.value }))}
+                id="country-validity"
+                placeholder="Pick or type a validity"
+                list="country-validity-options"
+                helper="Shown between visa type and fee on the country card."
+              />
+              <datalist id="country-validity-options">
+                {VALIDITY_SUGGESTIONS.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              {selectedCountry?.useGlobalValidity === false ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override — clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value{globalDefaults.globalValidity ? ` (${globalDefaults.globalValidity})` : ""}. Type something different to override.
+                </p>
+              )}
+            </div>
             <Input
               label="Continent"
               value={countryForm.continent}
@@ -2462,13 +3608,35 @@ const Dashboard = () => {
               id="country-price"
               placeholder="150"
             />
-            <Input
-              label="Processing Days"
-              value={countryForm.processingDays}
-              onChange={(e) => setCountryForm((p) => ({ ...p, processingDays: e.target.value }))}
-              id="country-processing"
-              placeholder="5-10"
-            />
+            <div>
+              <Input
+                label="Processing Days"
+                value={countryForm.processingDays}
+                onChange={(e) => setCountryForm((p) => ({ ...p, processingDays: e.target.value }))}
+                id="country-processing"
+                placeholder="Pick or type processing days"
+                list="country-processing-days-options"
+              />
+              <datalist id="country-processing-days-options">
+                {PROCESSING_DAYS_SUGGESTIONS.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              {/* Mirrors the Visa Type / Validity hints — flips automatically based
+                  on whether this country is currently following the global default
+                  (`useGlobalProcessingDays`) or has its own override. */}
+              {selectedCountry?.useGlobalProcessingDays === false ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override — clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value{globalDefaults.globalProcessingDays ? ` (${globalDefaults.globalProcessingDays})` : ""}. Type something different to override.
+                </p>
+              )}
+            </div>
             <Select
               label="Difficulty"
               value={countryForm.difficulty}
@@ -2574,76 +3742,91 @@ const Dashboard = () => {
             id="country-description"
             placeholder="Brief description of the destination..."
           />
+          </div>{/* /LEFT column */}
 
-          {/* Required Documents — checkboxes */}
-          <div>
-            <label className="text-sm font-medium text-text-secondary mb-3 block">
-              Required Documents
-              <span className="ml-2 text-xs text-text-muted font-normal">Select which documents applicants must upload</span>
-            </label>
+          {/* ════════════════════════════════════════════════════════════
+              RIGHT — required docs, free-text requirements, destination copy
+              Independent scrollbar on lg+.
+              ════════════════════════════════════════════════════════════ */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-6 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
+          {/* Required Documents — universal control aware. The checklist now
+              uses the merged catalog (built-in + admin's custom doc types) and
+              shows a green/amber badge plus a "Reset to global" helper button
+              that mirrors the same pattern as Visa Type / Validity. */}
+          <div className="rounded-2xl border border-border bg-surface-2/40 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <label className="text-sm font-semibold text-text-primary">
+                Required Documents
+                <span className="ml-2 text-xs text-text-muted font-normal">Select which documents applicants must upload</span>
+              </label>
+              {/* Quick "use global" helper — sets the local list to the global
+                  default. Saving with the same set as global will flip the
+                  flag back automatically (server-side comparison). */}
+              {globalDefaults.globalRequiredDocuments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCountryForm((p) => ({
+                      ...p,
+                      requiredDocuments: [...globalDefaults.globalRequiredDocuments],
+                    }))
+                  }
+                  className="text-[11px] font-medium text-cyan hover:underline"
+                >
+                  Reset to global ({globalDefaults.globalRequiredDocuments.length})
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {DOC_OPTIONS.map(({ key, label }) => {
-                const checked = countryForm.requiredDocuments.includes(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleRequiredDoc(key)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 text-left ${
-                      checked
-                        ? "border-cyan/60 bg-cyan/10 text-cyan"
-                        : "border-border bg-surface-2 text-text-muted hover:border-cyan/30 hover:text-text-primary"
-                    }`}
-                    id={`doc-toggle-${key}`}
-                  >
-                    <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${checked ? "bg-cyan border-cyan" : "border-border"}`}>
-                      {checked && <CheckCircle size={10} className="text-background" />}
-                    </span>
-                    {label}
-                  </button>
-                );
-              })}
+              {(() => {
+                // Catalog from the universal control + a graceful fallback to
+                // the hardcoded `DOC_OPTIONS` shipped with the admin so this
+                // block still renders before the API responds on first load.
+                const rows = documentCatalog.length
+                  ? documentCatalog
+                  : DOC_OPTIONS.map((o) => ({ ...o, builtIn: true }));
+                return rows.map(({ key, label, builtIn }) => {
+                  const checked = countryForm.requiredDocuments.includes(key);
+                  const DocIcon = getDocumentIcon(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleRequiredDoc(key)}
+                      className={`relative flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 text-left min-w-0 ${
+                        checked
+                          ? "border-cyan/60 bg-cyan/10 text-cyan"
+                          : "border-border bg-surface-2 text-text-muted hover:border-cyan/30 hover:text-text-primary"
+                      }`}
+                      id={`doc-toggle-${key}`}
+                    >
+                      <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${checked ? "bg-cyan border-cyan" : "border-border"}`}>
+                        {checked && <CheckCircle size={10} className="text-background" />}
+                      </span>
+                      <DocIcon size={15} className={`flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`} />
+                      <span className="truncate" title={label}>{label}</span>
+                      {builtIn === false && (
+                        <span className="ml-auto text-[10px] uppercase tracking-wider text-cyan/70">custom</span>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
             </div>
             {countryForm.requiredDocuments.length === 0 && (
               <p className="text-xs text-amber-400 mt-2">⚠ At least one document type should be selected.</p>
             )}
-          </div>
-
-          {/* Visa Requirements — dynamic free-text list */}
-          <div>
-            <label className="text-sm font-medium text-text-secondary mb-2 block">
-              Visa Requirements
-              <span className="ml-2 text-xs text-text-muted font-normal">Free-text info shown to applicants</span>
-            </label>
-            <div className="space-y-2">
-              {countryForm.requirements.map((req, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    value={req}
-                    onChange={(e) => updateRequirement(index, e.target.value)}
-                    placeholder={`Requirement ${index + 1}`}
-                    className="flex-1 bg-surface-2 border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
-                    id={`requirement-${index}`}
-                  />
-                  <button
-                    onClick={() => removeRequirement(index)}
-                    className="p-2 rounded-xl hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
-                    aria-label={`Remove requirement ${index + 1}`}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon={<Plus size={14} />}
-                onClick={addRequirement}
-                id="add-requirement-btn"
-              >
-                Add Requirement
-              </Button>
-            </div>
+            {selectedCountry?.useGlobalRequiredDocuments === false ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Custom override — match the global selection (or click "Reset to global") to use the universal list again.
+              </p>
+            ) : (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Using global list{globalDefaults.globalRequiredDocuments.length ? ` (${globalDefaults.globalRequiredDocuments.length} document${globalDefaults.globalRequiredDocuments.length === 1 ? "" : "s"})` : ""}. Tick / untick anything to override on this country only.
+              </p>
+            )}
           </div>
 
           {/* ──────────────────────────────────────────────────
@@ -2655,6 +3838,7 @@ const Dashboard = () => {
             const excludedWhy = new Set(countryForm.excludeDestinationWhyBookNow || []);
             const excludedInc = new Set(countryForm.excludeDestinationIncludedItems || []);
             const excludedFaq = new Set(countryForm.excludeDestinationFaqQuestions || []);
+            const excludedVisa = new Set(countryForm.excludeDestinationVisaRequirements || []);
 
             const toggleExclude = (field, key) => {
               setCountryForm((p) => {
@@ -2671,7 +3855,7 @@ const Dashboard = () => {
               (list || []).filter((f) => !excluded.has(normDestKey(f?.question))).length;
 
             return (
-          <div className="border-t border-border pt-5 mt-2">
+          <div className="rounded-2xl border border-border bg-surface-2/40 p-5">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-text-primary">
                 Destination page copy — {countryForm.name || "this country"}
@@ -2680,7 +3864,9 @@ const Dashboard = () => {
                 <span className="text-text-primary font-medium">Global items</span> from{" "}
                 <span className="text-text-primary font-medium">Settings → Destinations</span> are shown first on every country.
                 Click the <X size={11} className="inline -mt-0.5" /> next to a global item to hide it on{" "}
-                {countryForm.name || "this country"} only. Anything you add under{" "}
+                {countryForm.name || "this country"} only — hidden items move to{" "}
+                <span className="text-text-primary font-medium">Hidden on this country</span> below each section so you can restore them.
+                Anything you add under{" "}
                 <span className="text-text-primary font-medium">extras for this country</span> is appended below
                 the global items (duplicates skipped).
               </p>
@@ -2706,37 +3892,68 @@ const Dashboard = () => {
                     No global items yet — add them in Settings → Destinations.
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {countryModalGlobalDest.whyBookNow.map((line) => {
-                      const key = normDestKey(line);
-                      const hidden = excludedWhy.has(key);
-                      return (
-                        <div
-                          key={`global-why-${key}`}
-                          className={`flex gap-2 items-center justify-between rounded-xl border px-3 py-2 text-sm transition-colors ${
-                            hidden
-                              ? "border-border bg-background/40 text-text-muted line-through"
-                              : "border-border bg-background text-text-primary"
-                          }`}
-                        >
-                          <span className="flex-1 break-words">{line}</span>
-                          <button
-                            type="button"
-                            onClick={() => toggleExclude("excludeDestinationWhyBookNow", key)}
-                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
-                              hidden
-                                ? "text-cyan hover:bg-cyan/10"
-                                : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
-                            }`}
-                            aria-label={hidden ? `Show "${line}" on this country` : `Hide "${line}" on this country`}
-                            title={hidden ? "Show on this country" : "Hide on this country"}
-                          >
-                            {hidden ? <Plus size={14} /> : <X size={14} />}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  (() => {
+                    const all = countryModalGlobalDest.whyBookNow || [];
+                    const visible = all.filter((line) => !excludedWhy.has(normDestKey(line)));
+                    const hidden = all.filter((line) => excludedWhy.has(normDestKey(line)));
+                    return (
+                      <>
+                        {visible.length === 0 ? (
+                          <p className="text-xs text-text-muted italic px-1">
+                            All global reasons are hidden on this country. Restore any below.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {visible.map((line) => {
+                              const key = normDestKey(line);
+                              return (
+                                <div
+                                  key={`global-why-${key}`}
+                                  className="flex gap-2 items-center justify-between rounded-xl border border-border bg-background text-text-primary px-3 py-2 text-sm"
+                                >
+                                  <span className="flex-1 break-words">{line}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExclude("excludeDestinationWhyBookNow", key)}
+                                    className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    aria-label={`Hide "${line}" on this country`}
+                                    title="Hide on this country"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {hidden.length > 0 && (
+                          <div className="mt-3 rounded-xl border border-dashed border-border bg-background/40 p-3">
+                            <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">
+                              Hidden on this country ({hidden.length})
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {hidden.map((line) => {
+                                const key = normDestKey(line);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={`hidden-why-${key}`}
+                                    onClick={() => toggleExclude("excludeDestinationWhyBookNow", key)}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-text-muted hover:text-cyan hover:border-cyan/40 hover:bg-cyan/5 transition-colors max-w-full"
+                                    title="Show on this country again"
+                                    aria-label={`Show "${line}" on this country again`}
+                                  >
+                                    <Plus size={12} className="shrink-0" />
+                                    <span className="truncate">{line}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
                 )}
               </div>
 
@@ -2812,37 +4029,68 @@ const Dashboard = () => {
                     No global items yet — add them in Settings → Destinations.
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {countryModalGlobalDest.includedItems.map((line) => {
-                      const key = normDestKey(line);
-                      const hidden = excludedInc.has(key);
-                      return (
-                        <div
-                          key={`global-inc-${key}`}
-                          className={`flex gap-2 items-center justify-between rounded-xl border px-3 py-2 text-sm transition-colors ${
-                            hidden
-                              ? "border-border bg-background/40 text-text-muted line-through"
-                              : "border-border bg-background text-text-primary"
-                          }`}
-                        >
-                          <span className="flex-1 break-words">{line}</span>
-                          <button
-                            type="button"
-                            onClick={() => toggleExclude("excludeDestinationIncludedItems", key)}
-                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
-                              hidden
-                                ? "text-cyan hover:bg-cyan/10"
-                                : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
-                            }`}
-                            aria-label={hidden ? `Show "${line}" on this country` : `Hide "${line}" on this country`}
-                            title={hidden ? "Show on this country" : "Hide on this country"}
-                          >
-                            {hidden ? <Plus size={14} /> : <X size={14} />}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  (() => {
+                    const all = countryModalGlobalDest.includedItems || [];
+                    const visible = all.filter((line) => !excludedInc.has(normDestKey(line)));
+                    const hidden = all.filter((line) => excludedInc.has(normDestKey(line)));
+                    return (
+                      <>
+                        {visible.length === 0 ? (
+                          <p className="text-xs text-text-muted italic px-1">
+                            All global bullets are hidden on this country. Restore any below.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {visible.map((line) => {
+                              const key = normDestKey(line);
+                              return (
+                                <div
+                                  key={`global-inc-${key}`}
+                                  className="flex gap-2 items-center justify-between rounded-xl border border-border bg-background text-text-primary px-3 py-2 text-sm"
+                                >
+                                  <span className="flex-1 break-words">{line}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExclude("excludeDestinationIncludedItems", key)}
+                                    className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    aria-label={`Hide "${line}" on this country`}
+                                    title="Hide on this country"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {hidden.length > 0 && (
+                          <div className="mt-3 rounded-xl border border-dashed border-border bg-background/40 p-3">
+                            <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">
+                              Hidden on this country ({hidden.length})
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {hidden.map((line) => {
+                                const key = normDestKey(line);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={`hidden-inc-${key}`}
+                                    onClick={() => toggleExclude("excludeDestinationIncludedItems", key)}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-text-muted hover:text-cyan hover:border-cyan/40 hover:bg-cyan/5 transition-colors max-w-full"
+                                    title="Show on this country again"
+                                    aria-label={`Show "${line}" on this country again`}
+                                  >
+                                    <Plus size={12} className="shrink-0" />
+                                    <span className="truncate">{line}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
                 )}
               </div>
 
@@ -2918,40 +4166,76 @@ const Dashboard = () => {
                     No global FAQs yet — add them in Settings → Destinations.
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {countryModalGlobalDest.faqs.map((faq) => {
-                      const key = normDestKey(faq.question);
-                      const hidden = excludedFaq.has(key);
-                      return (
-                        <div
-                          key={`global-faq-${key}`}
-                          className={`rounded-xl border px-3 py-2.5 transition-colors ${
-                            hidden
-                              ? "border-border bg-background/40 text-text-muted line-through"
-                              : "border-border bg-background text-text-primary"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium flex-1 break-words">{faq.question}</p>
-                            <button
-                              type="button"
-                              onClick={() => toggleExclude("excludeDestinationFaqQuestions", key)}
-                              className={`shrink-0 p-1.5 rounded-lg transition-colors ${
-                                hidden
-                                  ? "text-cyan hover:bg-cyan/10"
-                                  : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
-                              }`}
-                              aria-label={hidden ? `Show "${faq.question}" on this country` : `Hide "${faq.question}" on this country`}
-                              title={hidden ? "Show on this country" : "Hide on this country"}
-                            >
-                              {hidden ? <Plus size={14} /> : <X size={14} />}
-                            </button>
+                  (() => {
+                    const all = countryModalGlobalDest.faqs || [];
+                    const visible = all.filter((f) => !excludedFaq.has(normDestKey(f?.question)));
+                    const hidden = all.filter((f) => excludedFaq.has(normDestKey(f?.question)));
+                    return (
+                      <>
+                        {visible.length === 0 ? (
+                          <p className="text-xs text-text-muted italic px-1">
+                            All global FAQs are hidden on this country. Restore any below.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {visible.map((faq) => {
+                              const key = normDestKey(faq.question);
+                              return (
+                                <div
+                                  key={`global-faq-${key}`}
+                                  className="rounded-xl border border-border bg-background text-text-primary px-3 py-2.5"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-medium flex-1 break-words">{faq.question}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleExclude("excludeDestinationFaqQuestions", key)}
+                                      className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                      aria-label={`Hide "${faq.question}" on this country`}
+                                      title="Hide on this country"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                  <p className="text-xs text-text-secondary mt-1 break-words">{faq.answer}</p>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <p className="text-xs text-text-secondary mt-1 break-words">{faq.answer}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        )}
+                        {hidden.length > 0 && (
+                          <div className="mt-3 rounded-xl border border-dashed border-border bg-background/40 p-3">
+                            <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">
+                              Hidden on this country ({hidden.length})
+                            </p>
+                            <div className="flex flex-col gap-2">
+                              {hidden.map((faq) => {
+                                const key = normDestKey(faq.question);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={`hidden-faq-${key}`}
+                                    onClick={() => toggleExclude("excludeDestinationFaqQuestions", key)}
+                                    className="text-left rounded-xl border border-border bg-surface px-3 py-2 text-[11px] text-text-muted hover:text-cyan hover:border-cyan/40 hover:bg-cyan/5 transition-colors"
+                                    title="Show on this country again"
+                                    aria-label={`Show FAQ "${faq.question}" on this country again`}
+                                  >
+                                    <span className="inline-flex items-start gap-1.5">
+                                      <Plus size={12} className="shrink-0 mt-0.5" />
+                                      <span>
+                                        <span className="font-medium text-text-secondary block truncate">{faq.question}</span>
+                                        <span className="text-text-muted line-clamp-2 mt-0.5">{faq.answer}</span>
+                                      </span>
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
                 )}
               </div>
 
@@ -3044,55 +4328,88 @@ const Dashboard = () => {
 
               <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
-                {countryModalGlobalDest.howItWorks.length === 0 ? (
-                  <p className="text-xs text-text-muted italic px-1">
-                    No global steps yet — add them in Settings → Destinations.
-                  </p>
-                ) : (
-                  <ol className="space-y-2">
-                    {countryModalGlobalDest.howItWorks.map((step, gIdx) => {
-                      const key = normDestKey(step.title);
-                      const hidden = (countryForm.excludeDestinationHowItWorksTitles || []).includes(key);
-                      return (
-                        <li
-                          key={`global-how-${key}`}
-                          className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                            hidden
-                              ? "border-border bg-background/40 text-text-muted line-through"
-                              : "border-border bg-background text-text-primary"
-                          }`}
-                        >
-                          <span
-                            className={`shrink-0 mt-0.5 w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center ${
-                              hidden
-                                ? "bg-surface-3 text-text-muted"
-                                : "bg-cyan/10 text-cyan border border-cyan/30"
-                            }`}
-                          >
-                            {gIdx + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium break-words">{step.title}</p>
-                            <p className="text-xs text-text-secondary mt-0.5 break-words">{step.description}</p>
+                {(() => {
+                  const excludedKeys = new Set(countryForm.excludeDestinationHowItWorksTitles || []);
+                  const visibleSteps = (countryModalGlobalDest.howItWorks || []).filter(
+                    (s) => !excludedKeys.has(normDestKey(s?.title))
+                  );
+                  const hiddenSteps = (countryModalGlobalDest.howItWorks || []).filter(
+                    (s) => excludedKeys.has(normDestKey(s?.title))
+                  );
+
+                  if ((countryModalGlobalDest.howItWorks || []).length === 0) {
+                    return (
+                      <p className="text-xs text-text-muted italic px-1">
+                        No global steps yet — add them in Settings → Destinations.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {visibleSteps.length === 0 ? (
+                        <p className="text-xs text-text-muted italic px-1">
+                          All global steps are hidden on this country. Restore any below.
+                        </p>
+                      ) : (
+                        <ol className="space-y-2">
+                          {visibleSteps.map((step, vIdx) => {
+                            const key = normDestKey(step.title);
+                            return (
+                              <li
+                                key={`global-how-${key}`}
+                                className="flex items-start gap-3 rounded-xl border border-border bg-background text-text-primary px-3 py-2.5"
+                              >
+                                <span className="shrink-0 mt-0.5 w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center bg-cyan/10 text-cyan border border-cyan/30">
+                                  {vIdx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium break-words">{step.title}</p>
+                                  <p className="text-xs text-text-secondary mt-0.5 break-words">{step.description}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExclude("excludeDestinationHowItWorksTitles", key)}
+                                  className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                  aria-label={`Hide "${step.title}" on this country`}
+                                  title="Hide on this country"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+
+                      {hiddenSteps.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-dashed border-border bg-background/40 p-3">
+                          <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">
+                            Hidden on this country ({hiddenSteps.length})
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {hiddenSteps.map((step) => {
+                              const key = normDestKey(step.title);
+                              return (
+                                <button
+                                  type="button"
+                                  key={`hidden-how-${key}`}
+                                  onClick={() => toggleExclude("excludeDestinationHowItWorksTitles", key)}
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-text-muted hover:text-cyan hover:border-cyan/40 hover:bg-cyan/5 transition-colors"
+                                  title="Show on this country again"
+                                  aria-label={`Show "${step.title}" on this country again`}
+                                >
+                                  <Plus size={12} />
+                                  <span className="truncate max-w-[200px]">{step.title}</span>
+                                </button>
+                              );
+                            })}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleExclude("excludeDestinationHowItWorksTitles", key)}
-                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
-                              hidden
-                                ? "text-cyan hover:bg-cyan/10"
-                                : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
-                            }`}
-                            aria-label={hidden ? `Show "${step.title}" on this country` : `Hide "${step.title}" on this country`}
-                            title={hidden ? "Show on this country" : "Hide on this country"}
-                          >
-                            {hidden ? <Plus size={14} /> : <X size={14} />}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               <div>
@@ -3168,9 +4485,130 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* Visa Requirements */}
+            <div className="bg-surface-2 border border-border rounded-xl p-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-text-primary flex items-center gap-2">
+                  <ScrollText size={14} className="text-cyan" />
+                  Visa Requirements
+                </h4>
+                <span className="text-[10px] text-text-muted">
+                  {visibleGlobalCount(countryModalGlobalDest.visaRequirements, excludedVisa)} global +{" "}
+                  {(countryForm.requirements || []).filter((s) => String(s ?? "").trim()).length} extra
+                </span>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
+                {(countryModalGlobalDest.visaRequirements || []).length === 0 ? (
+                  <p className="text-xs text-text-muted italic px-1">
+                    No global requirements yet — add them in Settings → Destinations.
+                  </p>
+                ) : (
+                  (() => {
+                    const all = countryModalGlobalDest.visaRequirements || [];
+                    const visible = all.filter((line) => !excludedVisa.has(normDestKey(line)));
+                    const hidden = all.filter((line) => excludedVisa.has(normDestKey(line)));
+                    return (
+                      <>
+                        {visible.length === 0 ? (
+                          <p className="text-xs text-text-muted italic px-1">
+                            All global requirements are hidden on this country. Restore any below.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {visible.map((line) => {
+                              const key = normDestKey(line);
+                              return (
+                                <div
+                                  key={`global-visa-${key}`}
+                                  className="flex gap-2 items-center justify-between rounded-xl border border-border bg-background text-text-primary px-3 py-2 text-sm"
+                                >
+                                  <span className="flex-1 break-words">{line}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExclude("excludeDestinationVisaRequirements", key)}
+                                    className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    aria-label={`Hide "${line}" on this country`}
+                                    title="Hide on this country"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {hidden.length > 0 && (
+                          <div className="mt-3 rounded-xl border border-dashed border-border bg-background/40 p-3">
+                            <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">
+                              Hidden on this country ({hidden.length})
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {hidden.map((line) => {
+                                const key = normDestKey(line);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={`hidden-visa-${key}`}
+                                    onClick={() => toggleExclude("excludeDestinationVisaRequirements", key)}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-text-muted hover:text-cyan hover:border-cyan/40 hover:bg-cyan/5 transition-colors max-w-full"
+                                    title="Show on this country again"
+                                    aria-label={`Show "${line}" on this country again`}
+                                  >
+                                    <Plus size={12} className="shrink-0" />
+                                    <span className="truncate">{line}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
+                <div className="space-y-2">
+                  {(countryForm.requirements || []).map((line, idx) => (
+                    <div key={`country-visa-${idx}`} className="flex gap-2 items-start">
+                      <input
+                        value={line}
+                        onChange={(e) => updateRequirement(idx, e.target.value)}
+                        placeholder={`Extra requirement ${idx + 1}`}
+                        className="flex-1 bg-background border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
+                        id={`country-visa-${idx}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeRequirement(idx)}
+                        className="p-2 rounded-xl hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+                        aria-label={`Remove extra requirement ${idx + 1}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={addRequirement}
+                    id="add-country-visa-btn"
+                  >
+                    Add requirement for this country
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
             );
           })()}
+          </div>{/* /RIGHT column */}
         </div>
       </Modal>
     </div>
