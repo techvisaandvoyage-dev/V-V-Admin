@@ -17,7 +17,10 @@ function App() {
       : runtimeBase || undefined;
 
   return (
-    <BrowserRouter basename={routerBase}>
+    <BrowserRouter
+      basename={routerBase}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <div className="min-h-screen bg-background text-text-primary selection:bg-cyan/30">
         <AppRoutes />
 
