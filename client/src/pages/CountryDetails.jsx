@@ -12,6 +12,7 @@ import {
   Minus,
   Plus,
   X,
+  ListChecks,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
@@ -108,37 +109,117 @@ const CountryDetails = () => {
     return { serviceAmount: service, gstAmount: gst, payableToUs: service + gst };
   }, [travellerCount]);
 
+  /**
+   * Destination-page copy:
+   *   1. Global defaults from `/config/destination-content`, minus lines this country
+   *      has opted out of (`excludeDestination*` arrays on the country document).
+   *   2. Per-country additions (`whyBookNow` / `includedItems` / `faqs`) appended after.
+   *   3. Hard-coded fallbacks only when the merged result would be empty.
+   *
+   * String lists are de-duplicated case-insensitively. FAQs de-dupe by question text.
+   */
+  const normKey = (s) => String(s ?? "").trim().toLowerCase();
+
+  const mergeStringLists = (globalList, countryList) => {
+    const seen = new Set();
+    const out = [];
+    const pushUnique = (raw) => {
+      const text = String(raw ?? "").trim();
+      if (!text) return;
+      const key = normKey(text);
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(text);
+    };
+    (Array.isArray(globalList) ? globalList : []).forEach(pushUnique);
+    (Array.isArray(countryList) ? countryList : []).forEach(pushUnique);
+    return out;
+  };
+
+  const mergeFaqLists = (globalList, countryList) => {
+    const seen = new Set();
+    const out = [];
+    const pushUnique = (raw) => {
+      const question = String(raw?.question ?? "").trim();
+      const answer = String(raw?.answer ?? "").trim();
+      if (!question || !answer) return;
+      const key = normKey(question);
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ question, answer });
+    };
+    (Array.isArray(globalList) ? globalList : []).forEach(pushUnique);
+    (Array.isArray(countryList) ? countryList : []).forEach(pushUnique);
+    return out;
+  };
+
+  const mergeHowItWorksLists = (globalList, countryList) => {
+    const seen = new Set();
+    const out = [];
+    const pushUnique = (raw) => {
+      const title = String(raw?.title ?? "").trim();
+      const description = String(raw?.description ?? "").trim();
+      if (!title || !description) return;
+      const key = normKey(title);
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ title, description });
+    };
+    (Array.isArray(globalList) ? globalList : []).forEach(pushUnique);
+    (Array.isArray(countryList) ? countryList : []).forEach(pushUnique);
+    return out;
+  };
+
   const whyBookNow = useMemo(() => {
-    const defaults = [
+    const ex = new Set(country?.excludeDestinationWhyBookNow || []);
+    const g = (destinationPageContent?.whyBookNow || []).filter((line) => !ex.has(normKey(line)));
+    const merged = mergeStringLists(g, country?.whyBookNow);
+    if (merged.length) return merged;
+    return [
       "Fast document pre-check by visa specialists",
       "Transparent pricing and status updates",
       "Dedicated support throughout your application",
     ];
-    return Array.isArray(country?.whyBookNow) && country.whyBookNow.length ? country.whyBookNow : defaults;
-  }, [country]);
+  }, [country, destinationPageContent]);
 
   const includedItems = useMemo(() => {
-    const g = destinationPageContent?.included;
-    if (Array.isArray(g) && g.length) return g;
-    const defaults = [
+    const ex = new Set(country?.excludeDestinationIncludedItems || []);
+    const g = (destinationPageContent?.included || []).filter((line) => !ex.has(normKey(line)));
+    const merged = mergeStringLists(g, country?.includedItems ?? country?.included);
+    if (merged.length) return merged;
+    return [
       "Application form guidance",
       "Document checklist and validation",
       "End-to-end support till submission",
     ];
-    return Array.isArray(country?.included) && country.included.length ? country.included : defaults;
-  }, [destinationPageContent, country]);
+  }, [country, destinationPageContent]);
 
   const faqs = useMemo(() => {
-    const g = destinationPageContent?.faqs;
-    if (Array.isArray(g) && g.length) return g;
-    if (Array.isArray(country?.faqs) && country.faqs.length) return country.faqs;
-    const defaults = [
+    const ex = new Set(country?.excludeDestinationFaqQuestions || []);
+    const g = (destinationPageContent?.faqs || []).filter((f) => !ex.has(normKey(f?.question)));
+    const merged = mergeFaqLists(g, country?.faqs);
+    if (merged.length) return merged;
+    return [
       { question: "How long does processing take?", answer: `Typical processing is ${country?.processingDays ?? ""} based on current embassy timelines.` },
       { question: "Can I track my application?", answer: "Yes, you can track status updates from your user dashboard after applying." },
       { question: "Is this fee refundable?", answer: "Government and service fees depend on visa policy and review stage." },
     ];
-    return defaults;
-  }, [destinationPageContent, country]);
+  }, [country, destinationPageContent]);
+
+  const howItWorks = useMemo(() => {
+    const ex = new Set(country?.excludeDestinationHowItWorksTitles || []);
+    const g = (destinationPageContent?.howItWorks || []).filter((s) => !ex.has(normKey(s?.title)));
+    const merged = mergeHowItWorksLists(g, country?.howItWorks);
+    if (merged.length) return merged;
+    return [
+      { title: "Apply with SprintVisa", description: "Upload your documents on SprintVisa or share over WhatsApp with our visa expert." },
+      { title: "Experts review the documents", description: "Our visa experts will verify your documents." },
+      { title: "Prepare the application", description: "Our visa expert will help you create the application for document submission." },
+      { title: "Visit the Visa Application Center", description: "Traveller visits their nearest Visa Application Center for document submission." },
+      { title: "Get your visa", description: "Traveller will collect their passport from VAC or via courier with a stamped visa." },
+      { title: "Enjoy your vacation", description: "Thanks for choosing SprintVisa and we wish you an amazing journey." },
+    ];
+  }, [country, destinationPageContent]);
 
   useEffect(() => {
     let alive = true;
@@ -334,6 +415,7 @@ const CountryDetails = () => {
   const SUB_NAV = showTravelDetails
     ? [{ id: "travel-details", label: "Travel Details" }]
     : [
+    { id: "how-it-works", label: "How it works" },
     { id: "document-requirements", label: "Document Requirements" },
     { id: "why-book-now", label: "Why book now?" },
     { id: "whats-included", label: "What's Included" },
@@ -852,6 +934,26 @@ const CountryDetails = () => {
               </motion.section>
             ) : (
               <>
+            <motion.section id="how-it-works" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <ListChecks size={18} className="text-cyan" />
+                <h2 className="text-xl font-bold text-text-primary">How it works</h2>
+              </div>
+              <ol className="space-y-4">
+                {howItWorks.map((step, idx) => (
+                  <li key={`${step.title}-${idx}`} className="flex items-start gap-4">
+                    <span className="shrink-0 w-9 h-9 rounded-full bg-cyan/10 border border-cyan/30 text-cyan font-bold text-sm flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-text-primary text-sm sm:text-base">{step.title}</p>
+                      <p className="text-sm text-text-secondary mt-1 leading-relaxed">{step.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </motion.section>
+
             <motion.section id="document-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
               <h2 className="text-xl font-bold text-text-primary mb-4">Document Requirements</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

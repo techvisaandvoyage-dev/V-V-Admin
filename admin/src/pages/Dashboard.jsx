@@ -11,7 +11,7 @@ import {
   BarChart2, TrendingUp, DollarSign, Clock, CheckCircle,
   Search, Filter, ChevronDown, Plus, Edit3,
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle,
-  ExternalLink, GalleryVertical,
+  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -119,6 +119,12 @@ const SettingsSectionCard = ({
 );
 
 /** Defaults match client destination page — used until admin saves custom copy. */
+const DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW = [
+  "Fast document pre-check by visa specialists",
+  "Transparent pricing and status updates",
+  "Dedicated support throughout your application",
+];
+
 const DESTINATION_PAGE_DEFAULT_INCLUDED = [
   "Application form guidance",
   "Document checklist and validation",
@@ -141,6 +147,22 @@ const DESTINATION_PAGE_DEFAULT_FAQS = [
   },
 ];
 
+const DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS = [
+  { title: "Apply with SprintVisa", description: "Upload your documents on SprintVisa or share over WhatsApp with our visa expert." },
+  { title: "Experts review the documents", description: "Our visa experts will verify your documents." },
+  { title: "Prepare the application", description: "Our visa expert will help you create the application for document submission." },
+  { title: "Visit the Visa Application Center", description: "Traveller visits their nearest Visa Application Center for document submission." },
+  { title: "Get your visa", description: "Traveller will collect their passport from VAC or via courier with a stamped visa." },
+  { title: "Enjoy your vacation", description: "Thanks for choosing SprintVisa and we wish you an amazing journey." },
+];
+
+const mapDestinationWhyBookNowFromApi = (s) => {
+  const a = s?.destinationWhyBookNow;
+  return Array.isArray(a) && a.length
+    ? a.map((x) => String(x ?? "").trim()).filter(Boolean)
+    : [...DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW];
+};
+
 const mapDestinationIncludedFromApi = (s) => {
   const a = s?.destinationIncludedItems;
   return Array.isArray(a) && a.length
@@ -158,6 +180,20 @@ const mapDestinationFaqsFromApi = (s) => {
   }
   return DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f }));
 };
+
+const mapDestinationHowItWorksFromApi = (s) => {
+  const a = s?.destinationHowItWorks;
+  if (Array.isArray(a) && a.length) {
+    return a.map((x) => ({
+      title: String(x?.title ?? "").trim(),
+      description: String(x?.description ?? "").trim(),
+    }));
+  }
+  return DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x }));
+};
+
+/** Lowercase trim key for matching global destination bullets / FAQ questions. */
+const normDestKey = (s) => String(s ?? "").trim().toLowerCase();
 
 /** Map `/admin/settings` API document to the dashboard settings form (GET + PUT). */
 const mapApiSettingsToFormState = (s) => ({
@@ -183,8 +219,10 @@ const mapApiSettingsToFormState = (s) => ({
   unsplashApplicationId: s.unsplashApplicationId || "",
   unsplashAccessKey: s.unsplashAccessKey || "",
   unsplashSecretKey: s.unsplashSecretKey || "",
+  destinationWhyBookNow: mapDestinationWhyBookNowFromApi(s),
   destinationIncludedItems: mapDestinationIncludedFromApi(s),
   destinationFaqs: mapDestinationFaqsFromApi(s),
+  destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
 });
 
 const integrationFlagsFromSettings = (s) => {
@@ -246,8 +284,10 @@ const Dashboard = () => {
     unsplashApplicationId: "",
     unsplashAccessKey: "",
     unsplashSecretKey: "",
+    destinationWhyBookNow: [...DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW],
     destinationIncludedItems: [...DESTINATION_PAGE_DEFAULT_INCLUDED],
     destinationFaqs: DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f })),
+    destinationHowItWorks: DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x })),
   });
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
@@ -352,8 +392,10 @@ const Dashboard = () => {
               ...p,
               enableGDriveUpload: s.enableGDriveUpload !== false,
               enableFileUpload: s.enableFileUpload !== false,
+              destinationWhyBookNow: mapDestinationWhyBookNowFromApi(s),
               destinationIncludedItems: mapDestinationIncludedFromApi(s),
               destinationFaqs: mapDestinationFaqsFromApi(s),
+              destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
             }));
           }
         }
@@ -402,6 +444,19 @@ const Dashboard = () => {
     name: "", flagEmoji: "🌍", basePrice: "", processingDays: "", difficulty: "moderate",
     visaType: "", continent: "", description: "", requirements: [""], imageUrl: "",
     requiredDocuments: ["passport"], successRate: "80", trending: false,
+    whyBookNow: [], includedItems: [], faqs: [], howItWorks: [],
+    excludeDestinationWhyBookNow: [],
+    excludeDestinationIncludedItems: [],
+    excludeDestinationFaqQuestions: [],
+    excludeDestinationHowItWorksTitles: [],
+  });
+
+  /** Snapshot of Settings → Destinations (for merging in the country edit modal). */
+  const [countryModalGlobalDest, setCountryModalGlobalDest] = useState({
+    whyBookNow: [],
+    includedItems: [],
+    faqs: [],
+    howItWorks: [],
   });
 
   // ── Filter applications ───────────────────────────────────
@@ -472,6 +527,39 @@ const Dashboard = () => {
     return Array.from(byKey.values());
   }, [countries, countrySearchQuery, geocodeCountryMatches]);
 
+  useEffect(() => {
+    if (!countryModalOpen) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get("/admin/settings");
+        if (cancelled || !data?.success || !data.settings) return;
+        const s = data.settings;
+        setCountryModalGlobalDest({
+          whyBookNow: mapDestinationWhyBookNowFromApi(s),
+          includedItems: mapDestinationIncludedFromApi(s),
+          faqs: mapDestinationFaqsFromApi(s),
+          howItWorks: mapDestinationHowItWorksFromApi(s),
+        });
+      } catch (err) {
+        if (cancelled) return;
+        if (err?.response?.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        setCountryModalGlobalDest({
+          whyBookNow: [...DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW],
+          includedItems: [...DESTINATION_PAGE_DEFAULT_INCLUDED],
+          faqs: DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f })),
+          howItWorks: DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x })),
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [countryModalOpen]);
+
   // ── Country Manager handlers ───────────────────────────────
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const openEditCountry = (country) => {
@@ -482,6 +570,32 @@ const Dashboard = () => {
       trending: Boolean(country.trending),
       requirements: country.requirements?.length ? country.requirements : [""],
       requiredDocuments: country.requiredDocuments || ["passport"],
+      whyBookNow: Array.isArray(country.whyBookNow) ? [...country.whyBookNow] : [],
+      includedItems: Array.isArray(country.includedItems) ? [...country.includedItems] : [],
+      faqs: Array.isArray(country.faqs)
+        ? country.faqs.map((f) => ({
+            question: String(f?.question ?? ""),
+            answer: String(f?.answer ?? ""),
+          }))
+        : [],
+      howItWorks: Array.isArray(country.howItWorks)
+        ? country.howItWorks.map((s) => ({
+            title: String(s?.title ?? ""),
+            description: String(s?.description ?? ""),
+          }))
+        : [],
+      excludeDestinationWhyBookNow: Array.isArray(country.excludeDestinationWhyBookNow)
+        ? [...country.excludeDestinationWhyBookNow]
+        : [],
+      excludeDestinationIncludedItems: Array.isArray(country.excludeDestinationIncludedItems)
+        ? [...country.excludeDestinationIncludedItems]
+        : [],
+      excludeDestinationFaqQuestions: Array.isArray(country.excludeDestinationFaqQuestions)
+        ? [...country.excludeDestinationFaqQuestions]
+        : [],
+      excludeDestinationHowItWorksTitles: Array.isArray(country.excludeDestinationHowItWorksTitles)
+        ? [...country.excludeDestinationHowItWorksTitles]
+        : [],
     });
     openCountryModal("edit", country);
   };
@@ -500,6 +614,36 @@ const Dashboard = () => {
       requiredDocuments: countryForm.requiredDocuments,
       successRate: Number(countryForm.successRate) || 80,
       trending: Boolean(countryForm.trending),
+      whyBookNow: (countryForm.whyBookNow || [])
+        .map((s) => String(s ?? "").trim())
+        .filter(Boolean),
+      includedItems: (countryForm.includedItems || [])
+        .map((s) => String(s ?? "").trim())
+        .filter(Boolean),
+      faqs: (countryForm.faqs || [])
+        .map((f) => ({
+          question: String(f?.question ?? "").trim(),
+          answer: String(f?.answer ?? "").trim(),
+        }))
+        .filter((f) => f.question && f.answer),
+      howItWorks: (countryForm.howItWorks || [])
+        .map((s) => ({
+          title: String(s?.title ?? "").trim(),
+          description: String(s?.description ?? "").trim(),
+        }))
+        .filter((s) => s.title && s.description),
+      excludeDestinationWhyBookNow: (countryForm.excludeDestinationWhyBookNow || [])
+        .map((s) => normDestKey(s))
+        .filter(Boolean),
+      excludeDestinationIncludedItems: (countryForm.excludeDestinationIncludedItems || [])
+        .map((s) => normDestKey(s))
+        .filter(Boolean),
+      excludeDestinationFaqQuestions: (countryForm.excludeDestinationFaqQuestions || [])
+        .map((s) => normDestKey(s))
+        .filter(Boolean),
+      excludeDestinationHowItWorksTitles: (countryForm.excludeDestinationHowItWorksTitles || [])
+        .map((s) => normDestKey(s))
+        .filter(Boolean),
     };
 
     const id = selectedCountry?._id || selectedCountry?.id;
@@ -1325,8 +1469,11 @@ const Dashboard = () => {
                   <div>
                     <h2 className="font-semibold text-text-primary">Destination pages (all countries)</h2>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      The sections <span className="text-text-primary font-medium">What&apos;s included</span> and{" "}
-                      <span className="text-text-primary font-medium">FAQs</span> on every public destination page read from here. Saving updates the live site for all destinations at once.
+                      The sections <span className="text-text-primary font-medium">Why book now?</span>,{" "}
+                      <span className="text-text-primary font-medium">What&apos;s included</span> and{" "}
+                      <span className="text-text-primary font-medium">FAQs</span> on every public destination page read from here.
+                      These items show on <span className="text-text-primary font-medium">every country</span>. Any extras you add in{" "}
+                      <span className="text-text-primary font-medium">Country Manager → Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
                     </p>
                   </div>
                   <Button
@@ -1336,6 +1483,9 @@ const Dashboard = () => {
                     leftIcon={<Save size={15} />}
                     loading={savingSettingsKey === "destination-content"}
                     onClick={() => {
+                      const whyBookNow = settingsForm.destinationWhyBookNow
+                        .map((s) => String(s ?? "").trim())
+                        .filter(Boolean);
                       const included = settingsForm.destinationIncludedItems
                         .map((s) => String(s ?? "").trim())
                         .filter(Boolean);
@@ -1345,9 +1495,20 @@ const Dashboard = () => {
                           answer: String(f?.answer ?? "").trim(),
                         }))
                         .filter((f) => f.question && f.answer);
+                      const howItWorks = settingsForm.destinationHowItWorks
+                        .map((s) => ({
+                          title: String(s?.title ?? "").trim(),
+                          description: String(s?.description ?? "").trim(),
+                        }))
+                        .filter((s) => s.title && s.description);
                       saveSettingsPartial(
                         "destination-content",
-                        { destinationIncludedItems: included, destinationFaqs: faqs },
+                        {
+                          destinationWhyBookNow: whyBookNow,
+                          destinationIncludedItems: included,
+                          destinationFaqs: faqs,
+                          destinationHowItWorks: howItWorks,
+                        },
                         "Destination copy saved — visible on all country pages.",
                       );
                     }}
@@ -1357,6 +1518,64 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-8">
+                  <div className="bg-surface-2 border border-border rounded-xl p-5">
+                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
+                      <BadgeCheck size={18} className="text-cyan" />
+                      Why book now?
+                    </h3>
+                    <p className="text-xs text-text-muted mb-4">
+                      One reason per line. These appear on every destination page unless a specific country overrides them.
+                    </p>
+                    <div className="space-y-3 max-w-2xl">
+                      {(settingsForm.destinationWhyBookNow || []).map((line, idx) => (
+                        <div key={`why-${idx}`} className="flex gap-2 items-start">
+                          <Input
+                            className="flex-1"
+                            value={line}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationWhyBookNow || [])];
+                                next[idx] = v;
+                                return { ...p, destinationWhyBookNow: next };
+                              });
+                            }}
+                            placeholder="e.g. Fast document pre-check by visa specialists"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-red-400 hover:text-red-300"
+                            onClick={() =>
+                              setSettingsForm((p) => ({
+                                ...p,
+                                destinationWhyBookNow: (p.destinationWhyBookNow || []).filter((_, i) => i !== idx),
+                              }))
+                            }
+                            aria-label="Remove reason"
+                          >
+                            <X size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Plus size={15} />}
+                        onClick={() =>
+                          setSettingsForm((p) => ({
+                            ...p,
+                            destinationWhyBookNow: [...(p.destinationWhyBookNow || []), ""],
+                          }))
+                        }
+                      >
+                        Add reason
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <CheckCircle size={18} className="text-cyan" />
@@ -1481,6 +1700,82 @@ const Dashboard = () => {
                         }
                       >
                         Add FAQ
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface-2 border border-border rounded-xl p-5">
+                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
+                      <ListChecks size={18} className="text-cyan" />
+                      How it works
+                    </h3>
+                    <p className="text-xs text-text-muted mb-4">
+                      Numbered steps shown above &quot;Document Requirements&quot; on every destination page. Step number is
+                      auto-generated from order. Incomplete pairs are skipped when you save.
+                    </p>
+                    <div className="space-y-4 max-w-3xl">
+                      {(settingsForm.destinationHowItWorks || []).map((step, idx) => (
+                        <div key={`how-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-text-muted">Step {idx + 1}</p>
+                            <button
+                              type="button"
+                              className="text-xs text-red-400 hover:text-red-300"
+                              onClick={() =>
+                                setSettingsForm((p) => ({
+                                  ...p,
+                                  destinationHowItWorks: (p.destinationHowItWorks || []).filter((_, i) => i !== idx),
+                                }))
+                              }
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <Input
+                            label="Title"
+                            value={step.title}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationHowItWorks || [])];
+                                next[idx] = { ...next[idx], title: v };
+                                return { ...p, destinationHowItWorks: next };
+                              });
+                            }}
+                            placeholder="e.g. Apply with SprintVisa"
+                          />
+                          <Textarea
+                            label="Description"
+                            rows={2}
+                            value={step.description}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationHowItWorks || [])];
+                                next[idx] = { ...next[idx], description: v };
+                                return { ...p, destinationHowItWorks: next };
+                              });
+                            }}
+                            placeholder="Short instruction shown under the title"
+                          />
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Plus size={15} />}
+                        onClick={() =>
+                          setSettingsForm((p) => ({
+                            ...p,
+                            destinationHowItWorks: [
+                              ...(p.destinationHowItWorks || []),
+                              { title: "", description: "" },
+                            ],
+                          }))
+                        }
+                      >
+                        Add step
                       </Button>
                     </div>
                   </div>
@@ -2350,6 +2645,532 @@ const Dashboard = () => {
               </Button>
             </div>
           </div>
+
+          {/* ──────────────────────────────────────────────────
+              Destination-page copy for THIS country.
+              Shows global lines (from Settings → Destinations) with X to
+              hide them on this country, then per-country additions below.
+              ────────────────────────────────────────────────── */}
+          {(() => {
+            const excludedWhy = new Set(countryForm.excludeDestinationWhyBookNow || []);
+            const excludedInc = new Set(countryForm.excludeDestinationIncludedItems || []);
+            const excludedFaq = new Set(countryForm.excludeDestinationFaqQuestions || []);
+
+            const toggleExclude = (field, key) => {
+              setCountryForm((p) => {
+                const list = new Set(p[field] || []);
+                if (list.has(key)) list.delete(key);
+                else list.add(key);
+                return { ...p, [field]: Array.from(list) };
+              });
+            };
+
+            const visibleGlobalCount = (list, excluded) =>
+              (list || []).filter((line) => !excluded.has(normDestKey(line))).length;
+            const visibleGlobalFaqCount = (list, excluded) =>
+              (list || []).filter((f) => !excluded.has(normDestKey(f?.question))).length;
+
+            return (
+          <div className="border-t border-border pt-5 mt-2">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-text-primary">
+                Destination page copy — {countryForm.name || "this country"}
+              </h3>
+              <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                <span className="text-text-primary font-medium">Global items</span> from{" "}
+                <span className="text-text-primary font-medium">Settings → Destinations</span> are shown first on every country.
+                Click the <X size={11} className="inline -mt-0.5" /> next to a global item to hide it on{" "}
+                {countryForm.name || "this country"} only. Anything you add under{" "}
+                <span className="text-text-primary font-medium">extras for this country</span> is appended below
+                the global items (duplicates skipped).
+              </p>
+            </div>
+
+            {/* Why book now */}
+            <div className="bg-surface-2 border border-border rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-text-primary flex items-center gap-2">
+                  <BadgeCheck size={14} className="text-cyan" />
+                  Why book now?
+                </h4>
+                <span className="text-[10px] text-text-muted">
+                  {visibleGlobalCount(countryModalGlobalDest.whyBookNow, excludedWhy)} global +{" "}
+                  {(countryForm.whyBookNow || []).filter((s) => String(s ?? "").trim()).length} extra
+                </span>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
+                {countryModalGlobalDest.whyBookNow.length === 0 ? (
+                  <p className="text-xs text-text-muted italic px-1">
+                    No global items yet — add them in Settings → Destinations.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {countryModalGlobalDest.whyBookNow.map((line) => {
+                      const key = normDestKey(line);
+                      const hidden = excludedWhy.has(key);
+                      return (
+                        <div
+                          key={`global-why-${key}`}
+                          className={`flex gap-2 items-center justify-between rounded-xl border px-3 py-2 text-sm transition-colors ${
+                            hidden
+                              ? "border-border bg-background/40 text-text-muted line-through"
+                              : "border-border bg-background text-text-primary"
+                          }`}
+                        >
+                          <span className="flex-1 break-words">{line}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleExclude("excludeDestinationWhyBookNow", key)}
+                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                              hidden
+                                ? "text-cyan hover:bg-cyan/10"
+                                : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
+                            }`}
+                            aria-label={hidden ? `Show "${line}" on this country` : `Hide "${line}" on this country`}
+                            title={hidden ? "Show on this country" : "Hide on this country"}
+                          >
+                            {hidden ? <Plus size={14} /> : <X size={14} />}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
+                <div className="space-y-2">
+                  {(countryForm.whyBookNow || []).map((line, idx) => (
+                    <div key={`country-why-${idx}`} className="flex gap-2 items-start">
+                      <input
+                        value={line}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCountryForm((p) => {
+                            const next = [...(p.whyBookNow || [])];
+                            next[idx] = v;
+                            return { ...p, whyBookNow: next };
+                          });
+                        }}
+                        placeholder={`Extra reason ${idx + 1}`}
+                        className="flex-1 bg-background border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
+                        id={`country-why-${idx}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCountryForm((p) => ({
+                            ...p,
+                            whyBookNow: (p.whyBookNow || []).filter((_, i) => i !== idx),
+                          }))
+                        }
+                        className="p-2 rounded-xl hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+                        aria-label={`Remove extra reason ${idx + 1}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() =>
+                      setCountryForm((p) => ({
+                        ...p,
+                        whyBookNow: [...(p.whyBookNow || []), ""],
+                      }))
+                    }
+                    id="add-country-why-btn"
+                  >
+                    Add reason for this country
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* What's included */}
+            <div className="bg-surface-2 border border-border rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-text-primary flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-cyan" />
+                  What&apos;s included
+                </h4>
+                <span className="text-[10px] text-text-muted">
+                  {visibleGlobalCount(countryModalGlobalDest.includedItems, excludedInc)} global +{" "}
+                  {(countryForm.includedItems || []).filter((s) => String(s ?? "").trim()).length} extra
+                </span>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
+                {countryModalGlobalDest.includedItems.length === 0 ? (
+                  <p className="text-xs text-text-muted italic px-1">
+                    No global items yet — add them in Settings → Destinations.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {countryModalGlobalDest.includedItems.map((line) => {
+                      const key = normDestKey(line);
+                      const hidden = excludedInc.has(key);
+                      return (
+                        <div
+                          key={`global-inc-${key}`}
+                          className={`flex gap-2 items-center justify-between rounded-xl border px-3 py-2 text-sm transition-colors ${
+                            hidden
+                              ? "border-border bg-background/40 text-text-muted line-through"
+                              : "border-border bg-background text-text-primary"
+                          }`}
+                        >
+                          <span className="flex-1 break-words">{line}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleExclude("excludeDestinationIncludedItems", key)}
+                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                              hidden
+                                ? "text-cyan hover:bg-cyan/10"
+                                : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
+                            }`}
+                            aria-label={hidden ? `Show "${line}" on this country` : `Hide "${line}" on this country`}
+                            title={hidden ? "Show on this country" : "Hide on this country"}
+                          >
+                            {hidden ? <Plus size={14} /> : <X size={14} />}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
+                <div className="space-y-2">
+                  {(countryForm.includedItems || []).map((line, idx) => (
+                    <div key={`country-inc-${idx}`} className="flex gap-2 items-start">
+                      <input
+                        value={line}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCountryForm((p) => {
+                            const next = [...(p.includedItems || [])];
+                            next[idx] = v;
+                            return { ...p, includedItems: next };
+                          });
+                        }}
+                        placeholder={`Extra bullet ${idx + 1}`}
+                        className="flex-1 bg-background border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
+                        id={`country-inc-${idx}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCountryForm((p) => ({
+                            ...p,
+                            includedItems: (p.includedItems || []).filter((_, i) => i !== idx),
+                          }))
+                        }
+                        className="p-2 rounded-xl hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+                        aria-label={`Remove extra bullet ${idx + 1}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() =>
+                      setCountryForm((p) => ({
+                        ...p,
+                        includedItems: [...(p.includedItems || []), ""],
+                      }))
+                    }
+                    id="add-country-inc-btn"
+                  >
+                    Add bullet for this country
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* FAQs */}
+            <div className="bg-surface-2 border border-border rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-text-primary flex items-center gap-2">
+                  <HelpCircle size={14} className="text-cyan" />
+                  FAQs
+                </h4>
+                <span className="text-[10px] text-text-muted">
+                  {visibleGlobalFaqCount(countryModalGlobalDest.faqs, excludedFaq)} global +{" "}
+                  {(countryForm.faqs || []).filter((f) => String(f?.question ?? "").trim() && String(f?.answer ?? "").trim()).length} extra
+                </span>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
+                {countryModalGlobalDest.faqs.length === 0 ? (
+                  <p className="text-xs text-text-muted italic px-1">
+                    No global FAQs yet — add them in Settings → Destinations.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {countryModalGlobalDest.faqs.map((faq) => {
+                      const key = normDestKey(faq.question);
+                      const hidden = excludedFaq.has(key);
+                      return (
+                        <div
+                          key={`global-faq-${key}`}
+                          className={`rounded-xl border px-3 py-2.5 transition-colors ${
+                            hidden
+                              ? "border-border bg-background/40 text-text-muted line-through"
+                              : "border-border bg-background text-text-primary"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium flex-1 break-words">{faq.question}</p>
+                            <button
+                              type="button"
+                              onClick={() => toggleExclude("excludeDestinationFaqQuestions", key)}
+                              className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                                hidden
+                                  ? "text-cyan hover:bg-cyan/10"
+                                  : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
+                              }`}
+                              aria-label={hidden ? `Show "${faq.question}" on this country` : `Hide "${faq.question}" on this country`}
+                              title={hidden ? "Show on this country" : "Hide on this country"}
+                            >
+                              {hidden ? <Plus size={14} /> : <X size={14} />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-text-secondary mt-1 break-words">{faq.answer}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
+                <div className="space-y-4">
+                  {(countryForm.faqs || []).map((faq, idx) => (
+                    <div
+                      key={`country-faq-${idx}`}
+                      className="rounded-xl border border-border bg-background p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-text-muted">Extra FAQ {idx + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCountryForm((p) => ({
+                              ...p,
+                              faqs: (p.faqs || []).filter((_, i) => i !== idx),
+                            }))
+                          }
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+                          aria-label={`Remove extra FAQ ${idx + 1}`}
+                          title="Remove this FAQ"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <input
+                        value={faq.question}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCountryForm((p) => {
+                            const next = [...(p.faqs || [])];
+                            next[idx] = { ...next[idx], question: v };
+                            return { ...p, faqs: next };
+                          });
+                        }}
+                        placeholder="Question"
+                        className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
+                        id={`country-faq-q-${idx}`}
+                      />
+                      <textarea
+                        rows={3}
+                        value={faq.answer}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCountryForm((p) => {
+                            const next = [...(p.faqs || [])];
+                            next[idx] = { ...next[idx], answer: v };
+                            return { ...p, faqs: next };
+                          });
+                        }}
+                        placeholder="Answer"
+                        className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted resize-y"
+                        id={`country-faq-a-${idx}`}
+                      />
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() =>
+                      setCountryForm((p) => ({
+                        ...p,
+                        faqs: [...(p.faqs || []), { question: "", answer: "" }],
+                      }))
+                    }
+                    id="add-country-faq-btn"
+                  >
+                    Add FAQ for this country
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* How it works */}
+            <div className="bg-surface-2 border border-border rounded-xl p-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-text-primary flex items-center gap-2">
+                  <ListChecks size={14} className="text-cyan" />
+                  How it works
+                </h4>
+                <span className="text-[10px] text-text-muted">
+                  {(countryModalGlobalDest.howItWorks || []).filter((s) => !(new Set(countryForm.excludeDestinationHowItWorksTitles || [])).has(normDestKey(s?.title))).length} global +{" "}
+                  {(countryForm.howItWorks || []).filter((s) => String(s?.title ?? "").trim() && String(s?.description ?? "").trim()).length} extra
+                </span>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
+                {countryModalGlobalDest.howItWorks.length === 0 ? (
+                  <p className="text-xs text-text-muted italic px-1">
+                    No global steps yet — add them in Settings → Destinations.
+                  </p>
+                ) : (
+                  <ol className="space-y-2">
+                    {countryModalGlobalDest.howItWorks.map((step, gIdx) => {
+                      const key = normDestKey(step.title);
+                      const hidden = (countryForm.excludeDestinationHowItWorksTitles || []).includes(key);
+                      return (
+                        <li
+                          key={`global-how-${key}`}
+                          className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                            hidden
+                              ? "border-border bg-background/40 text-text-muted line-through"
+                              : "border-border bg-background text-text-primary"
+                          }`}
+                        >
+                          <span
+                            className={`shrink-0 mt-0.5 w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center ${
+                              hidden
+                                ? "bg-surface-3 text-text-muted"
+                                : "bg-cyan/10 text-cyan border border-cyan/30"
+                            }`}
+                          >
+                            {gIdx + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium break-words">{step.title}</p>
+                            <p className="text-xs text-text-secondary mt-0.5 break-words">{step.description}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleExclude("excludeDestinationHowItWorksTitles", key)}
+                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                              hidden
+                                ? "text-cyan hover:bg-cyan/10"
+                                : "text-text-muted hover:text-red-400 hover:bg-red-500/10"
+                            }`}
+                            aria-label={hidden ? `Show "${step.title}" on this country` : `Hide "${step.title}" on this country`}
+                            title={hidden ? "Show on this country" : "Hide on this country"}
+                          >
+                            {hidden ? <Plus size={14} /> : <X size={14} />}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
+                <div className="space-y-4">
+                  {(countryForm.howItWorks || []).map((step, idx) => (
+                    <div
+                      key={`country-how-${idx}`}
+                      className="rounded-xl border border-border bg-background p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-text-muted">Extra step {idx + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCountryForm((p) => ({
+                              ...p,
+                              howItWorks: (p.howItWorks || []).filter((_, i) => i !== idx),
+                            }))
+                          }
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+                          aria-label={`Remove extra step ${idx + 1}`}
+                          title="Remove this step"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <input
+                        value={step.title}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCountryForm((p) => {
+                            const next = [...(p.howItWorks || [])];
+                            next[idx] = { ...next[idx], title: v };
+                            return { ...p, howItWorks: next };
+                          });
+                        }}
+                        placeholder="Step title (e.g. Pickup at airport)"
+                        className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
+                        id={`country-how-title-${idx}`}
+                      />
+                      <textarea
+                        rows={2}
+                        value={step.description}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCountryForm((p) => {
+                            const next = [...(p.howItWorks || [])];
+                            next[idx] = { ...next[idx], description: v };
+                            return { ...p, howItWorks: next };
+                          });
+                        }}
+                        placeholder="Short instruction shown under the title"
+                        className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted resize-y"
+                        id={`country-how-desc-${idx}`}
+                      />
+                    </div>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() =>
+                      setCountryForm((p) => ({
+                        ...p,
+                        howItWorks: [...(p.howItWorks || []), { title: "", description: "" }],
+                      }))
+                    }
+                    id="add-country-how-btn"
+                  >
+                    Add step for this country
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+            );
+          })()}
         </div>
       </Modal>
     </div>

@@ -10,6 +10,40 @@ const slugify = (str) =>
     .trim()
     .replace(/\s+/g, '-');
 
+/** Trim a string-array payload, dropping empty entries. */
+const sanitizeStringList = (arr) =>
+  Array.isArray(arr)
+    ? arr.map((s) => String(s ?? '').trim()).filter(Boolean)
+    : [];
+
+/** Trim FAQ pairs, dropping rows with empty question or answer. */
+const sanitizeFaqList = (arr) =>
+  Array.isArray(arr)
+    ? arr
+        .map((f) => ({
+          question: String(f?.question ?? '').trim(),
+          answer: String(f?.answer ?? '').trim(),
+        }))
+        .filter((f) => f.question && f.answer)
+    : [];
+
+/** Trim "How it works" step pairs, dropping rows with empty title or description. */
+const sanitizeHowItWorksList = (arr) =>
+  Array.isArray(arr)
+    ? arr
+        .map((s) => ({
+          title: String(s?.title ?? '').trim(),
+          description: String(s?.description ?? '').trim(),
+        }))
+        .filter((s) => s.title && s.description)
+    : [];
+
+/** Keys for per-country hiding of global destination bullets / FAQ questions / step titles. */
+const sanitizeExcludeKeys = (arr) =>
+  Array.isArray(arr)
+    ? arr.map((s) => String(s ?? '').trim().toLowerCase()).filter(Boolean)
+    : [];
+
 /** Find a country by MongoDB _id or by slug (fallback) */
 const findCountry = (id) => {
   if (mongoose.Types.ObjectId.isValid(id)) {
@@ -57,6 +91,11 @@ const addCountry = async (req, res) => {
       name, flagEmoji, basePrice, processingDays, difficulty,
       visaType, continent, imageUrl, description,
       requirements, requiredDocuments, trending, successRate,
+      whyBookNow, includedItems, faqs, howItWorks,
+      excludeDestinationWhyBookNow,
+      excludeDestinationIncludedItems,
+      excludeDestinationFaqQuestions,
+      excludeDestinationHowItWorksTitles,
     } = req.body;
 
     if (!name || !basePrice) {
@@ -84,6 +123,14 @@ const addCountry = async (req, res) => {
       requiredDocuments: Array.isArray(requiredDocuments) ? requiredDocuments : [],
       trending: Boolean(trending),
       successRate: Number(successRate) || 80,
+      whyBookNow: sanitizeStringList(whyBookNow),
+      includedItems: sanitizeStringList(includedItems),
+      faqs: sanitizeFaqList(faqs),
+      howItWorks: sanitizeHowItWorksList(howItWorks),
+      excludeDestinationWhyBookNow: sanitizeExcludeKeys(excludeDestinationWhyBookNow),
+      excludeDestinationIncludedItems: sanitizeExcludeKeys(excludeDestinationIncludedItems),
+      excludeDestinationFaqQuestions: sanitizeExcludeKeys(excludeDestinationFaqQuestions),
+      excludeDestinationHowItWorksTitles: sanitizeExcludeKeys(excludeDestinationHowItWorksTitles),
     });
 
     res.status(201).json({ success: true, country });
@@ -103,6 +150,11 @@ const updateCountry = async (req, res) => {
       name, flagEmoji, basePrice, processingDays, difficulty,
       visaType, continent, imageUrl, description,
       requirements, requiredDocuments, trending, successRate,
+      whyBookNow, includedItems, faqs, howItWorks,
+      excludeDestinationWhyBookNow,
+      excludeDestinationIncludedItems,
+      excludeDestinationFaqQuestions,
+      excludeDestinationHowItWorksTitles,
     } = req.body;
 
     const country = await findCountry(req.params.id);
@@ -124,6 +176,22 @@ const updateCountry = async (req, res) => {
     if (Array.isArray(requiredDocuments)) country.requiredDocuments = requiredDocuments;
     if (trending !== undefined) country.trending = Boolean(trending);
     if (successRate !== undefined) country.successRate = Number(successRate);
+    if (whyBookNow !== undefined) country.whyBookNow = sanitizeStringList(whyBookNow);
+    if (includedItems !== undefined) country.includedItems = sanitizeStringList(includedItems);
+    if (faqs !== undefined) country.faqs = sanitizeFaqList(faqs);
+    if (howItWorks !== undefined) country.howItWorks = sanitizeHowItWorksList(howItWorks);
+    if (excludeDestinationWhyBookNow !== undefined) {
+      country.excludeDestinationWhyBookNow = sanitizeExcludeKeys(excludeDestinationWhyBookNow);
+    }
+    if (excludeDestinationIncludedItems !== undefined) {
+      country.excludeDestinationIncludedItems = sanitizeExcludeKeys(excludeDestinationIncludedItems);
+    }
+    if (excludeDestinationFaqQuestions !== undefined) {
+      country.excludeDestinationFaqQuestions = sanitizeExcludeKeys(excludeDestinationFaqQuestions);
+    }
+    if (excludeDestinationHowItWorksTitles !== undefined) {
+      country.excludeDestinationHowItWorksTitles = sanitizeExcludeKeys(excludeDestinationHowItWorksTitles);
+    }
 
     await country.save();
     res.json({ success: true, country });

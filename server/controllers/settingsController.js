@@ -8,10 +8,48 @@ const sanitizeSettingsForAdminResponse = (doc) => {
   return o;
 };
 
+const DESTINATION_WHY_BOOK_NOW_FALLBACK = [
+  'Fast document pre-check by visa specialists',
+  'Transparent pricing and status updates',
+  'Dedicated support throughout your application',
+];
+
 const DESTINATION_INCLUDED_FALLBACK = [
   'Application form guidance',
   'Document checklist and validation',
   'End-to-end support till submission',
+];
+
+const DESTINATION_HOW_IT_WORKS_FALLBACK = [
+  {
+    title: 'Apply with SprintVisa',
+    description:
+      'Upload your documents on SprintVisa or share over WhatsApp with our visa expert.',
+  },
+  {
+    title: 'Experts review the documents',
+    description: 'Our visa experts will verify your documents.',
+  },
+  {
+    title: 'Prepare the application',
+    description:
+      'Our visa expert will help you create the application for document submission.',
+  },
+  {
+    title: 'Visit the Visa Application Center',
+    description:
+      'Traveller visits their nearest Visa Application Center for document submission.',
+  },
+  {
+    title: 'Get your visa',
+    description:
+      'Traveller will collect their passport from VAC or via courier with a stamped visa.',
+  },
+  {
+    title: 'Enjoy your vacation',
+    description:
+      'Thanks for choosing SprintVisa and we wish you an amazing journey.',
+  },
 ];
 
 const DESTINATION_FAQS_FALLBACK = [
@@ -92,8 +130,10 @@ const updateSettings = async (req, res) => {
       unsplashAccessKey,
       unsplashSecretKey,
       unsplashApplicationId,
+      destinationWhyBookNow,
       destinationIncludedItems,
       destinationFaqs,
+      destinationHowItWorks,
     } = req.body;
     console.log('Admin updating settings:', {
       razorpayKeyId,
@@ -142,6 +182,11 @@ const updateSettings = async (req, res) => {
     assignSecretUnlessEmpty(settings, 'unsplashSecretKey', unsplashSecretKey);
     if (unsplashApplicationId !== undefined) settings.unsplashApplicationId = String(unsplashApplicationId || '').trim();
 
+    if (destinationWhyBookNow !== undefined) {
+      settings.destinationWhyBookNow = Array.isArray(destinationWhyBookNow)
+        ? destinationWhyBookNow.map((s) => String(s ?? '').trim()).filter(Boolean)
+        : [];
+    }
     if (destinationIncludedItems !== undefined) {
       settings.destinationIncludedItems = Array.isArray(destinationIncludedItems)
         ? destinationIncludedItems.map((s) => String(s ?? '').trim()).filter(Boolean)
@@ -155,6 +200,16 @@ const updateSettings = async (req, res) => {
               answer: String(f?.answer ?? '').trim(),
             }))
             .filter((f) => f.question && f.answer)
+        : [];
+    }
+    if (destinationHowItWorks !== undefined) {
+      settings.destinationHowItWorks = Array.isArray(destinationHowItWorks)
+        ? destinationHowItWorks
+            .map((s) => ({
+              title: String(s?.title ?? '').trim(),
+              description: String(s?.description ?? '').trim(),
+            }))
+            .filter((s) => s.title && s.description)
         : [];
     }
 
@@ -243,12 +298,18 @@ const getUploadSettings = async (req, res) => {
 
 /**
  * @route   GET /api/config/destination-content
- * @desc    Global "What's included" + FAQs for all destination detail pages
+ * @desc    Global "Why book now?" + "What's included" + FAQs for all destination detail pages.
+ *          Per-country overrides on `Country` take precedence on the client.
  * @access  Public
  */
 const getDestinationPageContent = async (req, res) => {
   try {
     const settings = await Settings.findOne({ singleton: 'global' });
+    const rawWhy = settings?.destinationWhyBookNow;
+    const whyBookNow =
+      Array.isArray(rawWhy) && rawWhy.length
+        ? rawWhy.map((s) => String(s ?? '').trim()).filter(Boolean)
+        : DESTINATION_WHY_BOOK_NOW_FALLBACK;
     const rawInc = settings?.destinationIncludedItems;
     const included =
       Array.isArray(rawInc) && rawInc.length
@@ -264,7 +325,17 @@ const getDestinationPageContent = async (req, res) => {
             }))
             .filter((f) => f.question && f.answer)
         : DESTINATION_FAQS_FALLBACK;
-    res.json({ success: true, config: { included, faqs } });
+    const rawHow = settings?.destinationHowItWorks;
+    const howItWorks =
+      Array.isArray(rawHow) && rawHow.length
+        ? rawHow
+            .map((s) => ({
+              title: String(s?.title ?? '').trim(),
+              description: String(s?.description ?? '').trim(),
+            }))
+            .filter((s) => s.title && s.description)
+        : DESTINATION_HOW_IT_WORKS_FALLBACK;
+    res.json({ success: true, config: { whyBookNow, included, faqs, howItWorks } });
   } catch (error) {
     console.error('Error fetching destination page content:', error);
     res.status(500).json({ success: false, message: 'Server error' });

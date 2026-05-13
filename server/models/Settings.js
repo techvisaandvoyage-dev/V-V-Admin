@@ -97,12 +97,19 @@ const settingsSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  /** Shown on every destination detail page — "What's included" bullets (global). */
+  /** Shown on every destination detail page — "Why book now?" bullets (global default). */
+  destinationWhyBookNow: [{ type: String, trim: true }],
+  /** Shown on every destination detail page — "What's included" bullets (global default). */
   destinationIncludedItems: [{ type: String, trim: true }],
-  /** Shown on every destination detail page — FAQ list (global). */
+  /** Shown on every destination detail page — FAQ list (global default). */
   destinationFaqs: [{
     question: { type: String, trim: true, default: '' },
     answer: { type: String, trim: true, default: '' },
+  }],
+  /** Shown on every destination detail page — numbered "How it works" steps (global default). */
+  destinationHowItWorks: [{
+    title: { type: String, trim: true, default: '' },
+    description: { type: String, trim: true, default: '' },
   }],
 }, {
   timestamps: true

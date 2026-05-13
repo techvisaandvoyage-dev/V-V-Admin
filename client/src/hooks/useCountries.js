@@ -18,8 +18,8 @@ const withBlankImageUrl = (country) => ({
   imageUrl: "",
 });
 
-/** Bump when cached country shape changes (e.g. requiredDocuments) so clients refetch. */
-const COUNTRIES_CACHE_KEY = "vb_countries_api_v3";
+/** Bump when cached country shape changes (e.g. howItWorks) so clients refetch. */
+const COUNTRIES_CACHE_KEY = "vb_countries_api_v6";
 
 function loadCountriesCache() {
   if (typeof sessionStorage === "undefined") return null;
@@ -95,6 +95,40 @@ export function normalizeCountryFromApi(c) {
     requiredDocuments: Array.isArray(c.requiredDocuments) ? c.requiredDocuments : ["passport"],
     trending: Boolean(c.trending),
     successRate: c.successRate || 80,
+    whyBookNow: Array.isArray(c.whyBookNow)
+      ? c.whyBookNow.map((s) => String(s ?? "").trim()).filter(Boolean)
+      : [],
+    includedItems: Array.isArray(c.includedItems)
+      ? c.includedItems.map((s) => String(s ?? "").trim()).filter(Boolean)
+      : [],
+    faqs: Array.isArray(c.faqs)
+      ? c.faqs
+          .map((f) => ({
+            question: String(f?.question ?? "").trim(),
+            answer: String(f?.answer ?? "").trim(),
+          }))
+          .filter((f) => f.question && f.answer)
+      : [],
+    howItWorks: Array.isArray(c.howItWorks)
+      ? c.howItWorks
+          .map((s) => ({
+            title: String(s?.title ?? "").trim(),
+            description: String(s?.description ?? "").trim(),
+          }))
+          .filter((s) => s.title && s.description)
+      : [],
+    excludeDestinationHowItWorksTitles: Array.isArray(c.excludeDestinationHowItWorksTitles)
+      ? c.excludeDestinationHowItWorksTitles.map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)
+      : [],
+    excludeDestinationWhyBookNow: Array.isArray(c.excludeDestinationWhyBookNow)
+      ? c.excludeDestinationWhyBookNow.map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)
+      : [],
+    excludeDestinationIncludedItems: Array.isArray(c.excludeDestinationIncludedItems)
+      ? c.excludeDestinationIncludedItems.map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)
+      : [],
+    excludeDestinationFaqQuestions: Array.isArray(c.excludeDestinationFaqQuestions)
+      ? c.excludeDestinationFaqQuestions.map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)
+      : [],
   };
 }
 
