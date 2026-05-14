@@ -21,7 +21,7 @@ const ProfilePage = () => {
   
   const { 
     user, updateProfile, uploadProfileImage, 
-    changeUserPassword, isLoading 
+    changeUserPassword, isLoading, sessionAuthMethod 
   } = useAuthStore();
   const { showToast } = useUIStore();
   
@@ -39,8 +39,43 @@ const ProfilePage = () => {
     email: "", // Read-only
     phone: "",
   });
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordErrors, setPasswordErrors] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const validatePasswordChange = ({ currentPassword, newPassword, confirmPassword }) => {
+    const errors = {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    };
+
+    if (!currentPassword.trim()) {
+      errors.currentPassword = "Current password is required.";
+    }
+
+    if (!newPassword) {
+      errors.newPassword = "New password is required.";
+    } else if (newPassword.length < 8) {
+      errors.newPassword = "New password must be at least 8 characters.";
+    } else if (!/[A-Z]/.test(newPassword)) {
+      errors.newPassword = "Password must include at least one uppercase letter.";
+    } else if (!/[a-z]/.test(newPassword)) {
+      errors.newPassword = "Password must include at least one lowercase letter.";
+    } else if (!/[0-9]/.test(newPassword)) {
+      errors.newPassword = "Password must include at least one digit.";
+    } else if (!/[^A-Za-z0-9]/.test(newPassword)) {
+      errors.newPassword = "Password must include at least one special character.";
+    }
+
+    if (!confirmPassword) {
+      errors.confirmPassword = "Please confirm your new password.";
+    } else if (newPassword !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match.";
+    }
+
+    return errors;
+  };
 
   // Populate form data on mount or user change
   useEffect(() => {
@@ -124,17 +159,21 @@ const ProfilePage = () => {
   };
 
   const handleChangePassword = async () => {
-    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-      return showToast("Please fill all password fields", "error");
+    const errors = validatePasswordChange(passwordForm);
+    if (errors.currentPassword || errors.newPassword || errors.confirmPassword) {
+      setPasswordErrors(errors);
+      const firstError = errors.currentPassword || errors.newPassword || errors.confirmPassword;
+      return showToast(firstError, "error");
     }
 
+    setPasswordErrors({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setIsChangingPassword(true);
     const { success, message } = await changeUserPassword(passwordForm.currentPassword, passwordForm.newPassword);
     setIsChangingPassword(false);
 
     if (success) {
       showToast("Password updated successfully!", "success");
-      setPasswordForm({ currentPassword: "", newPassword: "" });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } else {
       showToast(message || "Failed to update password", "error");
     }
@@ -326,50 +365,64 @@ const ProfilePage = () => {
           </div>
 
           {/* Security Section Sidebar */}
-          <div className="space-y-6">
-            <Card>
-              <h3 className="font-semibold text-text-primary mb-4 border-b border-border pb-3 flex items-center gap-2">
-                <Shield size={18} className="text-amber-400" />
-                Security
-              </h3>
-              
-              <div className="space-y-4">
-                <p className="text-xs text-text-secondary leading-relaxed">
-                  To update your password, please provide your current password and choose a strong new one.
-                </p>
+          {sessionAuthMethod !== "google" && (
+            <div className="space-y-6">
+              <Card>
+                <h3 className="font-semibold text-text-primary mb-4 border-b border-border pb-3 flex items-center gap-2">
+                  <Shield size={18} className="text-amber-400" />
+                  Security
+                </h3>
+                
+                <div className="space-y-4">
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    To update your password, please provide your current password and choose a strong new one.
+                  </p>
 
-                <Input 
-                  label="Current Password" 
-                  type="password" 
-                  name="currentPassword"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
-                  placeholder="••••••••"
-                />
+                  <Input 
+                    label="Current Password" 
+                    type="password" 
+                    name="currentPassword"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    error={passwordErrors.currentPassword}
+                  />
 
-                <Input 
-                  label="New Password" 
-                  type="password" 
-                  name="newPassword"
-                  value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
-                  placeholder="••••••••"
-                  helper="Min 8 chars, 1 uppercase, 1 special char"
-                />
+                  <Input 
+                    label="New Password" 
+                    type="password" 
+                    name="newPassword"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    helper="Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char"
+                    error={passwordErrors.newPassword}
+                  />
 
-                <Button 
-                  variant="primary" 
-                  fullWidth 
-                  leftIcon={<KeyRound size={16} />}
-                  onClick={handleChangePassword}
-                  loading={isChangingPassword}
-                >
-                  Update Password
-                </Button>
+                  <Input 
+                    label="Confirm New Password" 
+                    type="password" 
+                    name="confirmPassword"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                    placeholder="••••••••"
+                    error={passwordErrors.confirmPassword}
+                  />
 
-              </div>
-            </Card>
-          </div>
+                  <Button 
+                    variant="primary" 
+                    fullWidth 
+                    leftIcon={<KeyRound size={16} />}
+                    onClick={handleChangePassword}
+                    loading={isChangingPassword}
+                  >
+                    Update Password
+                  </Button>
+
+                </div>
+              </Card>
+            </div>
+          )}
 
         </div>
       </main>

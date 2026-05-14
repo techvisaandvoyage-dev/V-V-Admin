@@ -4,6 +4,7 @@ import { api, SERVER_URL } from "../store/authStore";
 import { getCountryFlagEmoji } from "../utils/countrySearch";
 import { getCountryRegionLabel } from "../utils/continentDisplay";
 import { getLocatedInLabel } from "../utils/countryRegionLookup";
+import { getCountryRouteId } from "../utils/countryRouting";
 
 const stripFallbackImage = (country) => ({
   ...country,
@@ -24,7 +25,7 @@ const withBlankImageUrl = (country) => ({
  * is instant — without it, mobile users open a link and see blank cards until the
  * Render API responds (cold start can take 30–60s on the free tier).
  */
-const COUNTRIES_CACHE_KEY = "vb_countries_api_v12";
+const COUNTRIES_CACHE_KEY = "vb_countries_api_v13";
 const COUNTRIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_DISPLAY = Object.freeze({
@@ -138,7 +139,7 @@ const resolveImageUrl = (url) => {
 /** Normalise one country document from GET `/countries` or GET `/countries/:slug`. */
 export function normalizeCountryFromApi(c) {
   if (!c) return null;
-  const slug = c.slug || c.id;
+  const slug = getCountryRouteId(c);
   const continent = c.continent || "Global";
   const locatedIn =
     getLocatedInLabel(c.name) ||

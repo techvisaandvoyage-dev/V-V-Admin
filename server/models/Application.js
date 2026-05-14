@@ -45,6 +45,8 @@ const applicationSchema = new mongoose.Schema({
       travelerNo: { type: Number, required: true },
       travelerName: { type: String, default: "" },
       gdriveLink: { type: String, default: "" },
+      /** Optional second folder (e.g. extra reference materials); not used for required-doc completion. */
+      gdriveFurtherInfoLink: { type: String, default: "" },
       documents: { type: Map, of: String, default: {} },
       otherDocuments: [{ type: String }],
       uploadedAt: { type: Date, default: Date.now },
@@ -60,6 +62,8 @@ const applicationSchema = new mongoose.Schema({
   detailsPending: { type: Boolean, default: false },
   
   gdriveLink: { type: String, default: "" },
+  /** Legacy single-traveler optional second Drive link (mirrors travellerDocuments[].gdriveFurtherInfoLink). */
+  gdriveFurtherInfoLink: { type: String, default: "" },
 
   visaFilePath: { type: String, default: "" },
   visaFileName: { type: String, default: "" },

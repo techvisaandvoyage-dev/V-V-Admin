@@ -10,7 +10,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   BarChart2, TrendingUp, DollarSign, Clock, CheckCircle,
   Search, Filter, ChevronDown, Plus, Edit3,
-  MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle,
+  MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle, BookOpen,
   ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays,
   Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2,
 } from "lucide-react";
@@ -26,6 +26,7 @@ import Card from "../components/ui/Card";
 import Modal from "../components/ui/Modal";
 import Input, { Select, Textarea } from "../components/ui/Input";
 import StaticPagesManager from "../components/cms/StaticPagesManager";
+import BlogAdminPanel from "../components/blog/BlogAdminPanel";
 import { useUIStore } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
@@ -1490,6 +1491,7 @@ const Dashboard = () => {
   const tabs = [
     { id: "analytics",    label: "Analytics",     icon: BarChart2 },
     { id: "pages",        label: "Static Pages",  icon: Globe },
+    { id: "blogs",        label: "Blog",          icon: BookOpen },
     { id: "transactions", label: "Transactions",  icon: CreditCard },
     { id: "applications", label: "Applications",  icon: FileText },
     { id: "countries",    label: "Country Manager", icon: MapPin },
@@ -1608,6 +1610,8 @@ const Dashboard = () => {
           )}
 
           {activeTab === "pages" && <StaticPagesManager />}
+
+          {activeTab === "blogs" && <BlogAdminPanel />}
 
           {/* ══════════════════════════════════════
               TAB 1: ANALYTICS

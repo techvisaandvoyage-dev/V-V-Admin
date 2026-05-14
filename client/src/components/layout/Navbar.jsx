@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { User, LayoutDashboard, LogOut, Menu, X, Plane } from "lucide-react";
+import { User, LayoutDashboard, LogOut, Menu, X, Plane, BookOpen, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
@@ -82,12 +82,34 @@ const Navbar = () => {
               </span>
             </Link>
 
-            {/* ── Right side: profile icon only ── */}
-            <div className="hidden md:flex items-center gap-3">
+            {/* ── Right side: public links + profile icon ── */}
+            <div className="hidden md:flex items-center gap-2">
+              <Link
+                to="/destinations"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname.startsWith("/destination")
+                    ? "text-black"
+                    : "text-black hover:text-black/80"
+                }`}
+              >
+                <Globe size={15} />
+                Destinations
+              </Link>
+              <Link
+                to="/blog"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname.startsWith("/blog")
+                    ? "text-black"
+                    : "text-black hover:text-black/80"
+                }`}
+              >
+                <BookOpen size={15} />
+                Blog
+              </Link>
               <button
                 id="user-dashboard-btn"
                 onClick={handleProfileIconClick}
-                className="w-10 h-10 rounded-full bg-cyan/15 border border-cyan/30 flex items-center justify-center text-cyan hover:bg-cyan/20 hover:shadow-cyan-glow transition-all duration-200"
+                className="ml-2 w-10 h-10 rounded-full bg-cyan/15 border border-cyan/30 flex items-center justify-center text-cyan hover:bg-cyan/20 hover:shadow-cyan-glow transition-all duration-200"
                 aria-label={isAuthenticated ? "Open dashboard" : "Open login"}
               >
                 <User size={18} />
@@ -117,6 +139,20 @@ const Navbar = () => {
               className="md:hidden border-t border-border bg-surface overflow-hidden"
             >
               <div className="px-4 py-4 space-y-1">
+                <Link
+                  to="/destinations"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-3 rounded-lg transition-colors"
+                >
+                  <Globe size={15} />
+                  Destinations
+                </Link>
+                <Link
+                  to="/blog"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-3 rounded-lg transition-colors"
+                >
+                  <BookOpen size={15} />
+                  Blog
+                </Link>
                 {/* Auth actions */}
                 <div className="pt-2 border-t border-border flex flex-col gap-2">
                   <button

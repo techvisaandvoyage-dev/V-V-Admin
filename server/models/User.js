@@ -7,6 +7,16 @@ const UserSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  /** Optional handle for @mentions in blog comments (sparse, unique when set) */
+  username: {
+    type: String,
+    sparse: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+    maxlength: 32,
+    match: [/^[a-z0-9_]+$/, 'Username may only contain lowercase letters, numbers, and underscores'],
+  },
   email: {
     type: String,
     sparse: true,

@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import Button from "../ui/Button";
 import ImageWithShimmer from "../ui/ImageWithShimmer";
 import { getCountryFlagEmoji, getCountryCardCodeBadge } from "../../utils/countrySearch";
+import { getCountryRouteId } from "../../utils/countryRouting";
 
 /** Show the actual visa type set in admin (no longer collapsed to 3 buckets). */
 function getCardVisaTypeLabel(visaTypeValue) {
@@ -96,10 +97,10 @@ const LandingCountriesGrid = memo(function LandingCountriesGrid({
         {filteredCountries.map((country, i) => (
           <motion.div
             ref={(el) => {
-              countryCardRefs.current[country.id] = el;
+              countryCardRefs.current[getCountryRouteId(country)] = el;
             }}
-            key={country.id}
-            id={`country-card-${country.id}`}
+            key={getCountryRouteId(country)}
+            id={`country-card-${getCountryRouteId(country)}`}
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-30px" }}
@@ -108,7 +109,7 @@ const LandingCountriesGrid = memo(function LandingCountriesGrid({
             variants={{ hover: { y: -6, scale: 1.03, transition: { duration: 0.18, ease: "easeOut" } } }}
             style={{ willChange: "transform" }}
             className="group cursor-pointer h-full"
-            onClick={() => onNavigateDestination(country.id)}
+            onClick={() => onNavigateDestination(country)}
           >
             <div className="bg-surface border border-border rounded-3xl overflow-hidden hover:border-cyan/30 hover:shadow-cyan-glow transition-shadow duration-200 h-full min-h-[500px]">
               <ImageWithShimmer
@@ -176,4 +177,3 @@ const LandingCountriesGrid = memo(function LandingCountriesGrid({
 }, (prev, next) => prev.countryIdsKey === next.countryIdsKey);
 
 export default LandingCountriesGrid;
-

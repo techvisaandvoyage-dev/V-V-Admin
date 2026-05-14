@@ -19,6 +19,8 @@ const ApplicationForm     = lazy(() => import("../pages/ApplicationForm"));
 const CountryDetails      = lazy(() => import("../pages/CountryDetails"));
 const AllDestinationsPage = lazy(() => import("../pages/AllDestinationsPage"));
 const StaticPage          = lazy(() => import("../pages/StaticPage"));
+const BlogListingPage     = lazy(() => import("../pages/BlogListingPage"));
+const BlogDetailsPage     = lazy(() => import("../pages/BlogDetailsPage"));
 
 // ── Fallback Loader ────────────────────────────────────────
 const PageLoader = () => (
@@ -82,6 +84,8 @@ const AppRoutes = () => {
         <Route path="/" element={<LandingPage />} />
       <Route path="/destinations" element={<AllDestinationsPage />} />
       <Route path="/destination/:countryId" element={<CountryDetails />} />
+      <Route path="/blog" element={<BlogListingPage />} />
+      <Route path="/blog/:slug" element={<BlogDetailsPage />} />
       <Route path="/page/:slug" element={<StaticPage />} />
       {/* Fixed-URL alias for the Terms & Conditions CMS page. Admin can edit
           the body from CMS → Static Pages → "Terms and Conditions". */}

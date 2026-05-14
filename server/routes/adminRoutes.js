@@ -21,6 +21,8 @@ const {
   updateStaticPage,
   uploadStaticPageImage,
 } = require('../controllers/staticPageController');
+const blogAdmin = require('../controllers/blogAdminController');
+const { listCategoriesAdmin } = require('../controllers/blogCategoryController');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -117,5 +119,15 @@ router.post('/pages', protect, requireAdmin, createStaticPage);
 router.put('/pages/:id', protect, requireAdmin, updateStaticPage);
 router.patch('/pages/:id/toggle-status', protect, requireAdmin, toggleStaticPageStatus);
 router.delete('/pages/:id', protect, requireAdmin, deleteStaticPage);
+
+// Visa blog CMS
+router.get('/blog-categories', protect, requireAdmin, listCategoriesAdmin);
+router.get('/blogs', protect, requireAdmin, blogAdmin.listAdminBlogs);
+router.get('/comments', protect, requireAdmin, blogAdmin.listAdminComments);
+router.delete('/comments/:id', protect, requireAdmin, blogAdmin.adminDeleteComment);
+router.patch('/blog/:id/feature', protect, requireAdmin, blogAdmin.toggleFeatureBlog);
+router.patch('/comments/:id/pin', protect, requireAdmin, blogAdmin.togglePinComment);
+router.get('/blog-reports', protect, requireAdmin, blogAdmin.listReports);
+router.patch('/blog-reports/:id', protect, requireAdmin, blogAdmin.updateReport);
 
 module.exports = router;

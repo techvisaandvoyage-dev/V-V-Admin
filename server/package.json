@@ -13,7 +13,8 @@
     "images:countries:missing": "node fetchCountryImages.js --only-missing",
     "images:pinterest": "node fetchPinterestCountryImages.js",
     "clear:applications": "node clear_data.js",
-    "generate:country-regions": "node scripts/generateCountryRegionsJson.js"
+    "generate:country-regions": "node scripts/generateCountryRegionsJson.js",
+    "seed:blog": "node runBlogSeed.js"
   },
   "keywords": [],
   "author": "Yash raj singh",
@@ -25,6 +26,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
     "firebase-admin": "^13.9.0",
     "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",

@@ -85,10 +85,12 @@ const RegisterPage = () => {
   const [name, setName]         = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
   const [strength, setStrength] = useState(0); // 0–4
   const [signupDevOtp, setSignupDevOtp] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
   const { timeLeft, start: startTimer, canResend } = useResendTimer(30);
 
@@ -148,6 +150,7 @@ const RegisterPage = () => {
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     clearError();
+    setConfirmPasswordError("");
     const nameTrim = name.trim();
     if (!nameTrim) {
       showToast("Please enter your name", "error");
@@ -165,6 +168,11 @@ const RegisterPage = () => {
         "Password needs 8+ characters with uppercase, lowercase, a number, and one of @$!%*?&",
         "error"
       );
+      return;
+    }
+    if (password !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match.");
+      showToast("Passwords do not match.", "error");
       return;
     }
     const { success, devOtp } = await register(nameTrim, contact, password);
@@ -218,6 +226,7 @@ const RegisterPage = () => {
     clearError();
     setOtpDigits(["", "", "", "", "", ""]);
     setSignupDevOtp("");
+    setConfirmPasswordError("");
   };
 
   return (
@@ -384,6 +393,21 @@ const RegisterPage = () => {
                     </motion.div>
                   )}
                 </div>
+
+                <Input
+                  label=""
+                  type={showPass ? "text" : "password"}
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (confirmPasswordError) setConfirmPasswordError("");
+                  }}
+                  autoComplete="new-password"
+                  className="h-[52px] rounded-full border-border bg-surface px-5 pr-12 text-[15px] placeholder:text-text-muted focus:ring-1 focus:ring-text-primary focus:border-text-primary"
+                  error={confirmPasswordError}
+                  required
+                />
 
                 <Button
                   type="submit"

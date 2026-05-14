@@ -18,6 +18,47 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ── Blog magazine-style typography ──────────────────────── */
+/* Applied to the article body on /blog/:slug to give it a refined
+   reading experience: larger first letter, generous paragraph spacing,
+   smart heading rhythm. */
+.prose-blog p {
+  font-size: 1.0625rem;
+  line-height: 1.85;
+  color: var(--color-text-secondary);
+}
+
+.prose-blog h2 {
+  font-size: 1.75rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.prose-blog h3 {
+  font-size: 1.375rem;
+  line-height: 1.3;
+}
+
+.prose-blog .first-paragraph > p::first-letter {
+  font-size: 3.5rem;
+  font-weight: 700;
+  float: left;
+  line-height: 0.95;
+  padding: 0.25rem 0.65rem 0 0;
+  color: var(--color-cyan);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
 /* ── CSS Custom Properties ───────────────────────────────── */
 :root {
   /* Color tokens mirrored from tailwind.config.js for use in CSS */

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   CircleCheck,
@@ -50,6 +50,7 @@ import {
 } from "../utils/contactVerificationGate";
 import { loadTravelDraft, saveTravelDraft } from "../utils/travelDraftStorage";
 import { getLocalDateYmd } from "../utils/dateInput";
+import { matchesCountryRouteId } from "../utils/countryRouting";
 
 const ease = [0.16, 1, 0.3, 1];
 const fadeUp = {
@@ -157,7 +158,7 @@ const CountryDetails = () => {
   const { isAuthenticated, user, sessionAuthMethod } = useAuthStore();
   const { showToast } = useUIStore();
   const { countries: allCountries, display: countryDisplay, documentCatalog } = useCountries();
-  const listCountry = allCountries.find((c) => c.id === countryId);
+  const listCountry = allCountries.find((c) => matchesCountryRouteId(c, countryId));
   const country = useMergedCountry(countryId, listCountry);
 
   /**
@@ -190,10 +191,13 @@ const CountryDetails = () => {
   const [draftCreating, setDraftCreating] = useState(false);
   const [travelValidationAttempted, setTravelValidationAttempted] = useState(false);
   const travelerNameInputRefs = useRef({});
+  const startApplicationCardRef = useRef(null);
+  const startApplicationCardSeenRef = useRef(false);
   const [destinationPageContent, setDestinationPageContent] = useState(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalMode, setContactModalMode] = useState("phone");
   const pendingContactAction = useRef(null);
+  const [showStickyStartCta, setShowStickyStartCta] = useState(false);
   /**
    * When a guest hits an action that requires authentication ("Upload docs
    * first" / "Upload docs later"), we attach a `?postLoginAction=<key>` to the
@@ -461,6 +465,40 @@ const CountryDetails = () => {
     window.addEventListener("keydown", handleGlobalTypingForTravelerName);
     return () => window.removeEventListener("keydown", handleGlobalTypingForTravelerName);
   }, [showTravelDetails, travelers]);
+
+  useEffect(() => {
+    if (showTravelDetails) {
+      setShowStickyStartCta(false);
+      startApplicationCardSeenRef.current = false;
+      return;
+    }
+
+    const node = startApplicationCardRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setShowStickyStartCta(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          startApplicationCardSeenRef.current = true;
+          setShowStickyStartCta(false);
+          return;
+        }
+
+        setShowStickyStartCta(
+          startApplicationCardSeenRef.current && entry.boundingClientRect.top < 0
+        );
+      },
+      {
+        threshold: 0.2,
+      }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [showTravelDetails]);
 
   /** Return date must stay on/after departure; both must be today or later. */
   useEffect(() => {
@@ -952,6 +990,120 @@ const CountryDetails = () => {
     }
   };
 
+  const destinationInfoSections = (
+    <>
+      <motion.section id="how-it-works" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <ListChecks size={18} className="text-cyan" />
+          <h2 className="text-xl font-bold text-text-primary">How it works</h2>
+        </div>
+        <ol className="space-y-4">
+          {howItWorks.map((step, idx) => (
+            <li key={`${step.title}-${idx}`} className="flex items-start gap-4">
+              <span className="shrink-0 w-9 h-9 rounded-full bg-cyan/10 border border-cyan/30 text-cyan font-bold text-sm flex items-center justify-center">
+                {idx + 1}
+              </span>
+              <div className="flex-1">
+                <p className="font-semibold text-text-primary text-sm sm:text-base">{step.title}</p>
+                <p className="text-sm text-text-secondary mt-1 leading-relaxed">{step.description}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </motion.section>
+
+      <motion.section id="visa-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <ScrollText size={18} className="text-cyan" />
+          <h2 className="text-xl font-bold text-text-primary">Visa Requirements</h2>
+        </div>
+        <div className="space-y-3">
+          {visaRequirements.map((item, idx) => (
+            <div key={`${item}-${idx}`} className="flex items-start gap-3">
+              <CircleCheck size={16} className="text-emerald-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-text-secondary leading-relaxed">{item}</p>
+            </div>
+          ))}
+        </div>
+      </motion.section>
+
+      {countryDisplay?.showRequiredDocuments !== false && (
+        <motion.section id="document-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-text-primary mb-4">Document Requirements</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {requiredDocumentFields.length ? requiredDocumentFields.map((doc) => {
+              const Icon = doc.Icon;
+              return (
+                <div
+                  key={doc.key}
+                  className="rounded-xl border border-border bg-surface-2 p-3 text-sm text-text-secondary flex items-center gap-3"
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan/10 text-cyan">
+                    <Icon size={16} strokeWidth={2} />
+                  </span>
+                  <span className="flex-1 leading-snug">{doc.label}</span>
+                  <CircleCheck size={16} className="text-emerald-500 shrink-0" />
+                </div>
+              );
+            }) : (
+              <p className="text-sm text-text-muted">No requirements configured yet.</p>
+            )}
+          </div>
+        </motion.section>
+      )}
+
+      <motion.section id="why-book-now" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <BadgeCheck size={18} className="text-cyan" />
+          <h2 className="text-xl font-bold text-text-primary">Why book now?</h2>
+        </div>
+        <div className="space-y-3">
+          {whyBookNow.map((item, idx) => (
+            <div key={`${item}-${idx}`} className="flex items-start gap-3">
+              <CircleCheck size={16} className="text-emerald-500 mt-0.5" />
+              <p className="text-sm text-text-secondary">{item}</p>
+            </div>
+          ))}
+        </div>
+      </motion.section>
+
+      <motion.section id="whats-included" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <ShieldCheck size={18} className="text-cyan" />
+          <h2 className="text-xl font-bold text-text-primary">What's Included</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {includedItems.map((item, idx) => (
+            <div key={`${item}-${idx}`} className="rounded-xl border border-border bg-surface-2 p-3 text-sm text-text-secondary">
+              {item}
+            </div>
+          ))}
+        </div>
+      </motion.section>
+
+      <motion.section
+        id="faqs"
+        initial="initial"
+        animate="animate"
+        variants={fadeUp}
+        className="bg-surface border border-border rounded-2xl p-6"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <HelpCircle size={18} className="text-cyan" />
+          <h2 className="text-xl font-bold text-text-primary">FAQs</h2>
+        </div>
+        <div className="space-y-3">
+          {faqs.map((faq, idx) => (
+            <div key={`${faq.question}-${idx}`} className="rounded-xl border border-border bg-surface-2 p-4">
+              <p className="font-semibold text-text-primary text-sm">{faq.question}</p>
+              <p className="text-sm text-text-secondary mt-1">{faq.answer}</p>
+            </div>
+          ))}
+        </div>
+      </motion.section>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
       {/* Post-login resume splash — full-screen overlay shown when we're about
@@ -976,32 +1128,112 @@ const CountryDetails = () => {
 
       <Navbar />
 
-      <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border/50 shadow-sm hidden sm:block">
+      {!showTravelDetails && (
+        <motion.div initial="initial" animate="animate" variants={fadeUp} className="w-full">
+          <div className="relative left-1/2 w-[calc(100vw-1.5rem)] -translate-x-1/2 overflow-hidden rounded-3xl border border-border sm:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)]">
+            <ImageWithShimmer
+              src={country.imageUrl}
+              alt={country.name}
+              className="w-full h-64 sm:h-72 md:h-[79vh] object-cover"
+              priority
+              width={1600}
+              interactiveOverlay
+            >
+              <div className="absolute inset-0 bg-black/55" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center sm:p-8">
+                <p className="text-white/80 text-sm">{country.flagEmoji} {country.locatedIn ?? country.regionLabel ?? country.continent}</p>
+                <h1 className="mt-3 text-4xl sm:text-6xl font-bold text-white leading-tight">{country.name} Visa</h1>
+
+                <div className="mx-auto mt-8 grid w-full max-w-lg gap-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-white/65 uppercase tracking-[0.18em] mb-2">Type</p>
+                    <p className="text-base font-semibold text-white">{getCardVisaTypeLabel(country.visaType)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/65 uppercase tracking-[0.18em] mb-2">Validity</p>
+                    <p className="text-sm font-semibold text-white">{country.validity || "â€”"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/65 uppercase tracking-[0.18em] mb-2">Processing</p>
+                    <p className="text-base font-semibold text-white">
+                      {country.processingDays
+                        ? /^\d+(\s*-\s*\d+)?$/.test(String(country.processingDays).trim())
+                          ? `${String(country.processingDays).trim()} days`
+                          : String(country.processingDays).trim()
+                        : "â€”"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mx-auto mt-8 w-full max-w-lg">
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    size="lg"
+                    onClick={handleStartApplication}
+                    className="bg-white text-black shadow-none hover:bg-white/90 hover:shadow-none"
+                    id="country-details-hero-start-application-btn"
+                  >
+                    Start Application
+                  </Button>
+                </div>
+              </div>
+            </ImageWithShimmer>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="sticky top-0 z-40 bg-background/100 border-b border-border/50 shadow-sm hidden sm:block">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <ul className="flex items-center gap-8 overflow-x-auto no-scrollbar">
-            {SUB_NAV.map((tab) => (
-              <li key={tab.id}>
-                <button
-                  onClick={() => scrollToSection(tab.id)}
-                  className="py-4 text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-text-secondary hover:text-text-primary hover:border-cyan/40 transition-colors"
+          <div className="flex min-h-18 items-center text-center justify-between gap-4">
+            <ul className="flex min-w-0 flex-1 items-center justify-center gap-8 overflow-x-auto no-scrollbar">
+              {SUB_NAV.map((tab) => (
+                <li key={tab.id}>
+                  <button
+                    onClick={() => scrollToSection(tab.id)}
+                    className="py-6  text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-text-secondary hover:text-text-primary hover:border-cyan/40 transition-colors"
+                  >
+                    {tab.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <AnimatePresence initial={false}>
+              {!showTravelDetails && showStickyStartCta && (
+                <motion.div
+                  key="sticky-start-application-cta"
+                  className="shrink-0 py-4"
+                  initial={{ opacity: 0, x: 28, scale: 0.96 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 28, scale: 0.96 }}
+                  transition={{ duration: 0.28, ease }}
                 >
-                  {tab.label}
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleStartApplication}
+                    id="country-details-sticky-start-application-btn"
+                  >
+                    Start Application
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
       <main className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 w-full">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="group flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-cyan transition-colors mb-10 w-fit"
-        >
-          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-          Back
-        </button>
+        {showTravelDetails && (
+          <button
+            type="button"
+            onClick={handleBack}
+            className="group flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-cyan transition-colors mb-10 w-fit"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            Back
+          </button>
+        )}
 
         <div
           className={
@@ -1014,23 +1246,55 @@ const CountryDetails = () => {
             className={
               showTravelDetails
                 ? "lg:col-span-8 space-y-8"
-                : "order-1 w-full space-y-8 lg:col-span-8 lg:col-start-1 lg:row-start-1"
+                : "hidden"
             }
           >
-            {!showTravelDetails && (
-              <motion.div initial="initial" animate="animate" variants={fadeUp}>
-                <div className="relative overflow-hidden rounded-3xl border border-border">
-                  <ImageWithShimmer
-                    src={country.imageUrl}
-                    alt={country.name}
-                    className="h-64 sm:h-72"
-                    priority
-                    width={1200}
-                  >
+            {false && (
+              <motion.div initial="initial" animate="animate" variants={fadeUp} className="w-full">
+                <div className="relative left-1/2 w-[calc(100vw-1.5rem)] -translate-x-1/2 overflow-hidden rounded-3xl border border-border sm:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)]">
+                      <ImageWithShimmer
+                        src={country.imageUrl}
+                        alt={country.name}
+                        className="w-full h-64 sm:h-72 md:h-[79vh] object-cover"
+                        priority
+                        width={1600}
+                      >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 p-6 sm:p-8">
+                    <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
                       <p className="text-white/80 text-sm">{country.flagEmoji} {country.locatedIn ?? country.regionLabel ?? country.continent}</p>
                       <h1 className="text-3xl sm:text-5xl font-bold text-white leading-tight">{country.name} Visa</h1>
+
+                      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-3xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm">
+                          <p className="text-xs text-white/60 uppercase tracking-[0.18em] mb-2">Type</p>
+                          <p className="text-sm font-semibold text-white">{getCardVisaTypeLabel(country.visaType)}</p>
+                        </div>
+                        <div className="rounded-3xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm">
+                          <p className="text-xs text-white/60 uppercase tracking-[0.18em] mb-2">Validity</p>
+                          <p className="text-sm font-semibold text-white">{country.validity || "—"}</p>
+                        </div>
+                        <div className="rounded-3xl bg-black/40 border border-white/10 p-4 backdrop-blur-sm">
+                          <p className="text-xs text-white/60 uppercase tracking-[0.18em] mb-2">Processing</p>
+                          <p className="text-sm font-semibold text-white">
+                            {country.processingDays
+                              ? /^\d+(\s*-\s*\d+)?$/.test(String(country.processingDays).trim())
+                                ? `${String(country.processingDays).trim()} days`
+                                : String(country.processingDays).trim()
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 sm:max-w-md">
+                        <Button
+                          variant="primary"
+                          fullWidth
+                          size="lg"
+                          onClick={handleStartApplication}
+                        >
+                          Start Application
+                        </Button>
+                      </div>
                     </div>
                   </ImageWithShimmer>
                 </div>
@@ -1208,101 +1472,7 @@ const CountryDetails = () => {
                   Required documents are uploaded on the next page after these traveler details are saved.
                 </p>
               </motion.section>
-            ) : (
-              <>
-            <motion.section id="how-it-works" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <ListChecks size={18} className="text-cyan" />
-                <h2 className="text-xl font-bold text-text-primary">How it works</h2>
-              </div>
-              <ol className="space-y-4">
-                {howItWorks.map((step, idx) => (
-                  <li key={`${step.title}-${idx}`} className="flex items-start gap-4">
-                    <span className="shrink-0 w-9 h-9 rounded-full bg-cyan/10 border border-cyan/30 text-cyan font-bold text-sm flex items-center justify-center">
-                      {idx + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="font-semibold text-text-primary text-sm sm:text-base">{step.title}</p>
-                      <p className="text-sm text-text-secondary mt-1 leading-relaxed">{step.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </motion.section>
-
-            <motion.section id="visa-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <ScrollText size={18} className="text-cyan" />
-                <h2 className="text-xl font-bold text-text-primary">Visa Requirements</h2>
-              </div>
-              <div className="space-y-3">
-                {visaRequirements.map((item, idx) => (
-                  <div key={`${item}-${idx}`} className="flex items-start gap-3">
-                    <CircleCheck size={16} className="text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-text-secondary leading-relaxed">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-
-            {/* Document Requirements section — hidden entirely when the admin
-                flips the universal `showRequiredDocuments` toggle off. */}
-            {countryDisplay?.showRequiredDocuments !== false && (
-              <motion.section id="document-requirements" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
-                <h2 className="text-xl font-bold text-text-primary mb-4">Document Requirements</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {requiredDocumentFields.length ? requiredDocumentFields.map((doc) => {
-                    const Icon = doc.Icon;
-                    return (
-                      <div
-                        key={doc.key}
-                        className="rounded-xl border border-border bg-surface-2 p-3 text-sm text-text-secondary flex items-center gap-3"
-                      >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan/10 text-cyan">
-                          <Icon size={16} strokeWidth={2} />
-                        </span>
-                        <span className="flex-1 leading-snug">{doc.label}</span>
-                        <CircleCheck size={16} className="text-emerald-500 shrink-0" />
-                      </div>
-                    );
-                  }) : (
-                    <p className="text-sm text-text-muted">No requirements configured yet.</p>
-                  )}
-                </div>
-              </motion.section>
-            )}
-
-            <motion.section id="why-book-now" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <BadgeCheck size={18} className="text-cyan" />
-                <h2 className="text-xl font-bold text-text-primary">Why book now?</h2>
-              </div>
-              <div className="space-y-3">
-                {whyBookNow.map((item, idx) => (
-                  <div key={`${item}-${idx}`} className="flex items-start gap-3">
-                    <CircleCheck size={16} className="text-emerald-500 mt-0.5" />
-                    <p className="text-sm text-text-secondary">{item}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-
-            <motion.section id="whats-included" initial="initial" animate="animate" variants={fadeUp} className="bg-surface border border-border rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <ShieldCheck size={18} className="text-cyan" />
-                <h2 className="text-xl font-bold text-text-primary">What's Included</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {includedItems.map((item, idx) => (
-                  <div key={`${item}-${idx}`} className="rounded-xl border border-border bg-surface-2 p-3 text-sm text-text-secondary">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-
-              </>
-            )}
+            ) : null}
 
           </div>
 
@@ -1310,36 +1480,37 @@ const CountryDetails = () => {
             className={
               showTravelDetails
                 ? "lg:col-span-4"
-                : "order-2 w-full lg:col-span-4 lg:col-start-9 lg:row-start-1 lg:row-span-2"
+                : "order-2 w-full lg:col-span-12 lg:col-start-1"
             }
           >
             <motion.div
-              className="sticky top-24 bg-surface border border-border rounded-2xl p-6"
+              ref={showTravelDetails ? undefined : startApplicationCardRef}
+              className="bg-surface border border-border rounded-2xl p-6"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0, transition: { duration: 0.5, ease } }}
             >
-              <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-2">Start Your Visa Process</p>
-              <h3 className="text-2xl font-bold text-text-primary mb-5">Apply for {country.name}</h3>
-
               {showTravelDetails ? (
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-start justify-between gap-3 text-sm">
-                    <span className="text-text-muted shrink-0">Visa</span>
-                    <span className="font-semibold text-text-primary text-right">{country.name} Visa</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-3 text-sm">
-                    <span className="text-text-muted shrink-0">Visa type</span>
-                    <span className="font-semibold text-text-primary text-right">{visaOption}</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-3 text-sm">
-                    <span className="text-text-muted shrink-0">Travel date</span>
-                    <span className="font-semibold text-text-primary text-right">{formatTravelRange()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-text-muted">Travellers</span>
-                    <span className="font-semibold text-text-primary">{travellerCount}</span>
-                  </div>
-                  <div className="border-t border-border pt-3 mt-2 space-y-2">
+                <>
+                  <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-2">Start Your Visa Process</p>
+                  <h3 className="text-2xl font-bold text-text-primary mb-5">Apply for {country.name}</h3>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-start justify-between gap-3 text-sm">
+                      <span className="text-text-muted shrink-0">Visa</span>
+                      <span className="font-semibold text-text-primary text-right">{country.name} Visa</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 text-sm">
+                      <span className="text-text-muted shrink-0">Visa type</span>
+                      <span className="font-semibold text-text-primary text-right">{visaOption}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 text-sm">
+                      <span className="text-text-muted shrink-0">Travel date</span>
+                      <span className="font-semibold text-text-primary text-right">{formatTravelRange()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-text-muted">Travellers</span>
+                      <span className="font-semibold text-text-primary">{travellerCount}</span>
+                    </div>
+                    <div className="border-t border-border pt-3 mt-2 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-text-muted">Service</span>
                       <span className="font-medium text-text-primary">₹{serviceAmount.toLocaleString("en-IN")}</span>
@@ -1356,93 +1527,53 @@ const CountryDetails = () => {
                   <p className="text-2xs text-text-muted pt-1">
                     Government / embassy fees (if any) are shown separately at payment.
                   </p>
-                </div>
+                  </div>
+                </>
               ) : (
-                <div className="mb-6 space-y-4">
-                  <p className="text-sm text-text-secondary">
-                    Start your application to enter travel details. Your selections will appear here.
-                  </p>
-                  <div className="grid grid-cols-1 gap-3">
-                    {countryDisplay?.showVisaType !== false && (
-                      <div className="rounded-xl bg-surface-2 p-3">
-                        <p className="text-xs text-text-muted mb-1">VISA TYPE</p>
-                        <p className="text-sm font-semibold text-text-primary">
-                          {getCardVisaTypeLabel(country.visaType)}
-                        </p>
-                      </div>
-                    )}
-                    {countryDisplay?.showValidity !== false && (
-                      <div className="rounded-xl bg-surface-2 p-3">
-                        <p className="text-xs text-text-muted mb-1">VALIDITY</p>
-                        <p className="text-sm font-semibold text-text-primary">
-                          {country.validity || "—"}
-                        </p>
-                      </div>
-                    )}
-                    {countryDisplay?.showProcessingDays !== false && (
-                      <div className="rounded-xl bg-surface-2 p-3">
-                        <p className="text-xs text-text-muted mb-1">PROCESSING DAYS</p>
-                        <p className="text-sm font-semibold text-text-primary">
-                          {country.processingDays
-                            ? /^\d+(\s*-\s*\d+)?$/.test(String(country.processingDays).trim())
-                              ? `${String(country.processingDays).trim()} days`
-                              : String(country.processingDays).trim()
-                            : "—"}
-                        </p>
-                      </div>
-                    )}
-                    <div className="rounded-xl bg-surface-2 p-3">
-                      <p className="text-xs text-text-muted mb-1">FEE</p>
-                      <p className="text-sm font-semibold text-text-primary">
-                        ₹{country.basePrice}
-                      </p>
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-2">Start Your Visa Process</p>
+                    <h3 className="text-2xl font-bold text-text-primary">Apply for {country.name}</h3>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-5xl font-bold tracking-tight text-text-primary">
+                      ₹{payableToUs.toLocaleString("en-IN")}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-text-muted">
+                      To be paid now
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    size="lg"
+                    onClick={handleStartApplication}
+                    id="country-details-start-application-btn"
+                  >
+                    Start Application
+                  </Button>
+
+                  <div className="space-y-4 border-t border-border pt-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-medium text-text-secondary">GST (18%)</span>
+                      <span className="text-lg font-bold text-text-primary">₹{gstAmount.toLocaleString("en-IN")}</span>
                     </div>
-                    <div className="rounded-xl bg-surface-2 p-3">
-                      <p className="text-xs text-text-muted mb-1">SUCCESS RATE</p>
-                      <p className="text-sm font-semibold text-text-primary">
-                        {country.successRate || 0}%
-                      </p>
+                    <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+                      <span className="text-base font-semibold text-text-primary">Total Amount</span>
+                      <span className="text-xl font-bold text-text-primary">₹{payableToUs.toLocaleString("en-IN")}</span>
                     </div>
                   </div>
                 </div>
-              )}
-
-              {!showTravelDetails && (
-                <Button
-                  variant="primary"
-                  fullWidth
-                  size="lg"
-                  onClick={handleStartApplication}
-                  id="country-details-start-application-btn"
-                >
-                  Start Application
-                </Button>
               )}
             </motion.div>
           </div>
 
           {!showTravelDetails && (
-            <div className="order-3 w-full lg:col-span-8 lg:col-start-1 lg:row-start-2">
-              <motion.section
-                id="faqs"
-                initial="initial"
-                animate="animate"
-                variants={fadeUp}
-                className="bg-surface border border-border rounded-2xl p-6"
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <HelpCircle size={18} className="text-cyan" />
-                  <h2 className="text-xl font-bold text-text-primary">FAQs</h2>
-                </div>
-                <div className="space-y-3">
-                  {faqs.map((faq, idx) => (
-                    <div key={`${faq.question}-${idx}`} className="rounded-xl border border-border bg-surface-2 p-4">
-                      <p className="font-semibold text-text-primary text-sm">{faq.question}</p>
-                      <p className="text-sm text-text-secondary mt-1">{faq.answer}</p>
-                    </div>
-                  ))}
-                </div>
-              </motion.section>
+            <div className="order-3 w-full lg:col-span-12">
+              <div className="w-full space-y-8">
+                {destinationInfoSections}
+              </div>
             </div>
           )}
         </div>

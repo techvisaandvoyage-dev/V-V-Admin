@@ -39,12 +39,14 @@ function buildSrcSet(url, width) {
  * @param {boolean} [props.priority] - true for above-the-fold images (hero / first row of cards).
  * @param {number} [props.width] - target rendered width in CSS pixels; used for Unsplash resize + srcSet.
  * @param {string} [props.sizes] - <img sizes> hint for responsive selection (defaults to width).
+ * @param {boolean} [props.interactiveOverlay] - lets clickable children receive pointer events.
  */
 const ImageWithShimmer = ({
   src,
   alt,
   className,
   children,
+  interactiveOverlay = false,
   priority = false,
   width = 600,
   sizes,
@@ -93,7 +95,7 @@ const ImageWithShimmer = ({
         />
       )}
 
-      <div className={`absolute inset-0 z-20 pointer-events-none flex flex-col transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute inset-0 z-20 ${interactiveOverlay ? 'pointer-events-auto' : 'pointer-events-none'} flex flex-col transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}>
         {children}
       </div>
     </div>

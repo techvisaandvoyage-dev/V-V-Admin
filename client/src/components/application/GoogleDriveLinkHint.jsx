@@ -25,6 +25,10 @@ export default function GoogleDriveLinkHint({ variant = "inline" }) {
           <span className="text-text-secondary">Anyone with the link</span> (Viewer is fine).
         </li>
         <li>{step3}</li>
+        <li className="text-text-muted/90">
+          Optional: you can add a <span className="text-text-secondary">second folder link</span> for extra
+          reference materials — it does not replace your main documents folder.
+        </li>
       </ol>
     </div>
   );

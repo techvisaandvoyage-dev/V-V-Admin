@@ -128,6 +128,9 @@ const createTraveler = () => ({
   documents: {},
   otherDocuments: [],
   gdriveLink: "",
+  gdriveFurtherInfoLink: "",
+  gdriveLinkSaved: false,
+  gdriveFurtherInfoLinkSaved: false,
 });
 
 const ApplicationForm = () => {
@@ -204,6 +207,7 @@ const ApplicationForm = () => {
         documents: {},
         otherDocuments: [],
         gdriveLink: "",
+        gdriveFurtherInfoLink: "",
       }))
     );
   }, [location.state]);
@@ -294,6 +298,41 @@ const ApplicationForm = () => {
     setTravelers((prev) => prev.map((t, i) => (i === index ? { ...t, gdriveLink: value } : t)));
   };
 
+  const updateTravelerGdriveFurtherInfo = (index, value) => {
+    setTravelers((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, gdriveFurtherInfoLink: value } : t))
+    );
+  };
+
+  const handleSaveTravelerGdriveLink = (index, field = "main") => {
+    const link = String(
+      field === "main"
+        ? travelers[index]?.gdriveLink
+        : travelers[index]?.gdriveFurtherInfoLink
+    ).trim();
+    if (!link) {
+      showToast(
+        `Please paste a ${field === "main" ? "Google Drive" : "further information"} link for Traveler ${index + 1}.`,
+        "error"
+      );
+      return;
+    }
+    setTravelers((prev) =>
+      prev.map((t, i) =>
+        i === index
+          ? {
+              ...t,
+              [field === "main" ? "gdriveLinkSaved" : "gdriveFurtherInfoLinkSaved"]: true,
+            }
+          : t
+      )
+    );
+    showToast(
+      `Traveler ${index + 1} ${field === "main" ? "Google Drive link" : "further information link"} saved.`,
+      "success"
+    );
+  };
+
   const updateTravelerDoc = (index, key, file) => {
     const inputKey = `${index}-${key}`;
     if (file && file.size > MAX_DOCUMENT_SIZE_BYTES) {
@@ -376,6 +415,7 @@ const ApplicationForm = () => {
       const travelerNo = index + 1;
       const travelerName = String(traveler.name || "").trim() || `Traveler ${travelerNo}`;
       const gdriveLink = String(traveler.gdriveLink || "").trim();
+      const gdriveFurtherInfoLink = String(traveler.gdriveFurtherInfoLink || "").trim();
 
       const requiredFiles = docFields
         .map((field) => ({ field, file: traveler.documents?.[field.key] }))
@@ -400,6 +440,7 @@ const ApplicationForm = () => {
         formData.append("travelerNo", String(travelerNo));
         formData.append("travelerName", travelerName);
         formData.append("gdriveLink", gdriveLink);
+        formData.append("gdriveFurtherInfoLink", gdriveFurtherInfoLink);
         formData.append("documentsMeta", JSON.stringify(documentsMeta));
 
         await api.post(`/users/applications/${appId}/documents`, formData, {
@@ -411,6 +452,7 @@ const ApplicationForm = () => {
             travelerNo: String(travelerNo),
             travelerName,
             gdriveLink,
+            gdriveFurtherInfoLink,
           },
         });
       }
@@ -661,6 +703,7 @@ const ApplicationForm = () => {
               </div>
 
               {uploadSettings.enableGDriveUpload && (
+                <>
                 <div>
                   <label className="text-xs text-text-muted block mb-1.5">
                     Google Drive link
@@ -668,15 +711,57 @@ const ApplicationForm = () => {
                       ? " (optional if you upload every file below)"
                       : " (required)"}
                   </label>
-                  <input
-                    type="url"
-                    autoComplete="off"
-                    value={traveler.gdriveLink}
-                    onChange={(e) => updateTravelerGdrive(index, e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted"
-                  />
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                    <input
+                      type="url"
+                      autoComplete="off"
+                      value={traveler.gdriveLink}
+                      onChange={(e) => updateTravelerGdrive(index, e.target.value)}
+                      placeholder="https://drive.google.com/..."
+                      disabled={traveler.gdriveLinkSaved}
+                      className="min-w-0 flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="shrink-0 sm:min-w-[132px]"
+                      leftIcon={<Upload size={14} />}
+                      onClick={() => handleSaveTravelerGdriveLink(index)}
+                      disabled={traveler.gdriveLinkSaved}
+                    >
+                      Save Link
+                    </Button>
+                  </div>
                 </div>
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">
+                    Further information — Google Drive (optional)
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                    <input
+                      type="url"
+                      autoComplete="off"
+                      value={traveler.gdriveFurtherInfoLink}
+                      onChange={(e) => updateTravelerGdriveFurtherInfo(index, e.target.value)}
+                      placeholder="Second folder for extra context (optional)"
+                      disabled={traveler.gdriveFurtherInfoLinkSaved}
+                      className="min-w-0 flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="shrink-0 sm:min-w-[132px]"
+                      leftIcon={<Upload size={14} />}
+                      onClick={() => handleSaveTravelerGdriveLink(index, "further")}
+                      disabled={traveler.gdriveFurtherInfoLinkSaved}
+                    >
+                      Save Link
+                    </Button>
+                  </div>
+                </div>
+              </>
               )}
 
               {uploadSettings.enableFileUpload && (

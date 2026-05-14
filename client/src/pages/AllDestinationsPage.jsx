@@ -8,6 +8,7 @@ import Button from "../components/ui/Button";
 import ImageWithShimmer from "../components/ui/ImageWithShimmer";
 import { useCountries } from "../hooks/useCountries";
 import { getCountryFlagEmoji, getCountryCardCodeBadge } from "../utils/countrySearch";
+import { getCountryRouteId } from "../utils/countryRouting";
 
 // Reuse the same scroll-in animation style to keep page transitions consistent.
 const fadeUp = {
@@ -116,7 +117,7 @@ const AllDestinationsPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {countries.map((country, index) => (
               <motion.div
-                key={country.id}
+                key={getCountryRouteId(country)}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-30px" }}
@@ -125,7 +126,7 @@ const AllDestinationsPage = () => {
                 variants={{ hover: { y: -6, scale: 1.03, transition: { duration: 0.18, ease: "easeOut" } } }}
                 style={{ willChange: "transform" }}
                 className="group cursor-pointer h-full"
-                onClick={() => navigate(`/destination/${country.id}`)}
+                onClick={() => navigate(`/destination/${encodeURIComponent(getCountryRouteId(country))}`)}
               >
                 <div className="bg-surface border border-border rounded-3xl overflow-hidden hover:border-cyan/30 hover:shadow-cyan-glow transition-shadow duration-200 h-full min-h-[500px]">
                   <ImageWithShimmer

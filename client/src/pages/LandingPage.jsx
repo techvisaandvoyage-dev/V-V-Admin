@@ -24,6 +24,7 @@ import LandingCountriesGrid from "../components/landing/LandingCountriesGrid";
 import { useCountries } from "../hooks/useCountries";
 import { api } from "../store/authStore";
 import { getCountryFlagEmoji, getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
+import { getCountryRouteId } from "../utils/countryRouting";
 
 const GEOCODE_DEBOUNCE_MS = 680;
 const GEOCODE_MIN_CHARS = 3;
@@ -132,19 +133,20 @@ const LandingPage = () => {
     const term = searchDestination.trim();
     if (!term) return trendingCountries;
     const local = allCountries.filter((country) => matchesCountrySearch(country, term));
-    const byId = new Map(local.map((c) => [c.id, c]));
+    const byId = new Map(local.map((c) => [getCountryRouteId(c), c]));
     for (const p of geocodePlaces) {
       const country = allCountries.find(
         (c) => c.id === p.countrySlug || c.name === p.countryName
       );
-      if (country && !byId.has(country.id)) byId.set(country.id, country);
+      const routeId = getCountryRouteId(country);
+      if (country && !byId.has(routeId)) byId.set(routeId, country);
     }
     return Array.from(byId.values());
   }, [searchDestination, trendingCountries, allCountries, geocodePlaces]);
 
   /** Stable key so the memoized grid skips re-rendering when unrelated parent state ticks. */
   const countryIdsKey = useMemo(
-    () => filteredCountries.map((c) => c.id).join("|"),
+    () => filteredCountries.map((c) => getCountryRouteId(c)).join("|"),
     [filteredCountries]
   );
 
@@ -161,18 +163,18 @@ const LandingPage = () => {
 
     const merged = new Map();
     for (const c of allCountries.filter((country) => matchesCountrySearch(country, term))) {
-      merged.set(c.id, c);
+      merged.set(getCountryRouteId(c), c);
     }
     for (const p of geocodePlaces) {
       const c = allCountries.find(
         (x) => x.id === p.countrySlug || x.name === p.countryName
       );
-      if (c) merged.set(c.id, c);
+      if (c) merged.set(getCountryRouteId(c), c);
     }
     const list = Array.from(merged.values());
     if (list.length !== 1) return;
 
-    const id = list[0].id;
+    const id = getCountryRouteId(list[0]);
     const timer = setTimeout(() => scrollToCountry(id), 240);
     return () => clearTimeout(timer);
   }, [searchDestination, allCountries, scrollToCountry, geocodePlaces]);
@@ -180,11 +182,11 @@ const LandingPage = () => {
   const handleSuggestionRowClick = (row) => {
     if (row.kind === "country") {
       setSearchDestination(row.country.name);
-      setTimeout(() => scrollToCountry(row.country.id), 150);
+      setTimeout(() => scrollToCountry(getCountryRouteId(row.country)), 150);
       return;
     }
     setSearchDestination(row.primaryLabel);
-    setTimeout(() => scrollToCountry(row.country.id), 150);
+    setTimeout(() => scrollToCountry(getCountryRouteId(row.country)), 150);
   };
 
   const handleSearch = (e) => {
@@ -196,7 +198,7 @@ const LandingPage = () => {
 
     const localMatches = allCountries.filter((country) => matchesCountrySearch(country, term));
     if (localMatches.length >= 1) {
-      setTimeout(() => scrollToCountry(localMatches[0].id), 150);
+      setTimeout(() => scrollToCountry(getCountryRouteId(localMatches[0])), 150);
       return;
     }
     const p = geocodePlaces[0];
@@ -204,12 +206,12 @@ const LandingPage = () => {
       const c = allCountries.find(
         (x) => x.id === p.countrySlug || x.name === p.countryName
       );
-      if (c) setTimeout(() => scrollToCountry(c.id), 150);
+      if (c) setTimeout(() => scrollToCountry(getCountryRouteId(c)), 150);
     }
   };
 
   const handleNavigateDestination = useCallback(
-    (countryId) => navigate(`/destination/${countryId}`),
+    (country) => navigate(`/destination/${encodeURIComponent(getCountryRouteId(country))}`),
     [navigate]
   );
 

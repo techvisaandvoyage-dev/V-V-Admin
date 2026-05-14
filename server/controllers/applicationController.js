@@ -195,6 +195,7 @@ const updateUserApplication = async (req, res) => {
       travelDate,
       returnDate,
       gdriveLink,
+      gdriveFurtherInfoLink,
     } = req.body;
     if (firstName !== undefined) updates.firstName = String(firstName).trim() || application.firstName;
     if (lastName !== undefined) updates.lastName = String(lastName).trim() || application.lastName;
@@ -226,10 +227,18 @@ const updateUserApplication = async (req, res) => {
       // Optionally, if they provide a GDrive link, we can consider documents uploaded
       // but maybe that's best handled by admin. We'll just save it.
     }
+    if (gdriveFurtherInfoLink !== undefined) {
+      updates.gdriveFurtherInfoLink = String(gdriveFurtherInfoLink).trim();
+    }
 
     const { travelerUpdate } = req.body;
     if (travelerUpdate) {
-      const { travelerNo, travelerName, gdriveLink: travelerGdriveLink } = travelerUpdate;
+      const {
+        travelerNo,
+        travelerName,
+        gdriveLink: travelerGdriveLink,
+        gdriveFurtherInfoLink: travelerGdriveFurtherInfoLink,
+      } = travelerUpdate;
       if (Number.isFinite(Number(travelerNo))) {
         const travellers = Array.isArray(application.travellerDocuments) ? [...application.travellerDocuments] : [];
         const existingIdx = travellers.findIndex((t) => Number(t.travelerNo) === Number(travelerNo));
@@ -237,11 +246,15 @@ const updateUserApplication = async (req, res) => {
         if (existingIdx >= 0) {
           if (travelerName !== undefined) travellers[existingIdx].travelerName = travelerName;
           if (travelerGdriveLink !== undefined) travellers[existingIdx].gdriveLink = travelerGdriveLink;
+          if (travelerGdriveFurtherInfoLink !== undefined) {
+            travellers[existingIdx].gdriveFurtherInfoLink = String(travelerGdriveFurtherInfoLink || '').trim();
+          }
         } else {
           travellers.push({
             travelerNo: Number(travelerNo),
             travelerName: travelerName || '',
             gdriveLink: travelerGdriveLink || '',
+            gdriveFurtherInfoLink: String(travelerGdriveFurtherInfoLink || '').trim(),
             documents: {}
           });
         }
@@ -319,8 +332,8 @@ const appendApplicationDocuments = async (req, res) => {
       const travellers = Array.isArray(application.travellerDocuments)
         ? [...application.travellerDocuments]
         : [];
-      const travelerName = String(req.body.travelerName || '').trim();
       const gdriveLink = String(req.body.gdriveLink || '').trim();
+      const gdriveFurtherInfoLink = String(req.body.gdriveFurtherInfoLink || '').trim();
 
       const existingIdx = travellers.findIndex((t) => Number(t.travelerNo) === travelerNo);
       
@@ -329,6 +342,9 @@ const appendApplicationDocuments = async (req, res) => {
         payload = { ...travellers[existingIdx].toObject ? travellers[existingIdx].toObject() : travellers[existingIdx] };
         payload.travelerName = travelerName || payload.travelerName;
         if (gdriveLink) payload.gdriveLink = gdriveLink;
+        if (Object.prototype.hasOwnProperty.call(req.body, 'gdriveFurtherInfoLink')) {
+          payload.gdriveFurtherInfoLink = gdriveFurtherInfoLink;
+        }
         payload.documents = { ...(payload.documents || {}), ...docMap };
         const existingOther = Array.isArray(payload.otherDocuments)
           ? payload.otherDocuments.map((p) => String(p || '').trim()).filter(Boolean)
@@ -341,6 +357,7 @@ const appendApplicationDocuments = async (req, res) => {
           travelerNo,
           travelerName,
           gdriveLink,
+          gdriveFurtherInfoLink,
           documents: docMap,
           otherDocuments,
           uploadedAt: new Date(),

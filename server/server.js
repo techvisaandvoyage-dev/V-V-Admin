@@ -66,6 +66,9 @@ app.get('/api/countries/:slug', getCountryBySlug);
 app.get('/api/pages', getPublicPages);
 app.get('/api/pages/:slug', getPublicPageBySlug);
 
+app.use('/api/blog', require('./routes/blogRoutes'));
+app.use('/api/comments', require('./routes/commentRoutes'));
+
 const { searchPlaces } = require('./controllers/geocodeController');
 app.get('/api/geocode/places', searchPlaces);
 
@@ -116,6 +119,19 @@ const PORT = process.env.PORT || 5000;
       await seedStaticPages();
     } catch (err) {
       console.log('Skipping static page seed:', err.message);
+    }
+
+    // ── Seed sample blog categories + posts ─────────────────────
+    // Same idempotent contract: skips items whose slug is already present so
+    // admin edits and deletions persist across restarts.
+    try {
+      const { seedBlog } = require('./seedBlog');
+      const result = await seedBlog();
+      if (result.ok && result.postsInserted) {
+        console.log(`Seeded ${result.postsInserted} sample blog posts.`);
+      }
+    } catch (err) {
+      console.log('Skipping blog seed:', err.message);
     }
   });
 })();
