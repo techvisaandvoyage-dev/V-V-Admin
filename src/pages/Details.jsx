@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, Eye, CreditCard, Link, Upload, UploadCloud, Phone } from "lucide-react";
+import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, Eye, CreditCard, Link, Upload, UploadCloud, Phone, MessageSquare } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
 import Navbar from "../components/layout/Navbar";
@@ -11,6 +11,79 @@ import { StatusBadge } from "../components/ui/Badge";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
 import { getApplicationProgress } from "../utils/applicationProgress";
 
+const getTravelerNoFromDocumentPath = (path) => {
+  const fileName = String(path || "").split("/").pop() || "";
+  const match = fileName.match(/^traveler-(\d+)_/i);
+  return match ? Number(match[1]) : null;
+};
+
+const getTravelerDocumentEntries = (documents) => {
+  if (!documents) return [];
+  if (documents instanceof Map) {
+    return Array.from(documents.entries()).filter(([, value]) => Boolean(value));
+  }
+  if (typeof documents.entries === "function" && typeof documents.get === "function") {
+    return Array.from(documents.entries()).filter(([, value]) => Boolean(value));
+  }
+  return Object.entries(documents).filter(([, value]) => Boolean(value));
+};
+
+const DOCUMENT_LABELS = {
+  passport: "Passport",
+  oldPassport: "Old Passport",
+  photo: "Passport Photo",
+  idCard: "Aadhaar / ID Card",
+  panCard: "PAN Card",
+  drivingLicense: "Driving License",
+  birthCertificate: "Birth Certificate",
+  dobCertificate: "DOB Certificate",
+  marriageCertificate: "Marriage Certificate",
+  educationCertificate: "Education / Academic Records",
+  employmentLetter: "Employment Letter",
+  offerLetter: "Offer Letter",
+  salarySlip: "Salary Slip / Pay Stub",
+  form16: "Form 16",
+  taxReturn: "ITR / Tax Return",
+  bankStatement: "Bank Statement",
+  bankCertificate: "Bank Solvency Certificate",
+  propertyDocuments: "Property Documents",
+  travelInsurance: "Travel Insurance",
+  healthInsurance: "Health Insurance",
+  flightTicket: "Flight Ticket",
+  hotelBooking: "Hotel Booking",
+  itinerary: "Travel Itinerary",
+  coverLetter: "Cover Letter",
+  invitationLetter: "Invitation Letter",
+  sponsorLetter: "Sponsor / Affidavit Letter",
+  policeClearance: "Police Clearance Certificate",
+  noObjectionCertificate: "No Objection Certificate",
+  yellowFever: "Yellow Fever Certificate",
+  covidVaccination: "COVID Vaccination Certificate",
+  visaApplicationForm: "Visa Application Form",
+  businessLicense: "Business License",
+  companyRegistration: "Company Registration Certificate",
+};
+
+const formatDocumentKeyLabel = (key) => {
+  const normalizedKey = String(key || "").trim();
+  if (!normalizedKey) return "Document";
+  if (DOCUMENT_LABELS[normalizedKey]) return DOCUMENT_LABELS[normalizedKey];
+
+  return normalizedKey
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+};
+
+const getDocumentLabelFromPath = (path, fallback = "Document") => {
+  const fileName = String(path || "").split("/").pop() || "";
+  const travelerMatch = fileName.match(/^traveler-\d+_([^._]+)/i);
+  const legacyMatch = fileName.match(/^([^._]+)/);
+  const docKey = travelerMatch?.[1] || legacyMatch?.[1] || "";
+  return docKey ? formatDocumentKeyLabel(docKey) : fallback;
+};
+
 const Details = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -20,6 +93,14 @@ const Details = () => {
   const [loading, setLoading] = useState(true);
   const [visaFileUploading, setVisaFileUploading] = useState(false);
   const visaFileInputRef = useRef(null);
+  const [expandedTravelerDocs, setExpandedTravelerDocs] = useState({});
+
+  const toggleTravelerDocuments = (travelerNo) => {
+    setExpandedTravelerDocs((prev) => ({
+      ...prev,
+      [travelerNo]: !prev[travelerNo],
+    }));
+  };
 
   useEffect(() => {
     const fetchApplication = async () => {
@@ -74,7 +155,7 @@ const Details = () => {
     const travellers = application?.travellerDocuments;
     if (!Array.isArray(travellers)) return s;
     for (const t of travellers) {
-      Object.values(t.documents || {}).forEach((p) => {
+      getTravelerDocumentEntries(t.documents).forEach(([, p]) => {
         if (p) s.add(p);
       });
       (t.otherDocuments || []).forEach((p) => {
@@ -86,14 +167,70 @@ const Details = () => {
 
   const legacyDocumentsFiltered = useMemo(() => {
     if (!application || !Array.isArray(application.documents)) return [];
-    return application.documents.filter((p) => p && !applicationDocPathsInTravellers.has(p));
+    return application.documents.filter((p) => p && !applicationDocPathsInTravellers.has(p) && !getTravelerNoFromDocumentPath(p));
   }, [application, applicationDocPathsInTravellers]);
+
+  const legacyDocumentLabelsByPath = useMemo(() => {
+    const labels = new Map();
+    if (!application || !Array.isArray(legacyDocumentsFiltered) || !legacyDocumentsFiltered.length) {
+      return labels;
+    }
+
+    const requiredDocuments = Array.isArray(application.requiredDocuments) && application.requiredDocuments.length
+      ? application.requiredDocuments
+      : ["passport"];
+
+    legacyDocumentsFiltered.forEach((path, index) => {
+      const keyFromOrder = requiredDocuments[index];
+      if (keyFromOrder) {
+        labels.set(path, formatDocumentKeyLabel(keyFromOrder));
+        return;
+      }
+
+      labels.set(path, getDocumentLabelFromPath(path, `Document ${index + 1}`));
+    });
+
+    return labels;
+  }, [application, legacyDocumentsFiltered]);
+
+  const rootDocumentsByTraveler = useMemo(() => {
+    const groups = new Map();
+    if (!application || !Array.isArray(application.documents)) return groups;
+
+    for (const path of application.documents) {
+      if (!path || applicationDocPathsInTravellers.has(path)) continue;
+      const travelerNo = getTravelerNoFromDocumentPath(path);
+      if (!travelerNo) continue;
+      const list = groups.get(travelerNo) || [];
+      list.push(path);
+      groups.set(travelerNo, list);
+    }
+
+    return groups;
+  }, [application, applicationDocPathsInTravellers]);
+
+  const travelerDocumentCards = useMemo(() => {
+    if (!application) return [];
+    const existing = Array.isArray(application.travellerDocuments) ? application.travellerDocuments : [];
+    const count = Math.max(1, Number(application.travellerCount || existing.length || 1));
+    const byTravelerNo = new Map(existing.map((entry, index) => [Number(entry?.travelerNo || index + 1), entry]));
+
+    return Array.from({ length: count }, (_, index) => {
+      const travelerNo = index + 1;
+      return byTravelerNo.get(travelerNo) || {
+        travelerNo,
+        travelerName: Array.isArray(application.travelerNames) ? application.travelerNames[index] : "",
+        documents: {},
+        otherDocuments: [],
+      };
+    });
+  }, [application]);
 
   const hasTravelerUploadedFiles = useMemo(() => {
     if (!application?.travellerDocuments) return false;
     return application.travellerDocuments.some(
       (t) =>
-        Object.values(t.documents || {}).some(Boolean) ||
+        getTravelerDocumentEntries(t.documents).length > 0 ||
         (Array.isArray(t.otherDocuments) && t.otherDocuments.some(Boolean))
     );
   }, [application]);
@@ -107,6 +244,7 @@ const Details = () => {
     Boolean(application?.gdriveLink) ||
     hasTravelerGdrive ||
     hasTravelerUploadedFiles ||
+    rootDocumentsByTraveler.size > 0 ||
     legacyDocumentsFiltered.length > 0;
 
   const handleDownload = async (docUrl) => {
@@ -319,6 +457,20 @@ const Details = () => {
               </div>
             </Card>
 
+            {String(application.applicantNotes || "").trim() && (
+              <Card>
+                <h2 className="text-lg font-semibold text-text-primary border-b border-border pb-4 mb-4 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-cyan" />
+                  Further information
+                </h2>
+                <div className="rounded-xl border border-border bg-surface-2 p-4">
+                  <p className="whitespace-pre-wrap text-sm text-text-primary">
+                    {application.applicantNotes}
+                  </p>
+                </div>
+              </Card>
+            )}
+
             <Card>
               <div className={`rounded-xl border p-4 mb-5 ${progress.allDocumentsUploaded ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
                 <p className="text-xs text-text-muted">Document completion</p>
@@ -333,100 +485,216 @@ const Details = () => {
                 Uploaded Documents
               </h2>
 
-              {application.gdriveLink && (
-                <div className="mb-5 p-4 bg-cyan/10 border border-cyan/30 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-surface-3 border border-cyan/30 flex items-center justify-center flex-shrink-0">
-                      <Link size={20} className="text-cyan" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-text-primary">Google Drive Folder</p>
-                      <p className="text-xs text-text-muted truncate max-w-[200px] sm:max-w-xs">
-                        {application.gdriveLink}
-                      </p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="primary" 
-                    size="sm" 
-                    onClick={() => window.open(application.gdriveLink, "_blank")}
-                  >
-                    Open Link
-                  </Button>
-                </div>
-              )}
+              {travelerDocumentCards.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 mb-5 items-start">
+                  {travelerDocumentCards.map((traveler, idx) => {
+                    const travelerNo = Number(traveler.travelerNo || idx + 1);
+                    const isSingleTravelerApplication = travelerDocumentCards.length === 1;
+                    const rootDocs = rootDocumentsByTraveler.get(travelerNo) || [];
+                    const effectiveRootDocs =
+                      travelerNo === 1 && isSingleTravelerApplication
+                        ? [...rootDocs, ...legacyDocumentsFiltered]
+                        : rootDocs;
+                    const effectiveGdriveLink =
+                      traveler.gdriveLink ||
+                      (travelerNo === 1 && isSingleTravelerApplication ? application.gdriveLink || "" : "");
+                    const effectiveFurtherInfoLink =
+                      traveler.gdriveFurtherInfoLink ||
+                      (travelerNo === 1 && isSingleTravelerApplication ? application.gdriveFurtherInfoLink || "" : "");
+                    const documentEntries = getTravelerDocumentEntries(traveler.documents);
+                    const otherDocs = Array.isArray(traveler.otherDocuments)
+                      ? traveler.otherDocuments.filter(Boolean)
+                      : [];
+                    const hasTravelerDocs =
+                      documentEntries.length > 0 ||
+                      otherDocs.length > 0 ||
+                      effectiveRootDocs.length > 0 ||
+                      Boolean(effectiveGdriveLink) ||
+                      Boolean(effectiveFurtherInfoLink);
+                    const isExpanded = Boolean(expandedTravelerDocs[travelerNo]);
 
-              {Array.isArray(application.travellerDocuments) && application.travellerDocuments.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 items-start">
-                  {application.travellerDocuments.map((traveler, idx) => (
+                    return (
                     <div key={`traveler-docs-${idx}`} className="rounded-xl border border-border bg-surface-2 p-3">
-                      <p className="text-sm font-semibold text-text-primary mb-2">
-                        Traveler {traveler.travelerNo || idx + 1}
-                        {traveler.travelerName ? ` — ${traveler.travelerName}` : ""}
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {Object.entries(traveler.documents || {}).map(([labelKey, path]) => {
-                          if (!path) return null;
-                          const fullUrl = `${SERVER_URL}${path}`;
-                          return (
-                            <button
-                              key={`${traveler.travelerNo}-${labelKey}`}
-                              type="button"
-                              onClick={() => window.open(fullUrl, "_blank")}
-                              className="text-left text-xs rounded-lg border border-border px-2 py-2 hover:border-cyan/40 text-text-secondary"
-                            >
-                              <span className="font-medium text-text-primary block mb-0.5">{labelKey}</span>
-                              <span className="truncate block">{String(path).split("/").pop()}</span>
-                            </button>
-                          );
-                        })}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-text-primary">
+                            Traveler {travelerNo}
+                            {traveler.travelerName ? ` - ${traveler.travelerName}` : ""}
+                          </p>
+                          <p className="text-[11px] text-text-muted">
+                            {hasTravelerDocs ? "Uploaded documents available" : "Documents aren't uploaded"}
+                          </p>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => toggleTravelerDocuments(travelerNo)}
+                        >
+                          {isExpanded ? "Hide Documents" : "View Documents"}
+                        </Button>
                       </div>
-                      {Array.isArray(traveler.otherDocuments) && traveler.otherDocuments.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-xs text-text-muted mb-2">Other Documents ({traveler.otherDocuments.length})</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {traveler.otherDocuments.map((path, docIdx) => {
-                              if (!path) return null;
-                              const fullUrl = `${SERVER_URL}${path}`;
+                      {isExpanded && (
+                        <div className="mt-3 border-t border-border/60 pt-3">
+                          {!hasTravelerDocs ? (
+                            <p className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+                              Documents aren't uploaded for this traveler.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {documentEntries.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                                  {documentEntries.map(([labelKey, path]) => {
+                                    const fileName = String(path).split("/").pop();
+                                    const documentLabel = formatDocumentKeyLabel(labelKey);
+                                    return (
+                                      <div
+                                        key={`${traveler.travelerNo}-${labelKey}`}
+                                        className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary"
+                                      >
+                                        <div className="flex min-w-0 items-start gap-2">
+                                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
+                                            <FileText size={14} />
+                                          </span>
+                                          <div className="min-w-0">
+                                            <span className="font-medium text-text-primary block truncate mb-0.5">{documentLabel}</span>
+                                            <span className="truncate block">{fileName}</span>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDownload(path)}
+                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
+                                          title={`Download ${documentLabel}`}
+                                          aria-label={`Download ${documentLabel}`}
+                                        >
+                                          <Download size={14} />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                      {otherDocs.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-[11px] text-text-muted mb-1.5">Other Documents ({otherDocs.length})</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                            {otherDocs.map((path, docIdx) => {
+                              const fileName = String(path).split("/").pop();
                               return (
-                                <button
+                                <div
                                   key={`other-doc-${traveler.travelerNo || idx}-${docIdx}`}
-                                  type="button"
-                                  onClick={() => window.open(fullUrl, "_blank")}
-                                  className="text-left text-xs rounded-lg border border-border px-2 py-2 hover:border-cyan/40 text-text-secondary"
+                                  className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary"
                                 >
-                                  <span className="font-medium text-text-primary block mb-0.5">Other Document {docIdx + 1}</span>
-                                  <span className="truncate block">{String(path).split("/").pop()}</span>
-                                </button>
+                                  <div className="flex min-w-0 items-start gap-2">
+                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
+                                      <FileText size={14} />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <span className="font-medium text-text-primary block truncate mb-0.5">Other Document {docIdx + 1}</span>
+                                      <span className="truncate block">{fileName}</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownload(path)}
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
+                                    title={`Download other document ${docIdx + 1}`}
+                                    aria-label={`Download other document ${docIdx + 1}`}
+                                  >
+                                    <Download size={14} />
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
                         </div>
                       )}
-                      {traveler.gdriveLink && (
-                        <div className="mt-3 p-3 bg-cyan/10 border border-cyan/30 rounded-lg flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                      {effectiveRootDocs.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-[11px] text-text-muted mb-1.5">Uploaded Documents ({effectiveRootDocs.length})</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                            {effectiveRootDocs.map((path, docIdx) => {
+                              const fileName = String(path).split("/").pop();
+                              const documentLabel =
+                                legacyDocumentLabelsByPath.get(path) ||
+                                getDocumentLabelFromPath(path, `Document ${docIdx + 1}`);
+                              return (
+                                <div
+                                  key={`root-doc-${travelerNo}-${docIdx}`}
+                                  className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary"
+                                >
+                                  <div className="flex min-w-0 items-start gap-2">
+                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
+                                      <FileText size={14} />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <span className="font-medium text-text-primary block truncate mb-0.5">{documentLabel}</span>
+                                      <span className="truncate block">{fileName}</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownload(path)}
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
+                                    title={`Download ${documentLabel}`}
+                                    aria-label={`Download ${documentLabel}`}
+                                  >
+                                    <Download size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {effectiveGdriveLink && (
+                        <div className="mt-2 p-2 bg-cyan/10 border border-cyan/30 rounded-lg flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             <Link size={16} className="text-cyan" />
-                            <div className="text-xs text-text-primary font-medium truncate max-w-[150px] sm:max-w-[200px]">
-                              {traveler.gdriveLink}
+                            <div className="text-[11px] text-text-primary font-medium truncate">
+                              {effectiveGdriveLink}
                             </div>
                           </div>
                           <Button 
                             variant="secondary" 
                             size="sm" 
                             className="h-7 text-[10px] px-2"
-                            onClick={() => window.open(traveler.gdriveLink, "_blank")}
+                            onClick={() => window.open(effectiveGdriveLink, "_blank")}
                           >
                             Open
                           </Button>
                         </div>
                       )}
+                      {effectiveFurtherInfoLink && (
+                        <div className="mt-2 p-2 bg-surface-3 border border-border rounded-lg flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Link size={16} className="text-text-secondary shrink-0" />
+                            <div className="text-[11px] text-text-primary font-medium truncate">
+                              Further info: {effectiveFurtherInfoLink}
+                            </div>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-[10px] px-2 shrink-0"
+                            onClick={() => window.open(effectiveFurtherInfoLink, "_blank")}
+                          >
+                            Open
+                          </Button>
+                        </div>
+                      )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
-              {legacyDocumentsFiltered.length > 0 ? (
+              {legacyDocumentsFiltered.length > 0 && travelerDocumentCards.length !== 1 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {legacyDocumentsFiltered.map((doc, idx) => {
                     const fileName = doc.split('/').pop();
@@ -471,7 +739,7 @@ const Details = () => {
                   })}
                 </div>
               ) : (
-                !hasAnyUploadedDocs && (
+                !hasAnyUploadedDocs && travelerDocumentCards.length === 0 && (
                   <p className="text-sm text-text-muted text-center py-6">No documents were uploaded.</p>
                 )
               )}
