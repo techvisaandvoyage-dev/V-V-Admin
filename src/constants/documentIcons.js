@@ -1,0 +1,60 @@
+import { 
+  FileText, ImageIcon, CreditCard, Car, HeartHandshake, GraduationCap, 
+  Briefcase, Receipt, Banknote, Home, ShieldCheck, Plane, Building2, 
+  MapPin, ScrollText, Stethoscope, Stamp 
+} from "lucide-react";
+
+export const DOCUMENT_ICON_MAP = {
+  passport: FileText,
+  oldPassport: FileText,
+  photo: ImageIcon,
+  idCard: CreditCard,
+  panCard: CreditCard,
+  drivingLicense: Car,
+  birthCertificate: FileText,
+  dobCertificate: FileText,
+  marriageCertificate: HeartHandshake,
+  educationCertificate: GraduationCap,
+  employmentLetter: Briefcase,
+  offerLetter: Briefcase,
+  salarySlip: Receipt,
+  form16: Receipt,
+  taxReturn: Receipt,
+  bankStatement: Banknote,
+  bankCertificate: Banknote,
+  propertyDocuments: Home,
+  travelInsurance: ShieldCheck,
+  healthInsurance: ShieldCheck,
+  flightTicket: Plane,
+  hotelBooking: Building2,
+  itinerary: MapPin,
+  coverLetter: FileText,
+  invitationLetter: FileText,
+  sponsorLetter: FileText,
+  policeClearance: ScrollText,
+  noObjectionCertificate: ScrollText,
+  yellowFever: Stethoscope,
+  covidVaccination: Stethoscope,
+  visaApplicationForm: Stamp,
+  businessLicense: Briefcase,
+  companyRegistration: Briefcase,
+};
+
+export const getDocumentIcon = (key) => DOCUMENT_ICON_MAP[key] || FileText;
+
+export const REMIX_ICON_SUGGESTIONS = [
+  "ri-file-list-3-line",
+  "ri-passport-line",
+  "ri-camera-lens-line",
+  "ri-id-card-line",
+  "ri-file-edit-line",
+  "ri-route-line",
+  "ri-flight-takeoff-line",
+  "ri-hotel-line",
+  "ri-shield-check-line",
+  "ri-bank-card-line",
+  "ri-award-line",
+  "ri-briefcase-4-line",
+  "ri-mail-open-line",
+  "ri-ticket-2-line",
+];

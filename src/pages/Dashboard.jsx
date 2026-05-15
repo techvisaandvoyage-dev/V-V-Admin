@@ -19,7 +19,6 @@ import {
   Tooltip, ResponsiveContainer, BarChart, Bar, Legend,
 } from "recharts";
 import { motion } from "framer-motion";
-import Sidebar from "../components/layout/Sidebar";
 import { StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -27,6 +26,10 @@ import Modal from "../components/ui/Modal";
 import Input, { Select, Textarea } from "../components/ui/Input";
 import StaticPagesManager from "../components/cms/StaticPagesManager";
 import BlogAdminPanel from "../components/blog/BlogAdminPanel";
+import AnalyticsPage from "./admin/AnalyticsPage";
+import PaymentsPage from "./admin/PaymentsPage";
+import AdminLayout from "../layouts/AdminLayout";
+import { ADMIN_DASHBOARD_TABS } from "../constants/adminMenu";
 import { useUIStore } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
@@ -76,6 +79,29 @@ const DOCUMENT_ICON_MAP = {
   companyRegistration: Briefcase,
 };
 const getDocumentIcon = (key) => DOCUMENT_ICON_MAP[key] || FileText;
+
+const REMIX_ICON_SUGGESTIONS = [
+  "ri-file-list-3-line",
+  "ri-passport-line",
+  "ri-camera-lens-line",
+  "ri-id-card-line",
+  "ri-file-edit-line",
+  "ri-route-line",
+  "ri-flight-takeoff-line",
+  "ri-hotel-line",
+  "ri-shield-check-line",
+  "ri-bank-card-line",
+  "ri-award-line",
+  "ri-briefcase-4-line",
+  "ri-mail-open-line",
+  "ri-ticket-2-line",
+];
+
+const sanitizeRemixIconClass = (value) => {
+  const icon = String(value ?? "").trim();
+  if (!icon) return "";
+  return /^ri-[a-z0-9-]+$/.test(icon) ? icon : "";
+};
 
 // ── Recharts custom tooltip ────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
@@ -163,6 +189,125 @@ const SettingsSectionCard = ({
   </Card>
 );
 
+const CONTROL_CARD_MIN_HEIGHT = 420;
+const CONTROL_CARD_PREVIEW_HEIGHT = 300;
+
+const ExpandableAdminControlCard = ({
+  children,
+  previewHeight = CONTROL_CARD_PREVIEW_HEIGHT,
+  expandMode = "inline",
+  showToggle = true,
+  expanded: controlledExpanded,
+  onExpandedChange,
+  fullscreenTitle = "Editor",
+}) => {
+  const bodyRef = useRef(null);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const isFullscreen = expandMode === "fullscreen";
+  const expanded = typeof controlledExpanded === "boolean" ? controlledExpanded : internalExpanded;
+  const setExpanded = (valueOrUpdater) => {
+    const nextValue =
+      typeof valueOrUpdater === "function" ? valueOrUpdater(expanded) : valueOrUpdater;
+    if (typeof controlledExpanded === "boolean") {
+      onExpandedChange?.(nextValue);
+      return;
+    }
+    setInternalExpanded(nextValue);
+    onExpandedChange?.(nextValue);
+  };
+
+  useEffect(() => {
+    const measure = () => {
+      const node = bodyRef.current;
+      if (!node) return;
+      const nextCanExpand = node.scrollHeight > previewHeight + 12;
+      setCanExpand(nextCanExpand);
+      if (!nextCanExpand && expanded) setExpanded(false);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [children, previewHeight, expanded]);
+
+  useEffect(() => {
+    if (!expanded || !isFullscreen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [expanded, isFullscreen]);
+
+  return (
+    <>
+      <div
+        className={`relative ${expanded && !isFullscreen ? "z-40" : ""}`}
+        style={{ height: `${CONTROL_CARD_MIN_HEIGHT}px` }}
+      >
+        <Card
+          className={`${
+            expanded && !isFullscreen ? "absolute inset-x-0 top-0 shadow-2xl" : "h-full"
+          }`}
+        >
+          <div className="flex h-full flex-col">
+            <div
+              ref={bodyRef}
+              className={`relative ${expanded && !isFullscreen ? "" : "overflow-hidden"}`}
+              style={expanded && !isFullscreen ? undefined : { maxHeight: `${previewHeight}px` }}
+            >
+              {children}
+              {canExpand && !expanded && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-surface via-surface/95 to-transparent" />
+              )}
+            </div>
+
+            {canExpand && showToggle && (
+              <div className="mt-4 border-t border-border pt-4">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setExpanded((prev) => !prev)}
+                >
+                  {expanded ? "Hide" : "View"}
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {expanded && isFullscreen && (
+        <div className="fixed inset-0 z-[120] overflow-y-auto bg-background">
+          <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+            <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6">
+              <div>
+                <p className="text-sm font-semibold text-text-primary">{fullscreenTitle}</p>
+                <p className="text-xs text-text-muted">Full-page workspace</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExpanded(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-text-primary transition-colors hover:bg-surface-2"
+                aria-label="Close full-page editor"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="w-full px-4 py-4 sm:px-6 sm:py-6">
+            <div className="min-h-[calc(100vh-72px)] rounded-2xl border border-border bg-surface p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6">
+              {children}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 /** Defaults match client destination page — used until admin saves custom copy. */
 const DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW = [
   "Fast document pre-check by visa specialists",
@@ -171,9 +316,24 @@ const DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW = [
 ];
 
 const DESTINATION_PAGE_DEFAULT_INCLUDED = [
-  "Application form guidance",
-  "Document checklist and validation",
-  "End-to-end support till submission",
+  {
+    title: "Application Form Guidance",
+    description: "Step-by-step guidance to fill your visa application form accurately and confidently.",
+    icon: "ri-file-edit-line",
+    color: "blue",
+  },
+  {
+    title: "Document Checklist & Validation",
+    description: "We provide a complete checklist and verify your documents to ensure everything is in order.",
+    icon: "ri-file-list-3-line",
+    color: "green",
+  },
+  {
+    title: "End-to-end Support till Submission",
+    description: "Our experts assist you at every step until your application is successfully submitted.",
+    icon: "ri-customer-service-2-line",
+    color: "purple",
+  },
 ];
 
 const DESTINATION_PAGE_DEFAULT_FAQS = [
@@ -236,6 +396,124 @@ const VALIDITY_SUGGESTIONS = [
   "5 Years",
 ];
 
+const LENGTH_OF_STAY_SUGGESTIONS = [
+  "7 Days",
+  "15 Days",
+  "30 Days",
+  "60 Days",
+  "90 Days",
+  "180 Days",
+];
+
+const ENTRY_TYPE_SUGGESTIONS = [
+  "Single Entry",
+  "Double Entry",
+  "Multiple Entry",
+];
+
+const DEFAULT_VISA_INFORMATION_ITEMS = Object.freeze([
+  {
+    id: "lengthOfStay",
+    label: "Length of Stay",
+    description: "You can stay up to the approved duration in the country.",
+    icon: "calendar",
+    color: "blue",
+  },
+  {
+    id: "validity",
+    label: "Validity",
+    description: "Your visa remains valid for the approved duration after issue.",
+    icon: "clock3",
+    color: "green",
+  },
+  {
+    id: "entry",
+    label: "Entry",
+    description: "This visa determines how many times you can enter the country.",
+    icon: "door-open",
+    color: "purple",
+  },
+]);
+
+const createVisaInformationState = (source = {}) => {
+  const data = source?.visaInformation && typeof source.visaInformation === "object"
+    ? source.visaInformation
+    : source && typeof source === "object"
+      ? source
+      : {};
+  const itemsById = new Map(
+    (Array.isArray(data.items) ? data.items : [])
+      .map((item) => ({
+        id: String(item?.id ?? "").trim(),
+        enabled: item?.enabled !== false,
+        label: String(item?.label ?? "").trim(),
+        value: String(item?.value ?? "").trim(),
+        description: String(item?.description ?? "").trim(),
+        icon: String(item?.icon ?? "").trim(),
+        color: String(item?.color ?? "").trim(),
+      }))
+      .filter((item) => item.id)
+      .map((item) => [item.id, item])
+  );
+
+  return {
+    enabled: data.enabled !== false,
+    badgeText: String(data.badgeText ?? "").trim() || "100% Online Process",
+    title: String(data.title ?? "").trim() || "Visa Information",
+    subtitle:
+      String(data.subtitle ?? "").trim() ||
+      "A 100% online visa application process that is simple, secure and hassle-free.",
+    note:
+      String(data.note ?? "").trim() ||
+      "Visa rules and conditions may change. Please check the latest requirements before applying.",
+    items: DEFAULT_VISA_INFORMATION_ITEMS.map((item) => {
+      const next = itemsById.get(item.id);
+      const fallbackValue =
+        item.id === "lengthOfStay"
+          ? String(source?.lengthOfStay ?? source?.validity ?? "").trim() || "On request"
+          : item.id === "validity"
+            ? String(source?.validity ?? "").trim() || "On request"
+            : String(source?.entryType ?? "").trim() || "Single";
+      return {
+        ...item,
+        enabled: next?.enabled !== false,
+        label: next?.label || item.label,
+        value: next?.value || fallbackValue,
+        description: next?.description || item.description,
+        icon: next?.icon || item.icon,
+        color: next?.color || item.color,
+      };
+    }),
+  };
+};
+
+const sanitizeVisaInformationPayload = (visaInformation, fallback = {}) => {
+  const state = createVisaInformationState({
+    ...fallback,
+    visaInformation,
+  });
+  return {
+    enabled: state.enabled !== false,
+    badgeText: String(state.badgeText ?? "").trim() || "100% Online Process",
+    title: String(state.title ?? "").trim() || "Visa Information",
+    subtitle:
+      String(state.subtitle ?? "").trim() ||
+      "A 100% online visa application process that is simple, secure and hassle-free.",
+    note:
+      String(state.note ?? "").trim() ||
+      "Visa rules and conditions may change. Please check the latest requirements before applying.",
+    items: state.items.map((item) => ({
+      id: String(item?.id ?? "").trim(),
+      enabled: item?.enabled !== false,
+      label: String(item?.label ?? "").trim(),
+      value: String(item?.value ?? "").trim(),
+      description: String(item?.description ?? "").trim(),
+      icon: String(item?.icon ?? "").trim(),
+      color: String(item?.color ?? "").trim() || "blue",
+    })),
+  };
+};
+
 /** Suggestions shown in the universal Processing Days control + country edit modal. */
 const PROCESSING_DAYS_SUGGESTIONS = [
   "1-3 days",
@@ -264,11 +542,27 @@ const mapDestinationWhyBookNowFromApi = (s) => {
     : [...DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW];
 };
 
+const safeMapIncludedItems = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.map((x) => {
+    if (typeof x === "string") {
+      return { title: x.trim(), description: "", icon: "", color: "blue" };
+    }
+    return {
+      title: String(x?.title ?? "").trim(),
+      description: String(x?.description ?? "").trim(),
+      icon: String(x?.icon ?? "").trim(),
+      color: String(x?.color ?? "blue").trim(),
+    };
+  });
+};
+
 const mapDestinationIncludedFromApi = (s) => {
   const a = s?.destinationIncludedItems;
-  return Array.isArray(a) && a.length
-    ? a.map((x) => String(x ?? "").trim()).filter(Boolean)
-    : [...DESTINATION_PAGE_DEFAULT_INCLUDED];
+  if (Array.isArray(a) && a.length) {
+    return safeMapIncludedItems(a);
+  }
+  return DESTINATION_PAGE_DEFAULT_INCLUDED.map((f) => ({ ...f }));
 };
 
 const mapDestinationFaqsFromApi = (s) => {
@@ -445,6 +739,8 @@ const Dashboard = () => {
   const [globalDefaults, setGlobalDefaults] = useState({
     globalVisaType: "",
     globalValidity: "",
+    globalLengthOfStay: "",
+    globalEntryType: "",
     globalProcessingDays: "",
     globalRequiredDocuments: [],
   });
@@ -452,10 +748,14 @@ const Dashboard = () => {
     totalCountries: 0,
     usingGlobalVisaType: 0,
     usingGlobalValidity: 0,
+    usingGlobalLengthOfStay: 0,
+    usingGlobalEntryType: 0,
     usingGlobalProcessingDays: 0,
     usingGlobalRequiredDocuments: 0,
     overridingVisaType: 0,
     overridingValidity: 0,
+    overridingLengthOfStay: 0,
+    overridingEntryType: 0,
     overridingProcessingDays: 0,
     overridingRequiredDocuments: 0,
   });
@@ -463,6 +763,8 @@ const Dashboard = () => {
   const [displayToggles, setDisplayToggles] = useState({
     showVisaType: true,
     showValidity: true,
+    showLengthOfStay: true,
+    showEntryType: true,
     showProcessingDays: true,
     showRequiredDocuments: true,
   });
@@ -470,6 +772,10 @@ const Dashboard = () => {
   const [visaTypeCustom, setVisaTypeCustom] = useState("");
   const [validityPicker, setValidityPicker] = useState("");
   const [validityCustom, setValidityCustom] = useState("");
+  const [lengthOfStayPicker, setLengthOfStayPicker] = useState("");
+  const [lengthOfStayCustom, setLengthOfStayCustom] = useState("");
+  const [entryTypePicker, setEntryTypePicker] = useState("");
+  const [entryTypeCustom, setEntryTypeCustom] = useState("");
   const [processingDaysPicker, setProcessingDaysPicker] = useState("");
   const [processingDaysCustom, setProcessingDaysCustom] = useState("");
   /** Merged built-in + admin's custom documents, populated from /admin/control/country-defaults. */
@@ -478,11 +784,49 @@ const Dashboard = () => {
   const [requiredDocsDraft, setRequiredDocsDraft] = useState([]);
   /** Free-text field used to add a brand-new custom document type. */
   const [newCustomDocLabel, setNewCustomDocLabel] = useState("");
+  const [newCustomDocDescription, setNewCustomDocDescription] = useState("");
+  const [newCustomDocIcon, setNewCustomDocIcon] = useState("");
   const [savingCustomDoc, setSavingCustomDoc] = useState(false);
+  const [savingDocumentMetaKey, setSavingDocumentMetaKey] = useState("");
+  const [showCustomDocCreator, setShowCustomDocCreator] = useState(true);
   const [savingControlKey, setSavingControlKey] = useState(null);
-  /** Tracks which toggle is currently flipping (so we can disable just that switch). */
   const [togglingDisplayKey, setTogglingDisplayKey] = useState(null);
   const [unsplashFetchRunning, setUnsplashFetchRunning] = useState(false);
+  const customDocCreatorRef = useRef(null);
+
+  // Fetch settings once on mount for accurate progress calculation across all tabs
+  useEffect(() => {
+    const initSettings = async () => {
+      try {
+        const { data } = await api.get("/admin/settings");
+        if (data.success && data.settings) {
+          const s = data.settings;
+          const flags = integrationFlagsFromSettings(s);
+          setIsRazorpayConfigured(flags.isRazorpayConfigured);
+          setIsFirebaseConfigured(flags.isFirebaseConfigured);
+          setIsSmtpConfigured(flags.isSmtpConfigured);
+          setIsSms91Configured(flags.isSms91Configured);
+          setIsUnsplashConfigured(flags.isUnsplashConfigured);
+          setSettingsForm(mapApiSettingsToFormState(s));
+        }
+      } catch (error) {
+        console.error("Error initializing settings:", error);
+      }
+    };
+    initSettings();
+  }, []);
+
+  useEffect(() => {
+    if (!showCustomDocCreator) return undefined;
+    const handlePointerDown = (event) => {
+      const node = customDocCreatorRef.current;
+      if (!node) return;
+      if (node.contains(event.target)) return;
+      setShowCustomDocCreator(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showCustomDocCreator]);
   /** Shown under the Unsplash fetch buttons while batches run. */
   const [unsplashFetchProgress, setUnsplashFetchProgress] = useState("");
   const [fetchedCountriesModalOpen, setFetchedCountriesModalOpen] = useState(false);
@@ -658,9 +1002,15 @@ const Dashboard = () => {
   // Country form state
   const [countryForm, setCountryForm] = useState({
     name: "", flagEmoji: "🌍", basePrice: "", processingDays: "", difficulty: "moderate",
-    visaType: "", validity: "", continent: "", description: "", requirements: [""], imageUrl: "",
+    visaType: "", validity: "", lengthOfStay: "", entryType: "", continent: "", description: "", requirements: [""], imageUrl: "",
     requiredDocuments: ["passport"], successRate: "80", trending: false,
+    visaInformation: createVisaInformationState({}),
     whyBookNow: [], includedItems: [], faqs: [], howItWorks: [],
+    useGlobalWhyBookNow: true,
+    useGlobalIncludedItems: true,
+    useGlobalFaqs: true,
+    useGlobalHowItWorks: true,
+    useGlobalVisaRequirements: true,
     excludeDestinationWhyBookNow: [],
     excludeDestinationIncludedItems: [],
     excludeDestinationFaqQuestions: [],
@@ -782,6 +1132,64 @@ const Dashboard = () => {
 
   // ── Country Manager handlers ───────────────────────────────
   const [isSavingCountry, setIsSavingCountry] = useState(false);
+  const syncVisaInfoCoreField = (field, value) => {
+    setCountryForm((prev) => {
+      const visaInformation = createVisaInformationState(prev);
+      return {
+        ...prev,
+        [field]: value,
+        visaInformation: {
+          ...visaInformation,
+          items: visaInformation.items.map((item) =>
+            (field === "lengthOfStay" && item.id === "lengthOfStay") ||
+            (field === "validity" && item.id === "validity") ||
+            (field === "entryType" && item.id === "entry")
+              ? { ...item, value }
+              : item
+          ),
+        },
+      };
+    });
+  };
+
+  const updateVisaInformationField = (field, value) => {
+    setCountryForm((prev) => ({
+      ...prev,
+      visaInformation: {
+        ...createVisaInformationState(prev),
+        [field]: value,
+      },
+    }));
+  };
+
+  const updateVisaInformationItem = (itemId, patch) => {
+    setCountryForm((prev) => {
+      const visaInformation = createVisaInformationState(prev);
+      const items = visaInformation.items.map((item) =>
+        item.id === itemId ? { ...item, ...patch } : item
+      );
+      const next = {
+        ...prev,
+        visaInformation: {
+          ...visaInformation,
+          items,
+        },
+      };
+      const changed = items.find((item) => item.id === itemId);
+      if (!changed) return next;
+      if (itemId === "lengthOfStay" && Object.prototype.hasOwnProperty.call(patch, "value")) {
+        next.lengthOfStay = changed.value;
+      }
+      if (itemId === "validity" && Object.prototype.hasOwnProperty.call(patch, "value")) {
+        next.validity = changed.value;
+      }
+      if (itemId === "entry" && Object.prototype.hasOwnProperty.call(patch, "value")) {
+        next.entryType = changed.value;
+      }
+      return next;
+    });
+  };
+
   const openEditCountry = (country) => {
     setCountryForm({
       ...country,
@@ -789,10 +1197,13 @@ const Dashboard = () => {
       successRate: String(country.successRate ?? 80),
       trending: Boolean(country.trending),
       validity: String(country.validity ?? ""),
+      lengthOfStay: String(country.lengthOfStay ?? ""),
+      entryType: String(country.entryType ?? ""),
+      visaInformation: createVisaInformationState(country),
       requirements: country.requirements?.length ? country.requirements : [""],
       requiredDocuments: country.requiredDocuments || ["passport"],
       whyBookNow: Array.isArray(country.whyBookNow) ? [...country.whyBookNow] : [],
-      includedItems: Array.isArray(country.includedItems) ? [...country.includedItems] : [],
+      includedItems: safeMapIncludedItems(country.includedItems),
       faqs: Array.isArray(country.faqs)
         ? country.faqs.map((f) => ({
             question: String(f?.question ?? ""),
@@ -820,6 +1231,11 @@ const Dashboard = () => {
       excludeDestinationVisaRequirements: Array.isArray(country.excludeDestinationVisaRequirements)
         ? [...country.excludeDestinationVisaRequirements]
         : [],
+      useGlobalWhyBookNow: country.useGlobalWhyBookNow !== false,
+      useGlobalIncludedItems: country.useGlobalIncludedItems !== false,
+      useGlobalFaqs: country.useGlobalFaqs !== false,
+      useGlobalHowItWorks: country.useGlobalHowItWorks !== false,
+      useGlobalVisaRequirements: country.useGlobalVisaRequirements !== false,
     });
     openCountryModal("edit", country);
   };
@@ -839,6 +1255,13 @@ const Dashboard = () => {
       // "5-10" for brand-new countries created from `addCountry`.
       processingDays: String(countryForm.processingDays ?? "").trim(),
       validity: String(countryForm.validity ?? "").trim(),
+      lengthOfStay: String(countryForm.lengthOfStay ?? "").trim(),
+      entryType: String(countryForm.entryType ?? "").trim(),
+      visaInformation: sanitizeVisaInformationPayload(countryForm.visaInformation, {
+        validity: countryForm.validity,
+        lengthOfStay: countryForm.lengthOfStay,
+        entryType: countryForm.entryType,
+      }),
       requirements: countryForm.requirements.filter(Boolean),
       requiredDocuments: countryForm.requiredDocuments,
       successRate: Number(countryForm.successRate) || 80,
@@ -847,8 +1270,13 @@ const Dashboard = () => {
         .map((s) => String(s ?? "").trim())
         .filter(Boolean),
       includedItems: (countryForm.includedItems || [])
-        .map((s) => String(s ?? "").trim())
-        .filter(Boolean),
+        .map((x) => ({
+          title: String(x?.title ?? "").trim(),
+          description: String(x?.description ?? "").trim(),
+          icon: String(x?.icon ?? "").trim(),
+          color: String(x?.color ?? "blue").trim(),
+        }))
+        .filter((x) => x.title),
       faqs: (countryForm.faqs || [])
         .map((f) => ({
           question: String(f?.question ?? "").trim(),
@@ -876,6 +1304,11 @@ const Dashboard = () => {
       excludeDestinationVisaRequirements: (countryForm.excludeDestinationVisaRequirements || [])
         .map((s) => normDestKey(s))
         .filter(Boolean),
+      useGlobalWhyBookNow: Boolean(countryForm.useGlobalWhyBookNow),
+      useGlobalIncludedItems: Boolean(countryForm.useGlobalIncludedItems),
+      useGlobalFaqs: Boolean(countryForm.useGlobalFaqs),
+      useGlobalHowItWorks: Boolean(countryForm.useGlobalHowItWorks),
+      useGlobalVisaRequirements: Boolean(countryForm.useGlobalVisaRequirements),
     };
 
     const id = selectedCountry?._id || selectedCountry?.id;
@@ -939,7 +1372,22 @@ const Dashboard = () => {
   const saveSettingsPartial = async (sectionKey, payload, successMessage) => {
     setSavingSettingsKey(sectionKey);
     try {
-      const { data } = await api.put("/admin/settings", payload);
+      const safePayload = Object.fromEntries(
+        Object.entries(payload || {}).filter(([, value]) => value !== undefined)
+      );
+      if ("destinationIncludedItems" in safePayload) {
+        safePayload.destinationIncludedItems = Array.isArray(safePayload.destinationIncludedItems)
+          ? safePayload.destinationIncludedItems
+              .map((item) => ({
+                title: String(item?.title ?? "").trim(),
+                description: String(item?.description ?? "").trim(),
+                icon: String(item?.icon ?? "").trim(),
+                color: String(item?.color ?? "blue").trim() || "blue",
+              }))
+              .filter((item) => item.title)
+          : [];
+      }
+      const { data } = await api.put("/admin/settings", safePayload);
       if (!data.success) {
         showToast(data.message || "Failed to save", "error");
         return;
@@ -1010,6 +1458,8 @@ const Dashboard = () => {
         const next = {
           globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
           globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
+          globalLengthOfStay: String(data.defaults?.globalLengthOfStay ?? "").trim(),
+          globalEntryType: String(data.defaults?.globalEntryType ?? "").trim(),
           globalProcessingDays: String(data.defaults?.globalProcessingDays ?? "").trim(),
           globalRequiredDocuments: Array.isArray(data.defaults?.globalRequiredDocuments)
             ? data.defaults.globalRequiredDocuments
@@ -1022,10 +1472,14 @@ const Dashboard = () => {
           totalCountries: data.stats?.totalCountries ?? 0,
           usingGlobalVisaType: data.stats?.usingGlobalVisaType ?? 0,
           usingGlobalValidity: data.stats?.usingGlobalValidity ?? 0,
+          usingGlobalLengthOfStay: data.stats?.usingGlobalLengthOfStay ?? 0,
+          usingGlobalEntryType: data.stats?.usingGlobalEntryType ?? 0,
           usingGlobalProcessingDays: data.stats?.usingGlobalProcessingDays ?? 0,
           usingGlobalRequiredDocuments: data.stats?.usingGlobalRequiredDocuments ?? 0,
           overridingVisaType: data.stats?.overridingVisaType ?? 0,
           overridingValidity: data.stats?.overridingValidity ?? 0,
+          overridingLengthOfStay: data.stats?.overridingLengthOfStay ?? 0,
+          overridingEntryType: data.stats?.overridingEntryType ?? 0,
           overridingProcessingDays: data.stats?.overridingProcessingDays ?? 0,
           overridingRequiredDocuments: data.stats?.overridingRequiredDocuments ?? 0,
         });
@@ -1033,6 +1487,8 @@ const Dashboard = () => {
           setDisplayToggles({
             showVisaType: data.display.showVisaType !== false,
             showValidity: data.display.showValidity !== false,
+            showLengthOfStay: data.display.showLengthOfStay !== false,
+            showEntryType: data.display.showEntryType !== false,
             showProcessingDays: data.display.showProcessingDays !== false,
             showRequiredDocuments: data.display.showRequiredDocuments !== false,
           });
@@ -1043,6 +1499,8 @@ const Dashboard = () => {
               .map((d) => ({
                 key: String(d?.key ?? "").trim(),
                 label: String(d?.label ?? "").trim(),
+                description: String(d?.description ?? "").trim(),
+                icon: String(d?.icon ?? "").trim(),
                 builtIn: d?.builtIn !== false,
               }))
               .filter((d) => d.key && d.label)
@@ -1069,6 +1527,20 @@ const Dashboard = () => {
         } else if (next.globalValidity) {
           setValidityPicker("");
           setValidityCustom(next.globalValidity);
+        }
+        if (next.globalLengthOfStay && LENGTH_OF_STAY_SUGGESTIONS.includes(next.globalLengthOfStay)) {
+          setLengthOfStayPicker(next.globalLengthOfStay);
+          setLengthOfStayCustom("");
+        } else if (next.globalLengthOfStay) {
+          setLengthOfStayPicker("");
+          setLengthOfStayCustom(next.globalLengthOfStay);
+        }
+        if (next.globalEntryType && ENTRY_TYPE_SUGGESTIONS.includes(next.globalEntryType)) {
+          setEntryTypePicker(next.globalEntryType);
+          setEntryTypeCustom("");
+        } else if (next.globalEntryType) {
+          setEntryTypePicker("");
+          setEntryTypeCustom(next.globalEntryType);
         }
         if (next.globalProcessingDays && PROCESSING_DAYS_SUGGESTIONS.includes(next.globalProcessingDays)) {
           setProcessingDaysPicker(next.globalProcessingDays);
@@ -1178,6 +1650,80 @@ const Dashboard = () => {
     }
   };
 
+  const runUpdateGlobalLengthOfStay = async () => {
+    const lengthOfStay = resolveControlValue(lengthOfStayPicker, lengthOfStayCustom);
+    if (!lengthOfStay) {
+      showToast("Pick a Length of Stay from the dropdown or type your own.", "error");
+      return;
+    }
+    setSavingControlKey("length-of-stay");
+    try {
+      const { data } = await api.post("/admin/control/length-of-stay", { lengthOfStay });
+      if (data?.success) {
+        showToast(data.message || `Length of Stay set to "${lengthOfStay}".`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        setLengthOfStayCustom("");
+      } else {
+        showToast(data?.message || "Failed to update global length of stay.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global length of stay.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Update global length of stay failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  const runUpdateGlobalEntryType = async () => {
+    const entryType = resolveControlValue(entryTypePicker, entryTypeCustom);
+    if (!entryType) {
+      showToast("Pick an Entry value from the dropdown or type your own.", "error");
+      return;
+    }
+    setSavingControlKey("entry-type");
+    try {
+      const { data } = await api.post("/admin/control/entry-type", { entryType });
+      if (data?.success) {
+        showToast(data.message || `Entry set to "${entryType}".`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        setEntryTypeCustom("");
+      } else {
+        showToast(data?.message || "Failed to update global entry.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global entry.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Update global entry type failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
   /** Same as the other two but for the universal Processing Days control. */
   const runUpdateGlobalProcessingDays = async () => {
     const processingDays = resolveControlValue(processingDaysPicker, processingDaysCustom);
@@ -1263,8 +1809,14 @@ const Dashboard = () => {
   /** POST a new admin-defined document type to the catalog. */
   const runAddCustomDocument = async () => {
     const label = String(newCustomDocLabel ?? "").trim();
+    const description = String(newCustomDocDescription ?? "").trim();
+    const icon = sanitizeRemixIconClass(newCustomDocIcon);
     if (!label) {
       showToast("Type a document label first.", "error");
+      return;
+    }
+    if (newCustomDocIcon.trim() && !icon) {
+      showToast('Use a valid Remix Icon class like "ri-passport-line".', "error");
       return;
     }
     setSavingCustomDoc(true);
@@ -1272,10 +1824,14 @@ const Dashboard = () => {
       const { data } = await api.post("/admin/control/custom-documents", {
         action: "add",
         label,
+        description,
+        icon,
       });
       if (data?.success) {
         showToast(data.message || `"${label}" added.`, "success");
         setNewCustomDocLabel("");
+        setNewCustomDocDescription("");
+        setNewCustomDocIcon("");
         await loadGlobalCountryDefaults();
       } else {
         showToast(data?.message || "Failed to add custom document.", "error");
@@ -1299,6 +1855,51 @@ const Dashboard = () => {
       showToast(toastMsg, "error");
     } finally {
       setSavingCustomDoc(false);
+    }
+  };
+
+  const runSaveDocumentCatalogEntry = async (doc) => {
+    const key = String(doc?.key ?? "").trim();
+    const label = String(doc?.label ?? "").trim();
+    const description = String(doc?.description ?? "").trim();
+    const icon = sanitizeRemixIconClass(doc?.icon);
+    if (!key) return;
+    if (!label) {
+      showToast("Document name is required.", "error");
+      return;
+    }
+    if (String(doc?.icon ?? "").trim() && !icon) {
+      showToast('Use a valid Remix Icon class like "ri-passport-line".', "error");
+      return;
+    }
+    setSavingDocumentMetaKey(key);
+    try {
+      const { data } = await api.post("/admin/control/custom-documents", {
+        action: "save",
+        key,
+        label,
+        description,
+        icon,
+      });
+      if (data?.success) {
+        showToast(data.message || `"${label}" saved.`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+      } else {
+        showToast(data?.message || "Failed to save document.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      const toastMsg = serverMsg || error?.message || "Failed to save document.";
+      // eslint-disable-next-line no-console
+      console.error("Save document catalog entry failed:", { status, serverMsg, error, key });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingDocumentMetaKey("");
     }
   };
 
@@ -1353,12 +1954,16 @@ const Dashboard = () => {
         setDisplayToggles({
           showVisaType: live.showVisaType !== false,
           showValidity: live.showValidity !== false,
+          showLengthOfStay: live.showLengthOfStay !== false,
+          showEntryType: live.showEntryType !== false,
           showProcessingDays: live.showProcessingDays !== false,
           showRequiredDocuments: live.showRequiredDocuments !== false,
         });
         const labels = {
           showVisaType: "Visa Type",
           showValidity: "Validity",
+          showLengthOfStay: "Length of Stay",
+          showEntryType: "Entry",
           showProcessingDays: "Processing Days",
           showRequiredDocuments: "Required Documents",
         };
@@ -1487,18 +2092,6 @@ const Dashboard = () => {
   const removeRequirement = (index) =>
     setCountryForm((p) => ({ ...p, requirements: p.requirements.filter((_, i) => i !== index) }));
 
-  // ── Tabs config ───────────────────────────────────────────
-  const tabs = [
-    { id: "analytics",    label: "Analytics",     icon: BarChart2 },
-    { id: "pages",        label: "Static Pages",  icon: Globe },
-    { id: "blogs",        label: "Blog",          icon: BookOpen },
-    { id: "transactions", label: "Transactions",  icon: CreditCard },
-    { id: "applications", label: "Applications",  icon: FileText },
-    { id: "countries",    label: "Country Manager", icon: MapPin },
-    { id: "controls",     label: "Controls",        icon: Sliders },
-    { id: "settings",     label: "Settings",        icon: Settings },
-  ];
-
   // ── Recalculate live analytics from state ─────────────────
   const liveAnalytics = {
     total:    bookings.length,
@@ -1508,55 +2101,25 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* ── Sidebar ── */}
-      <Sidebar />
-
-      {/* ── Main ── */}
-      <main className="flex-1 overflow-auto min-w-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-
-          {/* ── Admin header ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <h1 className="text-2xl sm:text-3xl font-bold text-text-primary">Admin Dashboard</h1>
-            <p className="text-text-secondary mt-1">Manage all applications, countries, and analytics.</p>
-          </motion.div>
-
-          {/* ── Tabs ── */}
-          <div className="flex gap-1 bg-surface-2 p-1 rounded-xl mb-8 w-fit">
-            {tabs.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                id={`admin-tab-${id}`}
-                onClick={() => {
-                  if (id === "analytics") {
-                    navigate("/");
-                  } else {
-                    navigate(`/${id}`);
-                  }
-                }}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${activeTab === id
-                    ? "bg-cyan text-background shadow-sm"
-                    : "text-text-secondary hover:text-text-primary"
-                  }
-                `}
-              >
-                <Icon size={15} />
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
+    <AdminLayout
+      title="Admin Dashboard"
+      description="Manage all applications, countries, and analytics."
+      tabs={ADMIN_DASHBOARD_TABS}
+      activeTab={activeTab}
+      onTabChange={(id) => {
+        if (id === "analytics") {
+          navigate("/");
+        } else {
+          navigate(`/${id}`);
+        }
+      }}
+    >
 
           {/* ══════════════════════════════════════
               TAB: TRANSACTIONS
               ══════════════════════════════════════ */}
-          {activeTab === "transactions" && (
+          {activeTab === "transactions" && <PaymentsPage transactions={transactions} />}
+          {false && activeTab === "transactions" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <Card>
                 <div className="flex justify-between items-center mb-6">
@@ -1617,6 +2180,14 @@ const Dashboard = () => {
               TAB 1: ANALYTICS
               ══════════════════════════════════════ */}
           {activeTab === "analytics" && (
+            <AnalyticsPage
+              bookings={bookings}
+              activeChart={activeChart}
+              setActiveChart={setActiveChart}
+              liveAnalytics={liveAnalytics}
+            />
+          )}
+          {false && activeTab === "analytics" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               {/* Stat cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1849,7 +2420,7 @@ const Dashboard = () => {
                           </td>
                           <td className="py-3 pr-6">
                             {(() => {
-                              const progress = getApplicationProgress(b);
+                              const progress = getApplicationProgress(b, settingsForm);
                               const nextPendingTraveler = progress.missingByTraveler.find((item) => item.missingLabels.length);
                               return (
                                 <div className="space-y-1">
@@ -2100,7 +2671,8 @@ const Dashboard = () => {
                   The toggle in the header hides the Visa Type tile on every
                   public card / details page when switched off.
                   ══════════════════════════════════════════════════════════ */}
-              <Card>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              <ExpandableAdminControlCard expandMode="fullscreen">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -2174,12 +2746,159 @@ const Dashboard = () => {
                     helper="Custom value overrides the dropdown above."
                   />
                 </div>
-              </Card>
+              </ExpandableAdminControlCard>
+
+              <ExpandableAdminControlCard>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <ListChecks size={18} className="text-cyan" />
+                        Update Length of Stay (universal)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showLengthOfStay}
+                        busy={togglingDisplayKey === "showLengthOfStay"}
+                        onClick={() => runToggleDisplay("showLengthOfStay")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Sets a single <span className="text-text-primary font-medium">Length of Stay</span> for every country
+                      destination page. Per-country overrides are restored to the global value when you click{" "}
+                      <span className="text-text-primary font-medium">Update All Lengths of Stay</span>.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {globalDefaults.globalLengthOfStay || "Not set yet (destination pages fall back to each country's stored value)"}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalLengthOfStay}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingLengthOfStay}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "length-of-stay"}
+                    disabled={!resolveControlValue(lengthOfStayPicker, lengthOfStayCustom)}
+                    onClick={runUpdateGlobalLengthOfStay}
+                  >
+                    Update All Lengths of Stay
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Pick Length of Stay"
+                    value={lengthOfStayPicker}
+                    onChange={(e) => {
+                      setLengthOfStayPicker(e.target.value);
+                      setLengthOfStayCustom("");
+                    }}
+                    options={LENGTH_OF_STAY_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
+                    placeholder="— choose one —"
+                    id="control-length-of-stay-picker"
+                  />
+                  <Input
+                    label="Or type a custom value"
+                    value={lengthOfStayCustom}
+                    onChange={(e) => {
+                      setLengthOfStayCustom(e.target.value);
+                      if (e.target.value.trim()) setLengthOfStayPicker("");
+                    }}
+                    placeholder="e.g. 45 Days, Up to 30 days"
+                    id="control-length-of-stay-custom"
+                    helper="Custom value overrides the dropdown above."
+                  />
+                </div>
+              </ExpandableAdminControlCard>
+
+              <ExpandableAdminControlCard>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <MapPin size={18} className="text-cyan" />
+                        Update Entry (universal)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showEntryType}
+                        busy={togglingDisplayKey === "showEntryType"}
+                        onClick={() => runToggleDisplay("showEntryType")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Sets a single <span className="text-text-primary font-medium">Entry</span> value like{" "}
+                      <span className="text-text-primary font-medium">Single Entry</span> on every country destination page.
+                      Per-country overrides are restored to the global value when you click{" "}
+                      <span className="text-text-primary font-medium">Update All Entries</span>.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {globalDefaults.globalEntryType || "Not set yet (destination pages fall back to each country's stored value)"}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalEntryType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingEntryType}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "entry-type"}
+                    disabled={!resolveControlValue(entryTypePicker, entryTypeCustom)}
+                    onClick={runUpdateGlobalEntryType}
+                  >
+                    Update All Entries
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Pick Entry"
+                    value={entryTypePicker}
+                    onChange={(e) => {
+                      setEntryTypePicker(e.target.value);
+                      setEntryTypeCustom("");
+                    }}
+                    options={ENTRY_TYPE_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
+                    placeholder="— choose one —"
+                    id="control-entry-type-picker"
+                  />
+                  <Input
+                    label="Or type a custom value"
+                    value={entryTypeCustom}
+                    onChange={(e) => {
+                      setEntryTypeCustom(e.target.value);
+                      if (e.target.value.trim()) setEntryTypePicker("");
+                    }}
+                    placeholder="e.g. Single Entry, Multiple Entry"
+                    id="control-entry-type-custom"
+                    helper="Custom value overrides the dropdown above."
+                  />
+                </div>
+              </ExpandableAdminControlCard>
 
               {/* ══════════════════════════════════════════════════════════
                   Universal Validity control — mirror of the Visa Type card.
                   ══════════════════════════════════════════════════════════ */}
-              <Card>
+              <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -2251,13 +2970,13 @@ const Dashboard = () => {
                     helper="Custom value overrides the dropdown above."
                   />
                 </div>
-              </Card>
+              </ExpandableAdminControlCard>
 
               {/* ══════════════════════════════════════════════════════════
                   Universal Processing Days control — mirror of the other two.
                   The toggle hides the Processing tile on the public client.
                   ══════════════════════════════════════════════════════════ */}
-              <Card>
+              <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -2330,7 +3049,7 @@ const Dashboard = () => {
                     helper="Custom value overrides the dropdown above."
                   />
                 </div>
-              </Card>
+              </ExpandableAdminControlCard>
 
               {/* ══════════════════════════════════════════════════════════
                   Universal Required Documents control — admin picks the
@@ -2338,7 +3057,7 @@ const Dashboard = () => {
                   document types, and toggles the whole section on/off for
                   the public client.
                   ══════════════════════════════════════════════════════════ */}
-              <Card>
+              <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -2359,7 +3078,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">Update All Required Documents</span>{" "}
                       to apply it to every country. Per-country edits in{" "}
                       <span className="text-text-primary font-medium">Country Manager</span> are restored to the
-                      global list. Need a new document type? Add it below — it appears in this checklist and on
+                      global list. Need a new document type? Add it at the top — it appears in this checklist and on
                       every country edit modal instantly.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
@@ -2391,24 +3110,117 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                {/* Checkbox grid built from the merged catalog. Built-in rows
+                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                {showCustomDocCreator ? (
+                  <div
+                    ref={customDocCreatorRef}
+                    className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-4"
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <p className="text-xs font-semibold text-text-primary flex items-center gap-2">
+                        <Plus size={14} className="text-cyan" />
+                        Add a custom document type
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomDocCreator(false)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-text-muted transition-colors hover:text-text-primary hover:bg-surface"
+                        aria-label="Close custom document form"
+                        title="Close"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input
+                        placeholder='e.g. "Medical Insurance Certificate"'
+                        value={newCustomDocLabel}
+                        onChange={(e) => setNewCustomDocLabel(e.target.value)}
+                        id="control-custom-doc-label"
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Optional short description"
+                        value={newCustomDocDescription}
+                        onChange={(e) => setNewCustomDocDescription(e.target.value)}
+                        id="control-custom-doc-description"
+                      />
+                    </div>
+                    <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="ri-passport-line"
+                          value={newCustomDocIcon}
+                          onChange={(e) => setNewCustomDocIcon(e.target.value)}
+                          id="control-custom-doc-icon"
+                          list="custom-document-icon-suggestions"
+                        />
+                        <datalist id="custom-document-icon-suggestions">
+                          {REMIX_ICON_SUGGESTIONS.map((icon) => (
+                            <option key={icon} value={icon} />
+                          ))}
+                        </datalist>
+                        <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs text-text-muted">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan/10 text-cyan">
+                            {sanitizeRemixIconClass(newCustomDocIcon) ? (
+                              <i className={`${sanitizeRemixIconClass(newCustomDocIcon)} text-lg leading-none`} aria-hidden="true" />
+                            ) : (
+                              <FileText size={16} />
+                            )}
+                          </span>
+                          <span className="truncate">
+                            {sanitizeRemixIconClass(newCustomDocIcon) || "Fallback icon"}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Plus size={14} />}
+                        loading={savingCustomDoc}
+                        disabled={!newCustomDocLabel.trim()}
+                        onClick={runAddCustomDocument}
+                      >
+                        Add to catalog
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
+                      Custom types use a <span className="font-mono text-text-primary">custom_xxx</span> key under the hood
+                      and can store a Remix Icon class like <span className="font-mono text-text-primary">ri-passport-line</span>.
+                      They appear in every country edit modal. Removing one strips it from the catalog{" "}
+                      <span className="text-text-primary font-medium">and</span> every country that referenced it.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<Plus size={14} />}
+                      onClick={() => setShowCustomDocCreator(true)}
+                    >
+                      Create document
+                    </Button>
+                  </div>
+                )}                {/* Checkbox grid built from the merged catalog. Built-in rows
                     are non-removable; custom rows expose a small "Delete" pill. */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {documentCatalog.length === 0 && (
                     <p className="col-span-full text-sm text-text-muted">
-                      Loading document catalog…
+                      Loading document catalog...
                     </p>
                   )}
-                  {documentCatalog.map(({ key, label, builtIn }) => {
+                  {documentCatalog.map((doc, index) => {
+                    const { key, label, description, builtIn, icon } = doc;
                     const checked = requiredDocsDraft.includes(key);
                     const DocIcon = getDocumentIcon(key);
                     return (
                       <div
                         key={key}
-                        className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 ${
+                        className={`group relative rounded-2xl border p-4 transition-all duration-150 ${
                           checked
-                            ? "border-cyan/60 bg-cyan/10 text-cyan"
-                            : "border-border bg-surface-2 text-text-muted hover:border-cyan/30 hover:text-text-primary"
+                            ? "border-cyan/60 bg-cyan/10"
+                            : "border-border bg-surface-2 hover:border-cyan/30"
                         }`}
                       >
                         <button
@@ -2418,28 +3230,99 @@ const Dashboard = () => {
                               prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
                             )
                           }
-                          className="flex items-center gap-2 flex-1 text-left min-w-0"
+                          className="flex w-full items-start gap-3 text-left"
                           id={`control-doc-toggle-${key}`}
                         >
                           <span
-                            className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${
+                            className={`mt-1 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors ${
                               checked ? "bg-cyan border-cyan" : "border-border"
                             }`}
                           >
                             {checked && <CheckCircle size={10} className="text-background" />}
                           </span>
-                          <DocIcon size={15} className={`flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`} />
-                          <span className="truncate" title={label}>{label}</span>
-                          {!builtIn && (
-                            <span className="ml-auto text-[10px] uppercase tracking-wider text-cyan/70">custom</span>
-                          )}
+                          <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${checked ? "bg-cyan/15 text-cyan" : "bg-background text-text-muted"}`}>
+                            {icon ? (
+                              <i className={`${icon} text-lg leading-none`} aria-hidden="true" />
+                            ) : (
+                              <DocIcon size={18} />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className={`truncate text-sm font-semibold ${checked ? "text-cyan" : "text-text-primary"}`} title={label}>
+                                {label}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${builtIn ? "bg-background text-text-muted" : "bg-cyan/12 text-cyan"}`}>
+                                {builtIn ? "built in" : "custom"}
+                              </span>
+                            </span>
+                            <span className="mt-1 block text-xs leading-relaxed text-text-muted">
+                              {description || "No helper description yet."}
+                            </span>
+                          </span>
                         </button>
+
+                        <div className="mt-4 grid gap-3">
+                          <Input
+                            value={label}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setDocumentCatalog((prev) => {
+                                const next = [...prev];
+                                next[index] = { ...next[index], label: value };
+                                return next;
+                              });
+                            }}
+                            placeholder="Document name"
+                          />
+                          <Textarea
+                            rows={3}
+                            value={description}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setDocumentCatalog((prev) => {
+                                const next = [...prev];
+                                next[index] = { ...next[index], description: value };
+                                return next;
+                              });
+                            }}
+                            placeholder="Short document description"
+                          />
+                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-start">
+                            <Input
+                              value={icon}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setDocumentCatalog((prev) => {
+                                  const next = [...prev];
+                                  next[index] = { ...next[index], icon: value };
+                                  return next;
+                                });
+                              }}
+                              placeholder="ri-passport-line"
+                              list="remix-icon-suggestions"
+                            />
+                            <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
+                              {sanitizeRemixIconClass(icon) ? <i className={`${sanitizeRemixIconClass(icon)} text-xl`} /> : <DocIcon size={18} />}
+                            </div>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              loading={savingDocumentMetaKey === key}
+                              onClick={() => runSaveDocumentCatalogEntry(documentCatalog[index])}
+                              leftIcon={<Save size={14} />}
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+
                         {!builtIn && (
                           <button
                             type="button"
                             onClick={() => runRemoveCustomDocument(key, label)}
                             disabled={savingCustomDoc}
-                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full border border-red-500/40 bg-background text-red-300 hover:bg-red-500/15 flex items-center justify-center transition-colors disabled:opacity-50"
+                            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 bg-background text-red-300 hover:bg-red-500/15 disabled:opacity-50"
                             title={`Remove "${label}"`}
                             aria-label={`Remove ${label}`}
                           >
@@ -2450,45 +3333,15 @@ const Dashboard = () => {
                     );
                   })}
                 </div>
-
                 {requiredDocsDraft.length === 0 && (
                   <p className="text-xs text-amber-400 mt-3">
                     ⚠ With zero documents selected the public site will fall back to each country's stored override.
                   </p>
                 )}
 
-                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
-                <div className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-4">
-                  <p className="text-xs font-semibold text-text-primary mb-2 flex items-center gap-2">
-                    <Plus size={14} className="text-cyan" />
-                    Add a custom document type
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                      placeholder='e.g. "Medical Insurance Certificate"'
-                      value={newCustomDocLabel}
-                      onChange={(e) => setNewCustomDocLabel(e.target.value)}
-                      id="control-custom-doc-label"
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      leftIcon={<Plus size={14} />}
-                      loading={savingCustomDoc}
-                      disabled={!newCustomDocLabel.trim()}
-                      onClick={runAddCustomDocument}
-                    >
-                      Add to catalog
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
-                    Custom types use a <span className="font-mono text-text-primary">custom_xxx</span> key under the hood
-                    and appear in every country edit modal. Removing one strips it from the catalog{" "}
-                    <span className="text-text-primary font-medium">and</span> every country that referenced it.
-                  </p>
-                </div>
-              </Card>
+              </ExpandableAdminControlCard>
+
+              </div>
 
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -2514,9 +3367,14 @@ const Dashboard = () => {
                       const whyBookNow = settingsForm.destinationWhyBookNow
                         .map((s) => String(s ?? "").trim())
                         .filter(Boolean);
-                      const included = settingsForm.destinationIncludedItems
-                        .map((s) => String(s ?? "").trim())
-                        .filter(Boolean);
+                      const included = (settingsForm.destinationIncludedItems || [])
+                        .map((x) => ({
+                          title: String(x?.title ?? "").trim(),
+                          description: String(x?.description ?? "").trim(),
+                          icon: String(x?.icon ?? "").trim(),
+                          color: String(x?.color ?? "blue").trim(),
+                        }))
+                        .filter((x) => x.title);
                       const faqs = settingsForm.destinationFaqs
                         .map((f) => ({
                           question: String(f?.question ?? "").trim(),
@@ -2549,7 +3407,8 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                <div className="space-y-8">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                  <ExpandableAdminControlCard previewHeight={360}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <BadgeCheck size={18} className="text-cyan" />
@@ -2607,7 +3466,9 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   </div>
+                  </ExpandableAdminControlCard>
 
+                  <ExpandableAdminControlCard previewHeight={360}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <CheckCircle size={18} className="text-cyan" />
@@ -2616,37 +3477,94 @@ const Dashboard = () => {
                     <p className="text-xs text-text-muted mb-4">
                       One bullet per line. Empty rows are ignored when you save.
                     </p>
-                    <div className="space-y-3 max-w-2xl">
-                      {(settingsForm.destinationIncludedItems || []).map((line, idx) => (
-                        <div key={`inc-${idx}`} className="flex gap-2 items-start">
-                          <Input
-                            className="flex-1"
-                            value={line}
+                    <div className="space-y-6 max-w-2xl">
+                      {(settingsForm.destinationIncludedItems || []).map((item, idx) => (
+                        <div key={`inc-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-4">
+                           <div className="flex justify-between gap-2">
+                            <p className="text-xs font-semibold text-text-muted">Item {idx + 1}</p>
+                            <button
+                              type="button"
+                              className="text-xs text-red-400 hover:text-red-300"
+                              onClick={() =>
+                                setSettingsForm((p) => ({
+                                  ...p,
+                                  destinationIncludedItems: (p.destinationIncludedItems || []).filter((_, i) => i !== idx),
+                                }))
+                              }
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <Input
+                              label="Title"
+                              value={item.title}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSettingsForm((p) => {
+                                  const next = [...(p.destinationIncludedItems || [])];
+                                  next[idx] = { ...next[idx], title: v };
+                                  return { ...p, destinationIncludedItems: next };
+                                });
+                              }}
+                              placeholder="e.g. Dedicated visa specialist review"
+                            />
+                             <Select
+                              label="Color"
+                              value={item.color || 'blue'}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSettingsForm((p) => {
+                                  const next = [...(p.destinationIncludedItems || [])];
+                                  next[idx] = { ...next[idx], color: v };
+                                  return { ...p, destinationIncludedItems: next };
+                                });
+                              }}
+                              options={[
+                                { value: 'blue', label: 'Blue' },
+                                { value: 'green', label: 'Green' },
+                                { value: 'purple', label: 'Purple' },
+                              ]}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <Input
+                              label="Icon Class (Remix Icon)"
+                              value={item.icon}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSettingsForm((p) => {
+                                  const next = [...(p.destinationIncludedItems || [])];
+                                  next[idx] = { ...next[idx], icon: v };
+                                  return { ...p, destinationIncludedItems: next };
+                                });
+                              }}
+                              placeholder="ri-shield-check-line"
+                              list="remix-icon-suggestions"
+                            />
+                            <div className="flex items-end pb-1.5">
+                               <div className="w-10 h-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-xl text-cyan">
+                                  {item.icon ? <i className={item.icon} /> : <ShieldCheck size={20} />}
+                                </div>
+                            </div>
+                          </div>
+
+                          <Textarea
+                            label="Description"
+                            rows={2}
+                            value={item.description}
                             onChange={(e) => {
                               const v = e.target.value;
                               setSettingsForm((p) => {
                                 const next = [...(p.destinationIncludedItems || [])];
-                                next[idx] = v;
+                                next[idx] = { ...next[idx], description: v };
                                 return { ...p, destinationIncludedItems: next };
                               });
                             }}
-                            placeholder="e.g. Dedicated visa specialist review"
+                            placeholder="Explain what's included..."
                           />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0 text-red-400 hover:text-red-300"
-                            onClick={() =>
-                              setSettingsForm((p) => ({
-                                ...p,
-                                destinationIncludedItems: (p.destinationIncludedItems || []).filter((_, i) => i !== idx),
-                              }))
-                            }
-                            aria-label="Remove bullet"
-                          >
-                            <X size={16} />
-                          </Button>
                         </div>
                       ))}
                       <Button
@@ -2657,15 +3575,17 @@ const Dashboard = () => {
                         onClick={() =>
                           setSettingsForm((p) => ({
                             ...p,
-                            destinationIncludedItems: [...(p.destinationIncludedItems || []), ""],
+                            destinationIncludedItems: [...(p.destinationIncludedItems || []), { title: "", description: "", icon: "", color: "blue" }],
                           }))
                         }
                       >
-                        Add bullet
+                        Add item
                       </Button>
                     </div>
                   </div>
+                  </ExpandableAdminControlCard>
 
+                  <ExpandableAdminControlCard previewHeight={360}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <HelpCircle size={18} className="text-cyan" />
@@ -2735,7 +3655,9 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   </div>
+                  </ExpandableAdminControlCard>
 
+                  <ExpandableAdminControlCard previewHeight={360}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <ListChecks size={18} className="text-cyan" />
@@ -2811,7 +3733,9 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   </div>
+                  </ExpandableAdminControlCard>
 
+                  <ExpandableAdminControlCard previewHeight={360}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <ScrollText size={18} className="text-cyan" />
@@ -2869,6 +3793,7 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   </div>
+                  </ExpandableAdminControlCard>
                 </div>
               </Card>
             </motion.div>
@@ -3359,10 +4284,6 @@ const Dashboard = () => {
               </Card>
             </motion.div>
           )}
-
-        </div>
-      </main>
-
       {/* ══════════════════════════════════════
           COUNTRIES WITH BANNER (UNSPLASH / UPLOADS)
           ══════════════════════════════════════ */}
@@ -3570,7 +4491,7 @@ const Dashboard = () => {
               <Input
                 label="Validity"
                 value={countryForm.validity}
-                onChange={(e) => setCountryForm((p) => ({ ...p, validity: e.target.value }))}
+                onChange={(e) => syncVisaInfoCoreField("validity", e.target.value)}
                 id="country-validity"
                 placeholder="Pick or type a validity"
                 list="country-validity-options"
@@ -3593,6 +4514,60 @@ const Dashboard = () => {
                 </p>
               )}
             </div>
+            <div>
+              <Input
+                label="Length of Stay"
+                value={countryForm.lengthOfStay}
+                onChange={(e) => syncVisaInfoCoreField("lengthOfStay", e.target.value)}
+                id="country-length-of-stay"
+                placeholder="Pick or type length of stay"
+                list="country-length-of-stay-options"
+                helper="Shown in the Visa Information section on the destination page."
+              />
+              <datalist id="country-length-of-stay-options">
+                {LENGTH_OF_STAY_SUGGESTIONS.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              {selectedCountry?.useGlobalLengthOfStay === false ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override — clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value{globalDefaults.globalLengthOfStay ? ` (${globalDefaults.globalLengthOfStay})` : ""}. Type something different to override.
+                </p>
+              )}
+            </div>
+            <div>
+              <Input
+                label="Entry"
+                value={countryForm.entryType}
+                onChange={(e) => syncVisaInfoCoreField("entryType", e.target.value)}
+                id="country-entry-type"
+                placeholder="Pick or type entry"
+                list="country-entry-type-options"
+                helper="Shown in the Visa Information section on the destination page."
+              />
+              <datalist id="country-entry-type-options">
+                {ENTRY_TYPE_SUGGESTIONS.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              {selectedCountry?.useGlobalEntryType === false ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override — clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value{globalDefaults.globalEntryType ? ` (${globalDefaults.globalEntryType})` : ""}. Type something different to override.
+                </p>
+              )}
+            </div>
             <Input
               label="Continent"
               value={countryForm.continent}
@@ -3600,6 +4575,109 @@ const Dashboard = () => {
               id="country-continent"
               placeholder="e.g. Oceania"
             />
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface-2/50 p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-text-primary">Visa Information section</h4>
+                <p className="mt-1 text-xs leading-relaxed text-text-muted max-w-3xl">
+                  This controls the premium visa summary cards on the country details page. The three values stay
+                  synced with the base fields above so older data and public cards keep working.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-text-primary">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
+                  checked={countryForm.visaInformation?.enabled !== false}
+                  onChange={(e) => updateVisaInformationField("enabled", e.target.checked)}
+                />
+                Show section
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Input
+                label="Badge Text"
+                value={countryForm.visaInformation?.badgeText ?? ""}
+                onChange={(e) => updateVisaInformationField("badgeText", e.target.value)}
+                id="country-visa-info-badge"
+                placeholder="100% Online Process"
+              />
+              <Input
+                label="Section Title"
+                value={countryForm.visaInformation?.title ?? ""}
+                onChange={(e) => updateVisaInformationField("title", e.target.value)}
+                id="country-visa-info-title"
+                placeholder="Visa Information"
+              />
+            </div>
+
+            <Textarea
+              label="Subtitle"
+              rows={3}
+              value={countryForm.visaInformation?.subtitle ?? ""}
+              onChange={(e) => updateVisaInformationField("subtitle", e.target.value)}
+              id="country-visa-info-subtitle"
+              placeholder="A 100% online visa application process that is simple, secure and hassle-free."
+            />
+
+            <Textarea
+              label="Important Note"
+              rows={3}
+              value={countryForm.visaInformation?.note ?? ""}
+              onChange={(e) => updateVisaInformationField("note", e.target.value)}
+              id="country-visa-info-note"
+              placeholder="Visa rules and conditions may change. Please check the latest requirements before applying."
+            />
+
+            <div className="grid gap-4 xl:grid-cols-3">
+              {(countryForm.visaInformation?.items || []).map((item, index) => (
+                <div key={item.id || index} className="rounded-2xl border border-border bg-background p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">{item.id || `Item ${index + 1}`}</p>
+                      <p className="text-[11px] text-text-muted">
+                        Icon: {item.icon || "default"} · Accent: {item.color || "blue"}
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center gap-2 text-xs text-text-primary">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
+                        checked={item.enabled !== false}
+                        onChange={(e) => updateVisaInformationItem(item.id, { enabled: e.target.checked })}
+                      />
+                      Show card
+                    </label>
+                  </div>
+
+                  <Input
+                    label="Card Label"
+                    value={item.label ?? ""}
+                    onChange={(e) => updateVisaInformationItem(item.id, { label: e.target.value })}
+                    id={`country-visa-item-label-${item.id}`}
+                    placeholder="Length of Stay"
+                  />
+                  <Input
+                    label="Card Value"
+                    value={item.value ?? ""}
+                    onChange={(e) => updateVisaInformationItem(item.id, { value: e.target.value })}
+                    id={`country-visa-item-value-${item.id}`}
+                    placeholder="30 days"
+                  />
+                  <Textarea
+                    label="Card Description"
+                    rows={3}
+                    value={item.description ?? ""}
+                    onChange={(e) => updateVisaInformationItem(item.id, { description: e.target.value })}
+                    id={`country-visa-item-description-${item.id}`}
+                    placeholder="Short helper text shown under the visa value."
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Base price + Processing days + Difficulty */}
@@ -3789,7 +4867,7 @@ const Dashboard = () => {
                 const rows = documentCatalog.length
                   ? documentCatalog
                   : DOC_OPTIONS.map((o) => ({ ...o, builtIn: true }));
-                return rows.map(({ key, label, builtIn }) => {
+                return rows.map(({ key, label, builtIn, icon }) => {
                   const checked = countryForm.requiredDocuments.includes(key);
                   const DocIcon = getDocumentIcon(key);
                   return (
@@ -3807,7 +4885,14 @@ const Dashboard = () => {
                       <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${checked ? "bg-cyan border-cyan" : "border-border"}`}>
                         {checked && <CheckCircle size={10} className="text-background" />}
                       </span>
-                      <DocIcon size={15} className={`flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`} />
+                      {icon ? (
+                        <i
+                          className={`${icon} text-[15px] leading-none flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <DocIcon size={15} className={`flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`} />
+                      )}
                       <span className="truncate" title={label}>{label}</span>
                       {builtIn === false && (
                         <span className="ml-auto text-[10px] uppercase tracking-wider text-cyan/70">custom</span>
@@ -3854,7 +4939,10 @@ const Dashboard = () => {
             };
 
             const visibleGlobalCount = (list, excluded) =>
-              (list || []).filter((line) => !excluded.has(normDestKey(line))).length;
+              (list || []).filter((item) => {
+                const k = typeof item === "string" ? item : item?.title;
+                return !excluded.has(normDestKey(k));
+              }).length;
             const visibleGlobalFaqCount = (list, excluded) =>
               (list || []).filter((f) => !excluded.has(normDestKey(f?.question))).length;
 
@@ -3883,12 +4971,21 @@ const Dashboard = () => {
                   <BadgeCheck size={14} className="text-cyan" />
                   Why book now?
                 </h4>
-                <span className="text-[10px] text-text-muted">
-                  {visibleGlobalCount(countryModalGlobalDest.whyBookNow, excludedWhy)} global +{" "}
-                  {(countryForm.whyBookNow || []).filter((s) => String(s ?? "").trim()).length} extra
-                </span>
+                <div className="flex items-center gap-3">
+                  <DisplayToggle
+                    active={countryForm.useGlobalWhyBookNow}
+                    onClick={() => setCountryForm(p => ({ ...p, useGlobalWhyBookNow: !p.useGlobalWhyBookNow }))}
+                    labelOn="Merging global"
+                    labelOff="Custom only"
+                  />
+                  <span className="text-[10px] text-text-muted">
+                    {countryForm.useGlobalWhyBookNow ? visibleGlobalCount(countryModalGlobalDest.whyBookNow, excludedWhy) : 0} global +{" "}
+                    {(countryForm.whyBookNow || []).filter((s) => String(s ?? "").trim()).length} extra
+                  </span>
+                </div>
               </div>
 
+              {countryForm.useGlobalWhyBookNow && (
               <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.whyBookNow.length === 0 ? (
@@ -3960,6 +5057,9 @@ const Dashboard = () => {
                   })()
                 )}
               </div>
+              )}
+
+
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
@@ -4020,12 +5120,21 @@ const Dashboard = () => {
                   <ShieldCheck size={14} className="text-cyan" />
                   What&apos;s included
                 </h4>
-                <span className="text-[10px] text-text-muted">
-                  {visibleGlobalCount(countryModalGlobalDest.includedItems, excludedInc)} global +{" "}
-                  {(countryForm.includedItems || []).filter((s) => String(s ?? "").trim()).length} extra
-                </span>
+                <div className="flex items-center gap-3">
+                  <DisplayToggle
+                    active={countryForm.useGlobalIncludedItems}
+                    onClick={() => setCountryForm(p => ({ ...p, useGlobalIncludedItems: !p.useGlobalIncludedItems }))}
+                    labelOn="Merging global"
+                    labelOff="Custom only"
+                  />
+                  <span className="text-[10px] text-text-muted">
+                    {countryForm.useGlobalIncludedItems ? visibleGlobalCount(countryModalGlobalDest.includedItems, excludedInc) : 0} global +{" "}
+                    {(countryForm.includedItems || []).filter((s) => String(s?.title ?? "").trim()).length} extra
+                  </span>
+                </div>
               </div>
 
+              {countryForm.useGlobalIncludedItems && (
               <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.includedItems.length === 0 ? (
@@ -4035,8 +5144,8 @@ const Dashboard = () => {
                 ) : (
                   (() => {
                     const all = countryModalGlobalDest.includedItems || [];
-                    const visible = all.filter((line) => !excludedInc.has(normDestKey(line)));
-                    const hidden = all.filter((line) => excludedInc.has(normDestKey(line)));
+                    const visible = all.filter((line) => !excludedInc.has(normDestKey(line?.title)));
+                    const hidden = all.filter((line) => excludedInc.has(normDestKey(line?.title)));
                     return (
                       <>
                         {visible.length === 0 ? (
@@ -4044,20 +5153,26 @@ const Dashboard = () => {
                             All global bullets are hidden on this country. Restore any below.
                           </p>
                         ) : (
-                          <div className="space-y-2">
-                            {visible.map((line) => {
-                              const key = normDestKey(line);
+                          <div className="space-y-3">
+                            {visible.map((item) => {
+                              const key = normDestKey(item.title);
                               return (
                                 <div
                                   key={`global-inc-${key}`}
-                                  className="flex gap-2 items-center justify-between rounded-xl border border-border bg-background text-text-primary px-3 py-2 text-sm"
+                                  className="flex gap-3 items-start justify-between rounded-xl border border-border bg-background text-text-primary px-3 py-2.5"
                                 >
-                                  <span className="flex-1 break-words">{line}</span>
+                                  <div className="flex-1 min-w-0">
+                                     <p className="text-sm font-semibold flex items-center gap-2">
+                                       {item.icon && <i className={item.icon} />}
+                                       {item.title}
+                                     </p>
+                                     <p className="text-xs text-text-secondary mt-0.5 line-clamp-1">{item.description}</p>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => toggleExclude("excludeDestinationIncludedItems", key)}
                                     className="shrink-0 p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                    aria-label={`Hide "${line}" on this country`}
+                                    aria-label={`Hide "${item.title}" on this country`}
                                     title="Hide on this country"
                                   >
                                     <X size={14} />
@@ -4073,8 +5188,8 @@ const Dashboard = () => {
                               Hidden on this country ({hidden.length})
                             </p>
                             <div className="flex flex-wrap gap-2">
-                              {hidden.map((line) => {
-                                const key = normDestKey(line);
+                              {hidden.map((item) => {
+                                const key = normDestKey(item.title);
                                 return (
                                   <button
                                     type="button"
@@ -4082,10 +5197,10 @@ const Dashboard = () => {
                                     onClick={() => toggleExclude("excludeDestinationIncludedItems", key)}
                                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-text-muted hover:text-cyan hover:border-cyan/40 hover:bg-cyan/5 transition-colors max-w-full"
                                     title="Show on this country again"
-                                    aria-label={`Show "${line}" on this country again`}
+                                    aria-label={`Show "${item.title}" on this country again`}
                                   >
                                     <Plus size={12} className="shrink-0" />
-                                    <span className="truncate">{line}</span>
+                                    <span className="truncate">{item.title}</span>
                                   </button>
                                 );
                               })}
@@ -4097,39 +5212,100 @@ const Dashboard = () => {
                   })()
                 )}
               </div>
+              )}
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
-                <div className="space-y-2">
-                  {(countryForm.includedItems || []).map((line, idx) => (
-                    <div key={`country-inc-${idx}`} className="flex gap-2 items-start">
-                      <input
-                        value={line}
+                <div className="space-y-4">
+                  {(countryForm.includedItems || []).map((item, idx) => (
+                    <div key={`country-inc-${idx}`} className="rounded-xl border border-border bg-background p-3 space-y-3">
+                       <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-text-muted">Extra Item {idx + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCountryForm((p) => ({
+                              ...p,
+                              includedItems: (p.includedItems || []).filter((_, i) => i !== idx),
+                            }))
+                          }
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+                          aria-label={`Remove extra item ${idx + 1}`}
+                          title="Remove this item"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          label="Title"
+                          value={item.title}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCountryForm((p) => {
+                              const next = [...(p.includedItems || [])];
+                              next[idx] = { ...next[idx], title: v };
+                              return { ...p, includedItems: next };
+                            });
+                          }}
+                          placeholder="e.g. Free Insurance"
+                        />
+                         <Select
+                          label="Color"
+                          value={item.color || 'blue'}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCountryForm((p) => {
+                              const next = [...(p.includedItems || [])];
+                              next[idx] = { ...next[idx], color: v };
+                              return { ...p, includedItems: next };
+                            });
+                          }}
+                          options={[
+                            { value: 'blue', label: 'Blue' },
+                            { value: 'green', label: 'Green' },
+                            { value: 'purple', label: 'Purple' },
+                          ]}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          label="Icon Class (Remix Icon)"
+                          value={item.icon}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCountryForm((p) => {
+                              const next = [...(p.includedItems || [])];
+                              next[idx] = { ...next[idx], icon: v };
+                              return { ...p, includedItems: next };
+                            });
+                          }}
+                          placeholder="ri-shield-line"
+                          list="remix-icon-suggestions"
+                        />
+                        <div className="flex items-end pb-1.5">
+                           <div className="w-10 h-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-xl">
+                              {item.icon ? <i className={item.icon} /> : <ShieldCheck size={20} />}
+                           </div>
+                        </div>
+                      </div>
+
+                      <Textarea
+                        label="Description"
+                        rows={2}
+                        value={item.description}
                         onChange={(e) => {
                           const v = e.target.value;
                           setCountryForm((p) => {
                             const next = [...(p.includedItems || [])];
-                            next[idx] = v;
+                            next[idx] = { ...next[idx], description: v };
                             return { ...p, includedItems: next };
                           });
                         }}
-                        placeholder={`Extra bullet ${idx + 1}`}
-                        className="flex-1 bg-background border border-border text-text-primary text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
-                        id={`country-inc-${idx}`}
+                        placeholder="Explain what's included..."
                       />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCountryForm((p) => ({
-                            ...p,
-                            includedItems: (p.includedItems || []).filter((_, i) => i !== idx),
-                          }))
-                        }
-                        className="p-2 rounded-xl hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
-                        aria-label={`Remove extra bullet ${idx + 1}`}
-                      >
-                        <X size={14} />
-                      </button>
                     </div>
                   ))}
                   <Button
@@ -4139,12 +5315,12 @@ const Dashboard = () => {
                     onClick={() =>
                       setCountryForm((p) => ({
                         ...p,
-                        includedItems: [...(p.includedItems || []), ""],
+                        includedItems: [...(p.includedItems || []), { title: "", description: "", icon: "", color: "blue" }],
                       }))
                     }
                     id="add-country-inc-btn"
                   >
-                    Add bullet for this country
+                    Add item for this country
                   </Button>
                 </div>
               </div>
@@ -4157,12 +5333,21 @@ const Dashboard = () => {
                   <HelpCircle size={14} className="text-cyan" />
                   FAQs
                 </h4>
-                <span className="text-[10px] text-text-muted">
-                  {visibleGlobalFaqCount(countryModalGlobalDest.faqs, excludedFaq)} global +{" "}
-                  {(countryForm.faqs || []).filter((f) => String(f?.question ?? "").trim() && String(f?.answer ?? "").trim()).length} extra
-                </span>
+                <div className="flex items-center gap-3">
+                  <DisplayToggle
+                    active={countryForm.useGlobalFaqs}
+                    onClick={() => setCountryForm(p => ({ ...p, useGlobalFaqs: !p.useGlobalFaqs }))}
+                    labelOn="Merging global"
+                    labelOff="Custom only"
+                  />
+                  <span className="text-[10px] text-text-muted">
+                    {countryForm.useGlobalFaqs ? visibleGlobalFaqCount(countryModalGlobalDest.faqs, excludedFaq) : 0} global +{" "}
+                    {(countryForm.faqs || []).filter((f) => String(f?.question ?? "").trim() && String(f?.answer ?? "").trim()).length} extra
+                  </span>
+                </div>
               </div>
 
+              {countryForm.useGlobalFaqs && (
               <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.faqs.length === 0 ? (
@@ -4242,6 +5427,7 @@ const Dashboard = () => {
                   })()
                 )}
               </div>
+              )}
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
@@ -4324,12 +5510,21 @@ const Dashboard = () => {
                   <ListChecks size={14} className="text-cyan" />
                   How it works
                 </h4>
-                <span className="text-[10px] text-text-muted">
-                  {(countryModalGlobalDest.howItWorks || []).filter((s) => !(new Set(countryForm.excludeDestinationHowItWorksTitles || [])).has(normDestKey(s?.title))).length} global +{" "}
-                  {(countryForm.howItWorks || []).filter((s) => String(s?.title ?? "").trim() && String(s?.description ?? "").trim()).length} extra
-                </span>
+                <div className="flex items-center gap-3">
+                  <DisplayToggle
+                    active={countryForm.useGlobalHowItWorks}
+                    onClick={() => setCountryForm(p => ({ ...p, useGlobalHowItWorks: !p.useGlobalHowItWorks }))}
+                    labelOn="Merging global"
+                    labelOff="Custom only"
+                  />
+                  <span className="text-[10px] text-text-muted">
+                    {countryForm.useGlobalHowItWorks ? (countryModalGlobalDest.howItWorks || []).filter((s) => !(new Set(countryForm.excludeDestinationHowItWorksTitles || [])).has(normDestKey(s?.title))).length : 0} global +{" "}
+                    {(countryForm.howItWorks || []).filter((s) => String(s?.title ?? "").trim() && String(s?.description ?? "").trim()).length} extra
+                  </span>
+                </div>
               </div>
 
+              {countryForm.useGlobalHowItWorks && (
               <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {(() => {
@@ -4415,6 +5610,7 @@ const Dashboard = () => {
                   );
                 })()}
               </div>
+              )}
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
@@ -4497,12 +5693,21 @@ const Dashboard = () => {
                   <ScrollText size={14} className="text-cyan" />
                   Visa Requirements
                 </h4>
-                <span className="text-[10px] text-text-muted">
-                  {visibleGlobalCount(countryModalGlobalDest.visaRequirements, excludedVisa)} global +{" "}
-                  {(countryForm.requirements || []).filter((s) => String(s ?? "").trim()).length} extra
-                </span>
+                <div className="flex items-center gap-3">
+                  <DisplayToggle
+                    active={countryForm.useGlobalVisaRequirements}
+                    onClick={() => setCountryForm(p => ({ ...p, useGlobalVisaRequirements: !p.useGlobalVisaRequirements }))}
+                    labelOn="Merging global"
+                    labelOff="Custom only"
+                  />
+                  <span className="text-[10px] text-text-muted">
+                    {countryForm.useGlobalVisaRequirements ? visibleGlobalCount(countryModalGlobalDest.visaRequirements, excludedVisa) : 0} global +{" "}
+                    {(countryForm.requirements || []).filter((s) => String(s ?? "").trim()).length} extra
+                  </span>
+                </div>
               </div>
 
+              {countryForm.useGlobalVisaRequirements && (
               <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {(countryModalGlobalDest.visaRequirements || []).length === 0 ? (
@@ -4574,6 +5779,7 @@ const Dashboard = () => {
                   })()
                 )}
               </div>
+              )}
 
               <div>
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Extras for this country</p>
@@ -4615,8 +5821,19 @@ const Dashboard = () => {
           </div>{/* /RIGHT column */}
         </div>
       </Modal>
-    </div>
+      <datalist id="remix-icon-suggestions">
+        {REMIX_ICON_SUGGESTIONS.map((icon) => (
+          <option key={icon} value={icon} />
+        ))}
+      </datalist>
+    </AdminLayout>
   );
 };
 
 export default Dashboard;
+
+
+
+
+
+

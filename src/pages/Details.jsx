@@ -94,6 +94,24 @@ const Details = () => {
   const [visaFileUploading, setVisaFileUploading] = useState(false);
   const visaFileInputRef = useRef(null);
   const [expandedTravelerDocs, setExpandedTravelerDocs] = useState({});
+  const [uploadSettings, setUploadSettings] = useState({
+    enableGDriveUpload: true,
+    enableFileUpload: true,
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data } = await api.get("/config/upload-settings");
+        if (data?.success && data.config) {
+          setUploadSettings(data.config);
+        }
+      } catch (err) {
+        console.error("Failed to fetch upload settings:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const toggleTravelerDocuments = (travelerNo) => {
     setExpandedTravelerDocs((prev) => ({
@@ -350,7 +368,7 @@ const Details = () => {
     );
   }
 
-  const progress = getApplicationProgress(application);
+  const progress = getApplicationProgress(application, uploadSettings);
   const applicantName = application.user?.name || [application.firstName, application.lastName].filter(Boolean).join(" ") || "N/A";
   const applicantEmail = application.user?.email || application.email || "N/A";
   const applicantPhone = application.user?.phone || "";

@@ -21,16 +21,16 @@ const Toast = () => {
   // ── Icon and color per type ───────────────────────────────
   const config = {
     success: {
-      icon: <CheckCircle size={18} />,
-      class: "border-emerald-500/40 text-emerald-400 bg-emerald-500/10",
+      icon: <CheckCircle size={20} className="text-emerald-400" />,
+      class: "border-emerald-500/50 text-white bg-slate-900/95 shadow-emerald-500/10",
     },
     error: {
-      icon: <XCircle size={18} />,
-      class: "border-red-500/40 text-red-400 bg-red-500/10",
+      icon: <XCircle size={20} className="text-red-400" />,
+      class: "border-red-500/50 text-white bg-slate-900/95 shadow-red-500/10",
     },
     info: {
-      icon: <Info size={18} />,
-      class: "border-cyan/40 text-cyan bg-cyan/10",
+      icon: <Info size={20} className="text-cyan" />,
+      class: "border-cyan/50 text-white bg-slate-900/95 shadow-cyan/10",
     },
   };
 
@@ -39,31 +39,33 @@ const Toast = () => {
   return (
     <AnimatePresence>
       {toast && (
-        <motion.div
-          key="toast"
-          initial={{ opacity: 0, y: -20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -20, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className={`
-            fixed top-6 right-6 z-[100]
-            flex items-center gap-3 px-4 py-3
-            rounded-xl border backdrop-blur-md shadow-modal
-            ${cfg.class}
-          `}
-          role="alert"
-          aria-live="polite"
-        >
-          <span className="flex-shrink-0">{cfg.icon}</span>
-          <span className="text-sm font-medium">{toast.message}</span>
-          <button
-            onClick={clearToast}
-            className="ml-2 flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
-            aria-label="Dismiss notification"
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100%-2rem)] max-w-sm pointer-events-none flex justify-center">
+          <motion.div
+            key="toast"
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className={`
+              pointer-events-auto
+              w-full flex items-center gap-3 px-5 py-4
+              rounded-2xl border backdrop-blur-xl shadow-2xl
+              ${cfg.class}
+            `}
+            role="alert"
+            aria-live="polite"
           >
-            <X size={14} />
-          </button>
-        </motion.div>
+            <span className="flex-shrink-0">{cfg.icon}</span>
+            <span className="text-sm font-medium flex-1">{toast.message}</span>
+            <button
+              onClick={clearToast}
+              className="ml-2 flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity p-1"
+              aria-label="Dismiss notification"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );

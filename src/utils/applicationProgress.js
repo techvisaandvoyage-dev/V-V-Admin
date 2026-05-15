@@ -34,7 +34,7 @@ export const DOCUMENT_LABELS = {
   companyRegistration: "Company Registration Certificate",
 };
 
-export const getApplicationProgress = (application) => {
+export const getApplicationProgress = (application, settings = { enableFileUpload: true, enableGDriveUpload: true }) => {
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
   const requiredDocuments = Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
     ? application.requiredDocuments
@@ -42,6 +42,8 @@ export const getApplicationProgress = (application) => {
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
   const rootGdrive = String(application?.gdriveLink || "").trim();
   const singleTravellerRootDrive = travellerCount === 1 && Boolean(rootGdrive);
+
+  const { enableFileUpload: fileOn, enableGDriveUpload: gdOn } = settings;
 
   const missingByTraveler = Array.from({ length: travellerCount }, (_, index) => {
     const travelerNo = index + 1;
@@ -53,26 +55,36 @@ export const getApplicationProgress = (application) => {
 
     const hasTravelerGdrive = Boolean(String(uploaded?.gdriveLink || "").trim());
     const hasLegacyRootGdrive = singleTravellerRootDrive && travelerNo === 1;
+    const hasDriveLink = hasTravelerGdrive || hasLegacyRootGdrive;
 
-    if (hasTravelerGdrive || hasLegacyRootGdrive) {
-      return {
-        travelerNo,
-        travelerName,
-        missingKeys: [],
-        missingLabels: [],
-        complete: true,
-      };
+    const docsRaw = uploaded?.documents || {};
+    // Handle both Map (via .get()) and plain object (direct access)
+    const getDoc = (key) => {
+      if (typeof docsRaw.get === "function") return docsRaw.get(key);
+      return docsRaw[key];
+    };
+
+    const missingKeys = requiredDocuments.filter((key) => !getDoc(key));
+    const hasAllFiles = missingKeys.length === 0;
+
+    // Logic: If both are enabled, we require files for "complete" status.
+    // If only GDrive is enabled, Drive link is enough.
+    // If only File Upload is enabled, Files are required.
+    let complete = false;
+    if (fileOn && gdOn) {
+      complete = hasAllFiles;
+    } else if (fileOn) {
+      complete = hasAllFiles;
+    } else if (gdOn) {
+      complete = hasDriveLink;
     }
-
-    const docs = uploaded?.documents || {};
-    const missingKeys = requiredDocuments.filter((key) => !docs[key]);
 
     return {
       travelerNo,
       travelerName,
       missingKeys,
       missingLabels: missingKeys.map((key) => DOCUMENT_LABELS[key] || key),
-      complete: missingKeys.length === 0,
+      complete,
     };
   });
 

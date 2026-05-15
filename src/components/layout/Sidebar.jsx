@@ -8,7 +8,7 @@ import { NavLink, useNavigate, Link } from "react-router-dom";
 import {
   LayoutDashboard, FileText, PlusCircle, Globe, Settings,
   LogOut, ChevronLeft, ChevronRight, Shield, BarChart2,
-  MapPin, Plane, CreditCard, BookOpen,
+  MapPin, Plane, CreditCard, BookOpen, Sliders,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
@@ -30,6 +30,7 @@ const ADMIN_NAV = [
   { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
   { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
   { label: "Country Manager",  icon: MapPin,            to: "/countries",   id: "nav-admin-countries" },
+  { label: "Controls",         icon: Sliders,           to: "/controls",    id: "nav-admin-controls" },
   { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
 ];
 
