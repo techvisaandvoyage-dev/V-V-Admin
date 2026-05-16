@@ -601,6 +601,8 @@ const normDestKey = (s) => String(s ?? "").trim().toLowerCase();
 const mapApiSettingsToFormState = (s) => ({
   razorpayKeyId: s.razorpayKeyId || "",
   razorpayKeySecret: s.razorpayKeySecret || "",
+  gstEnabled: s.gstEnabled !== false,
+  gstRate: Number.isFinite(Number(s.gstRate)) ? Number(s.gstRate) : 18,
   firebaseApiKey: s.firebaseApiKey || "",
   firebaseAuthDomain: s.firebaseAuthDomain || "",
   firebaseProjectId: s.firebaseProjectId || "",
@@ -615,6 +617,7 @@ const mapApiSettingsToFormState = (s) => ({
   sms91OtpLength: s.sms91OtpLength || "6",
   smtpEmailUser: s.smtpEmailUser || "",
   smtpEmailPass: s.smtpEmailPass || "",
+  smtpFromEmail: s.smtpFromEmail || "",
   smtpEmailService: s.smtpEmailService?.trim() || "gmail",
   enableGDriveUpload: s.enableGDriveUpload !== false,
   enableFileUpload: s.enableFileUpload !== false,
@@ -702,6 +705,8 @@ const Dashboard = () => {
   const [settingsForm, setSettingsForm]      = useState({
     razorpayKeyId: "",
     razorpayKeySecret: "",
+    gstEnabled: true,
+    gstRate: 18,
     firebaseApiKey: "",
     firebaseAuthDomain: "",
     firebaseProjectId: "",
@@ -716,6 +721,7 @@ const Dashboard = () => {
     sms91OtpLength: "6",
     smtpEmailUser: "",
     smtpEmailPass: "",
+    smtpFromEmail: "",
     smtpEmailService: "gmail",
     enableGDriveUpload: true,
     enableFileUpload: true,
@@ -767,6 +773,7 @@ const Dashboard = () => {
     showEntryType: true,
     showProcessingDays: true,
     showRequiredDocuments: true,
+    showVisaRequirements: true,
   });
   const [visaTypePicker, setVisaTypePicker] = useState("");
   const [visaTypeCustom, setVisaTypeCustom] = useState("");
@@ -1006,6 +1013,9 @@ const Dashboard = () => {
     requiredDocuments: ["passport"], successRate: "80", trending: false,
     visaInformation: createVisaInformationState({}),
     whyBookNow: [], includedItems: [], faqs: [], howItWorks: [],
+    useGlobalGst: true,
+    gstEnabled: true,
+    gstRate: 18,
     useGlobalWhyBookNow: true,
     useGlobalIncludedItems: true,
     useGlobalFaqs: true,
@@ -1231,6 +1241,9 @@ const Dashboard = () => {
       excludeDestinationVisaRequirements: Array.isArray(country.excludeDestinationVisaRequirements)
         ? [...country.excludeDestinationVisaRequirements]
         : [],
+      useGlobalGst: country.useGlobalGst !== false,
+      gstEnabled: country.gstEnabled !== false,
+      gstRate: Number.isFinite(Number(country.gstRate)) ? Number(country.gstRate) : 18,
       useGlobalWhyBookNow: country.useGlobalWhyBookNow !== false,
       useGlobalIncludedItems: country.useGlobalIncludedItems !== false,
       useGlobalFaqs: country.useGlobalFaqs !== false,
@@ -1304,6 +1317,9 @@ const Dashboard = () => {
       excludeDestinationVisaRequirements: (countryForm.excludeDestinationVisaRequirements || [])
         .map((s) => normDestKey(s))
         .filter(Boolean),
+      useGlobalGst: Boolean(countryForm.useGlobalGst),
+      gstEnabled: Boolean(countryForm.gstEnabled),
+      gstRate: Number.isFinite(Number(countryForm.gstRate)) ? Number(countryForm.gstRate) : 0,
       useGlobalWhyBookNow: Boolean(countryForm.useGlobalWhyBookNow),
       useGlobalIncludedItems: Boolean(countryForm.useGlobalIncludedItems),
       useGlobalFaqs: Boolean(countryForm.useGlobalFaqs),
@@ -1491,6 +1507,7 @@ const Dashboard = () => {
             showEntryType: data.display.showEntryType !== false,
             showProcessingDays: data.display.showProcessingDays !== false,
             showRequiredDocuments: data.display.showRequiredDocuments !== false,
+            showVisaRequirements: data.display.showVisaRequirements !== false,
           });
         }
         if (Array.isArray(data.documentCatalog)) {
@@ -1958,6 +1975,7 @@ const Dashboard = () => {
           showEntryType: live.showEntryType !== false,
           showProcessingDays: live.showProcessingDays !== false,
           showRequiredDocuments: live.showRequiredDocuments !== false,
+          showVisaRequirements: live.showVisaRequirements !== false,
         });
         const labels = {
           showVisaType: "Visa Type",
@@ -1966,6 +1984,7 @@ const Dashboard = () => {
           showEntryType: "Entry",
           showProcessingDays: "Processing Days",
           showRequiredDocuments: "Required Documents",
+          showVisaRequirements: "Visa Requirements",
         };
         showToast(`${labels[key]} ${next ? "shown" : "hidden"} on the public site.`, "success");
         // Bump country fetch so admin tables re-pull resolved values right away.
@@ -3345,8 +3364,20 @@ const Dashboard = () => {
 
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                  <div>
-                    <h2 className="font-semibold text-text-primary">Destination pages (all countries)</h2>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <BookOpen size={18} className="text-cyan" />
+                        Destination pages (all countries)
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.showVisaRequirements}
+                        busy={togglingDisplayKey === "showVisaRequirements"}
+                        onClick={() => runToggleDisplay("showVisaRequirements")}
+                        labelOn="Visible on client"
+                        labelOff="Hidden on client"
+                      />
+                    </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
                       The sections <span className="text-text-primary font-medium">Why book now?</span>,{" "}
                       <span className="text-text-primary font-medium">What&apos;s included</span>,{" "}
@@ -3737,10 +3768,19 @@ const Dashboard = () => {
 
                   <ExpandableAdminControlCard previewHeight={360}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
-                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
-                      <ScrollText size={18} className="text-cyan" />
-                      Visa Requirements
-                    </h3>
+                    <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                      <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                        <ScrollText size={18} className="text-cyan" />
+                        Visa Requirements
+                      </h3>
+                      <DisplayToggle
+                        active={displayToggles.showVisaRequirements}
+                        busy={togglingDisplayKey === "showVisaRequirements"}
+                        onClick={() => runToggleDisplay("showVisaRequirements")}
+                        labelOn="Visible"
+                        labelOff="Hidden"
+                      />
+                    </div>
                     <p className="text-xs text-text-muted mb-4">
                       One requirement per line. These show on every destination page (below &quot;How it works&quot;). Per-country
                       extras you add inside Country Manager are appended below — duplicates are skipped.
@@ -3843,8 +3883,10 @@ const Dashboard = () => {
                     {
                       razorpayKeyId: settingsForm.razorpayKeyId,
                       razorpayKeySecret: settingsForm.razorpayKeySecret,
+                      gstEnabled: settingsForm.gstEnabled,
+                      gstRate: settingsForm.gstRate,
                     },
-                    "Razorpay keys saved.",
+                    "Razorpay and GST settings saved.",
                   )
                 }
               >
@@ -3863,6 +3905,27 @@ const Dashboard = () => {
                     value={settingsForm.razorpayKeySecret}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeySecret: e.target.value }))}
                     id="setting-razorpay-secret"
+                  />
+                </div>
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={settingsForm.gstEnabled}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, gstEnabled: e.target.checked }))}
+                      className="h-4 w-4 rounded border-slate-300 text-cyan focus:ring-cyan/40"
+                    />
+                    <span>Apply GST globally</span>
+                  </label>
+                  <Input
+                    label="GST rate (%)"
+                    type="number"
+                    value={settingsForm.gstRate}
+                    min={0}
+                    max={100}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, gstRate: Number(e.target.value) }))}
+                    id="setting-gst-rate"
+                    helper="Set the percentage applied to the service fee for all applications."
                   />
                 </div>
               </SettingsSectionCard>
@@ -4134,7 +4197,7 @@ const Dashboard = () => {
                 description="Used to send signup, login, and forgot-password OTP (same Nodemailer path for all). Save both email and app password on this card, or keep the app password only in server .env (EMAIL_PASS) with the mailbox here."
                 whereToFind={
                   <>
-                    Use your mail provider’s SMTP settings (e.g. Gmail: Google Account → Security → App passwords). Paste the mailbox address and app password below. Service is usually <strong className="text-text-primary">gmail</strong> for Nodemailer.
+                    Use your mail provider's SMTP settings (e.g. Gmail: Google Account &gt; Security &gt; App passwords, or Brevo SMTP credentials). Paste the mailbox address and app password below. Service is usually <strong className="text-text-primary">gmail</strong> or <strong className="text-text-primary">brevo</strong>.
                   </>
                 }
                 statusSlot={
@@ -4153,13 +4216,14 @@ const Dashboard = () => {
                     {
                       smtpEmailUser: settingsForm.smtpEmailUser,
                       smtpEmailPass: settingsForm.smtpEmailPass,
+                      smtpFromEmail: settingsForm.smtpFromEmail,
                       smtpEmailService: settingsForm.smtpEmailService,
                     },
                     "SMTP settings saved.",
                   )
                 }
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <Input
                     label="SMTP email — paste login address"
                     type="email"
@@ -4176,12 +4240,21 @@ const Dashboard = () => {
                     id="setting-smtp-pass"
                   />
                   <Input
+                    label="From email — verified sender"
+                    type="email"
+                    value={settingsForm.smtpFromEmail}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, smtpFromEmail: e.target.value }))}
+                    id="setting-smtp-from"
+                    placeholder="noreply@yourdomain.com"
+                    helper="For Brevo, use a verified sender email here. Do not use the smtp-brevo login as the visible From address."
+                  />
+                  <Input
                     label="Nodemailer service name"
                     value={settingsForm.smtpEmailService}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, smtpEmailService: e.target.value }))}
                     id="setting-smtp-service"
                     placeholder="gmail"
-                    helper="Often gmail — must match how Nodemailer is configured on the server."
+                    helper="Use gmail for Gmail SMTP, or brevo for Brevo SMTP relay. Must match the server transport configuration."
                   />
                 </div>
               </SettingsSectionCard>
@@ -4577,109 +4650,6 @@ const Dashboard = () => {
             />
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface-2/50 p-4 sm:p-5 space-y-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h4 className="text-sm font-semibold text-text-primary">Visa Information section</h4>
-                <p className="mt-1 text-xs leading-relaxed text-text-muted max-w-3xl">
-                  This controls the premium visa summary cards on the country details page. The three values stay
-                  synced with the base fields above so older data and public cards keep working.
-                </p>
-              </div>
-              <label className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-text-primary">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
-                  checked={countryForm.visaInformation?.enabled !== false}
-                  onChange={(e) => updateVisaInformationField("enabled", e.target.checked)}
-                />
-                Show section
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Input
-                label="Badge Text"
-                value={countryForm.visaInformation?.badgeText ?? ""}
-                onChange={(e) => updateVisaInformationField("badgeText", e.target.value)}
-                id="country-visa-info-badge"
-                placeholder="100% Online Process"
-              />
-              <Input
-                label="Section Title"
-                value={countryForm.visaInformation?.title ?? ""}
-                onChange={(e) => updateVisaInformationField("title", e.target.value)}
-                id="country-visa-info-title"
-                placeholder="Visa Information"
-              />
-            </div>
-
-            <Textarea
-              label="Subtitle"
-              rows={3}
-              value={countryForm.visaInformation?.subtitle ?? ""}
-              onChange={(e) => updateVisaInformationField("subtitle", e.target.value)}
-              id="country-visa-info-subtitle"
-              placeholder="A 100% online visa application process that is simple, secure and hassle-free."
-            />
-
-            <Textarea
-              label="Important Note"
-              rows={3}
-              value={countryForm.visaInformation?.note ?? ""}
-              onChange={(e) => updateVisaInformationField("note", e.target.value)}
-              id="country-visa-info-note"
-              placeholder="Visa rules and conditions may change. Please check the latest requirements before applying."
-            />
-
-            <div className="grid gap-4 xl:grid-cols-3">
-              {(countryForm.visaInformation?.items || []).map((item, index) => (
-                <div key={item.id || index} className="rounded-2xl border border-border bg-background p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-text-primary">{item.id || `Item ${index + 1}`}</p>
-                      <p className="text-[11px] text-text-muted">
-                        Icon: {item.icon || "default"} · Accent: {item.color || "blue"}
-                      </p>
-                    </div>
-                    <label className="inline-flex items-center gap-2 text-xs text-text-primary">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
-                        checked={item.enabled !== false}
-                        onChange={(e) => updateVisaInformationItem(item.id, { enabled: e.target.checked })}
-                      />
-                      Show card
-                    </label>
-                  </div>
-
-                  <Input
-                    label="Card Label"
-                    value={item.label ?? ""}
-                    onChange={(e) => updateVisaInformationItem(item.id, { label: e.target.value })}
-                    id={`country-visa-item-label-${item.id}`}
-                    placeholder="Length of Stay"
-                  />
-                  <Input
-                    label="Card Value"
-                    value={item.value ?? ""}
-                    onChange={(e) => updateVisaInformationItem(item.id, { value: e.target.value })}
-                    id={`country-visa-item-value-${item.id}`}
-                    placeholder="30 days"
-                  />
-                  <Textarea
-                    label="Card Description"
-                    rows={3}
-                    value={item.description ?? ""}
-                    onChange={(e) => updateVisaInformationItem(item.id, { description: e.target.value })}
-                    id={`country-visa-item-description-${item.id}`}
-                    placeholder="Short helper text shown under the visa value."
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Base price + Processing days + Difficulty */}
           <div className="grid grid-cols-3 gap-3">
             <Input
@@ -4718,6 +4688,43 @@ const Dashboard = () => {
                   Using global value{globalDefaults.globalProcessingDays ? ` (${globalDefaults.globalProcessingDays})` : ""}. Type something different to override.
                 </p>
               )}
+            </div>
+            <div className="col-span-3 grid gap-3">
+              <label className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-text-primary">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
+                  checked={countryForm.useGlobalGst}
+                  onChange={(e) => setCountryForm((p) => ({ ...p, useGlobalGst: e.target.checked }))}
+                />
+                Use global GST settings
+              </label>
+              {!countryForm.useGlobalGst && (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-text-primary">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
+                      checked={countryForm.gstEnabled}
+                      onChange={(e) => setCountryForm((p) => ({ ...p, gstEnabled: e.target.checked }))}
+                    />
+                    GST enabled for this country
+                  </label>
+                  <Input
+                    label="GST Rate (%)"
+                    type="number"
+                    value={countryForm.gstRate}
+                    onChange={(e) => setCountryForm((p) => ({ ...p, gstRate: Number(e.target.value) }))}
+                    id="country-gst-rate"
+                    placeholder="18"
+                  />
+                </div>
+              )}
+              <p className="text-[11px] text-text-muted">
+                {countryForm.useGlobalGst
+                  ? 'This country inherits the global GST toggle and rate from Admin Settings.'
+                  : 'This country uses its own GST settings.'}
+              </p>
             </div>
             <Select
               label="Difficulty"
@@ -4831,6 +4838,109 @@ const Dashboard = () => {
               Independent scrollbar on lg+.
               ════════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
+          <div className="rounded-2xl border border-border bg-surface-2/50 p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-text-primary">Visa Information section</h4>
+                <p className="mt-1 text-xs leading-relaxed text-text-muted max-w-3xl">
+                  This controls the premium visa summary cards on the country details page. The three values stay
+                  synced with the base fields above so older data and public cards keep working.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-text-primary">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
+                  checked={countryForm.visaInformation?.enabled !== false}
+                  onChange={(e) => updateVisaInformationField("enabled", e.target.checked)}
+                />
+                Show section
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Input
+                label="Badge Text"
+                value={countryForm.visaInformation?.badgeText ?? ""}
+                onChange={(e) => updateVisaInformationField("badgeText", e.target.value)}
+                id="country-visa-info-badge"
+                placeholder="100% Online Process"
+              />
+              <Input
+                label="Section Title"
+                value={countryForm.visaInformation?.title ?? ""}
+                onChange={(e) => updateVisaInformationField("title", e.target.value)}
+                id="country-visa-info-title"
+                placeholder="Visa Information"
+              />
+            </div>
+
+            <Textarea
+              label="Subtitle"
+              rows={3}
+              value={countryForm.visaInformation?.subtitle ?? ""}
+              onChange={(e) => updateVisaInformationField("subtitle", e.target.value)}
+              id="country-visa-info-subtitle"
+              placeholder="A 100% online visa application process that is simple, secure and hassle-free."
+            />
+
+            <Textarea
+              label="Important Note"
+              rows={3}
+              value={countryForm.visaInformation?.note ?? ""}
+              onChange={(e) => updateVisaInformationField("note", e.target.value)}
+              id="country-visa-info-note"
+              placeholder="Visa rules and conditions may change. Please check the latest requirements before applying."
+            />
+
+            <div className="grid gap-4 xl:grid-cols-3">
+              {(countryForm.visaInformation?.items || []).map((item, index) => (
+                <div key={item.id || index} className="rounded-2xl border border-border bg-background p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">{item.id || `Item ${index + 1}`}</p>
+                      <p className="text-[11px] text-text-muted">
+                        Icon: {item.icon || "default"} · Accent: {item.color || "blue"}
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center gap-2 text-xs text-text-primary">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border bg-surface-2 accent-cyan"
+                        checked={item.enabled !== false}
+                        onChange={(e) => updateVisaInformationItem(item.id, { enabled: e.target.checked })}
+                      />
+                      Show card
+                    </label>
+                  </div>
+
+                  <Input
+                    label="Card Label"
+                    value={item.label ?? ""}
+                    onChange={(e) => updateVisaInformationItem(item.id, { label: e.target.value })}
+                    id={`country-visa-item-label-${item.id}`}
+                    placeholder="Length of Stay"
+                  />
+                  <Input
+                    label="Card Value"
+                    value={item.value ?? ""}
+                    onChange={(e) => updateVisaInformationItem(item.id, { value: e.target.value })}
+                    id={`country-visa-item-value-${item.id}`}
+                    placeholder="30 days"
+                  />
+                  <Textarea
+                    label="Card Description"
+                    rows={3}
+                    value={item.description ?? ""}
+                    onChange={(e) => updateVisaInformationItem(item.id, { description: e.target.value })}
+                    id={`country-visa-item-description-${item.id}`}
+                    placeholder="Short helper text shown under the visa value."
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Required Documents — universal control aware. The checklist now
               uses the merged catalog (built-in + admin's custom doc types) and
               shows a green/amber badge plus a "Reset to global" helper button
@@ -5831,6 +5941,8 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
 
 
 

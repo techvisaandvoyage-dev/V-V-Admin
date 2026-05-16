@@ -135,6 +135,16 @@ const sanitizeIncludedItemsList = (arr) =>
 
 const normalizeSettingsUpdatePayload = (body = {}) => ({
   ...body,
+  gstEnabled:
+    body.gstEnabled === undefined
+      ? undefined
+      : body.gstEnabled === false || body.gstEnabled === 'false'
+        ? false
+        : true,
+  gstRate:
+    body.gstRate === undefined
+      ? undefined
+      : Number(String(body.gstRate || '0').trim()),
   destinationWhyBookNow:
     body.destinationWhyBookNow === undefined
       ? undefined
@@ -214,12 +224,17 @@ const updateSettings = async (req, res) => {
       sms91OtpLength,
       smtpEmailUser,
       smtpEmailPass,
+      smtpFromEmail,
       smtpEmailService,
       enableGDriveUpload,
       enableFileUpload,
       unsplashAccessKey,
       unsplashSecretKey,
       unsplashApplicationId,
+      showRequiredDocuments,
+      showVisaRequirements,
+      gstEnabled,
+      gstRate,
       destinationWhyBookNow,
       destinationIncludedItems,
       destinationFaqs,
@@ -260,14 +275,22 @@ const updateSettings = async (req, res) => {
     }
     if (smtpEmailUser !== undefined) settings.smtpEmailUser = String(smtpEmailUser || '').trim();
     assignSecretUnlessEmpty(settings, 'smtpEmailPass', smtpEmailPass);
+    if (smtpFromEmail !== undefined) settings.smtpFromEmail = String(smtpFromEmail || '').trim();
     if (smtpEmailService !== undefined) {
       settings.smtpEmailService = String(smtpEmailService || '').trim();
     }
     if (enableGDriveUpload !== undefined) settings.enableGDriveUpload = Boolean(enableGDriveUpload);
     if (enableFileUpload !== undefined) settings.enableFileUpload = Boolean(enableFileUpload);
+    if (showRequiredDocuments !== undefined) settings.showRequiredDocuments = Boolean(showRequiredDocuments);
+    if (showVisaRequirements !== undefined) settings.showVisaRequirements = Boolean(showVisaRequirements);
     assignSecretUnlessEmpty(settings, 'unsplashAccessKey', unsplashAccessKey);
     assignSecretUnlessEmpty(settings, 'unsplashSecretKey', unsplashSecretKey);
     if (unsplashApplicationId !== undefined) settings.unsplashApplicationId = String(unsplashApplicationId || '').trim();
+    if (gstEnabled !== undefined) settings.gstEnabled = Boolean(gstEnabled);
+    if (gstRate !== undefined) {
+      const nextRate = Number.isFinite(Number(gstRate)) ? Number(gstRate) : 0;
+      settings.gstRate = nextRate >= 0 ? nextRate : 0;
+    }
 
     if (destinationWhyBookNow !== undefined) {
       settings.destinationWhyBookNow = Array.isArray(destinationWhyBookNow)
@@ -343,6 +366,22 @@ const getRazorpayKeyId = async (req, res) => {
  * @desc    Get public Firebase web config for the client app
  * @access  Public
  */
+const getPaymentConfig = async (req, res) => {
+  try {
+    const settings = await loadSettingsDocument();
+    const keyIdFromSettings = String(settings?.razorpayKeyId || '').trim();
+    const keyIdFromEnv = String(process.env.RAZORPAY_KEY_ID || '').trim();
+    const keyId = keyIdFromSettings || keyIdFromEnv;
+    const gstEnabled = settings?.gstEnabled !== false;
+    const gstRate = Number.isFinite(Number(settings?.gstRate)) ? Number(settings?.gstRate) : 18;
+
+    res.json({ success: true, keyId, gstEnabled, gstRate });
+  } catch (error) {
+    console.error('Error fetching payment config:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 const getFirebaseConfig = async (req, res) => {
   try {
     const settings = await loadSettingsDocument();
@@ -430,9 +469,11 @@ const getDestinationPageContent = async (req, res) => {
       Array.isArray(rawVisaReq) && rawVisaReq.length
         ? rawVisaReq.map((s) => String(s ?? '').trim()).filter(Boolean)
         : DESTINATION_VISA_REQUIREMENTS_FALLBACK;
+    const showVisaRequirements = settings?.showVisaRequirements !== false;
+
     res.json({
       success: true,
-      config: { whyBookNow, included, faqs, howItWorks, visaRequirements },
+      config: { whyBookNow, included, faqs, howItWorks, visaRequirements, showVisaRequirements },
     });
   } catch (error) {
     console.error('Error fetching destination page content:', error);
@@ -444,6 +485,7 @@ module.exports = {
   getSettings,
   updateSettings,
   getRazorpayKeyId,
+  getPaymentConfig,
   getFirebaseConfig,
   getUploadSettings,
   getDestinationPageContent,

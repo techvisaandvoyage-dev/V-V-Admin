@@ -40,9 +40,11 @@ import {
   needsEmailContactGate,
 } from "../utils/contactVerificationGate";
 import { clearTravelDraft, saveTravelDraft } from "../utils/travelDraftStorage";
+import { optimizeUploadFile } from "../utils/optimizeUploadFile";
 
 const MAX_DOCUMENT_SIZE_BYTES = 500 * 1024;
-const FILE_SIZE_ERROR = "File must be below 500kb";
+const FILE_SIZE_ERROR = "File must be below 8 MB before optimization.";
+const OPTIMIZE_ERROR = "Could not prepare this file for upload.";
 
 const normalizeProcessingDays = (value) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -333,29 +335,56 @@ const ApplicationForm = () => {
     );
   };
 
-  const updateTravelerDoc = (index, key, file) => {
+  const updateTravelerDoc = async (index, key, file) => {
     const inputKey = `${index}-${key}`;
-    if (file && file.size > MAX_DOCUMENT_SIZE_BYTES) {
-      showToast(FILE_SIZE_ERROR, "error");
-      setDocErrors((prev) => ({ ...prev, [inputKey]: FILE_SIZE_ERROR }));
+    if (!file) {
+      setDocErrors((prev) => ({ ...prev, [inputKey]: null }));
+      setTravelers((prev) =>
+        prev.map((t, i) =>
+          i === index
+            ? { ...t, documents: { ...t.documents, [key]: null } }
+            : t
+        )
+      );
+      return;
+    }
+    const { file: optimizedFile, error } = await optimizeUploadFile(file);
+    if (error || !optimizedFile) {
+      const message = error || OPTIMIZE_ERROR;
+      showToast(message, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: message }));
+      return;
+    }
+    if (optimizedFile.size > MAX_DOCUMENT_SIZE_BYTES) {
+      const message = "File must be below 500 KB after optimization.";
+      showToast(message, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: message }));
       return;
     }
     setDocErrors((prev) => ({ ...prev, [inputKey]: null }));
     setTravelers((prev) =>
       prev.map((t, i) =>
         i === index
-          ? { ...t, documents: { ...t.documents, [key]: file || null } }
+          ? { ...t, documents: { ...t.documents, [key]: optimizedFile } }
           : t
       )
     );
   };
 
-  const updateTravelerOtherDocs = (index, files) => {
+  const updateTravelerOtherDocs = async (index, files) => {
     const incoming = Array.from(files || []);
-    const invalid = incoming.find((file) => file && file.size > MAX_DOCUMENT_SIZE_BYTES);
-    if (invalid) {
-      showToast(FILE_SIZE_ERROR, "error");
-      return;
+    const optimizedFiles = [];
+    for (const rawFile of incoming) {
+      const { file: optimizedFile, error } = await optimizeUploadFile(rawFile);
+      if (error || !optimizedFile) {
+        showToast(error || OPTIMIZE_ERROR, "error");
+        return;
+      }
+      if (optimizedFile.size > MAX_DOCUMENT_SIZE_BYTES) {
+        showToast("File must be below 500 KB after optimization.", "error");
+        return;
+      }
+      optimizedFiles.push(optimizedFile);
     }
     const fileSig = (f) => `${f.name}|${f.size}|${f.lastModified}`;
     setTravelers((prev) =>
@@ -363,7 +392,7 @@ const ApplicationForm = () => {
         if (i !== index) return t;
         const existing = Array.isArray(t.otherDocuments) ? [...t.otherDocuments] : [];
         const merged = [...existing];
-        for (const f of incoming) {
+        for (const f of optimizedFiles) {
           if (!merged.some((x) => fileSig(x) === fileSig(f))) merged.push(f);
         }
         const capped = merged.slice(0, 10);
@@ -383,12 +412,12 @@ const ApplicationForm = () => {
     );
   };
 
-  const handleDrop = (event, travelerIndex, fieldKey) => {
+  const handleDrop = async (event, travelerIndex, fieldKey) => {
     event.preventDefault();
     event.stopPropagation();
     setDraggingKey("");
     const file = event.dataTransfer?.files?.[0] || null;
-    updateTravelerDoc(travelerIndex, fieldKey, file);
+    await updateTravelerDoc(travelerIndex, fieldKey, file);
   };
 
   const travelerComplete = useCallback(

@@ -72,6 +72,10 @@ const settingsSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  smtpFromEmail: {
+    type: String,
+    default: ''
+  },
   smtpEmailService: {
     type: String,
     default: ''
@@ -201,6 +205,11 @@ const settingsSchema = new mongoose.Schema({
   showEntryType: { type: Boolean, default: true },
   showProcessingDays: { type: Boolean, default: true },
   showRequiredDocuments: { type: Boolean, default: true },
+  showVisaRequirements: { type: Boolean, default: true },
+
+  /** Global GST toggles applied to every user payment calculation. */
+  gstEnabled: { type: Boolean, default: true },
+  gstRate: { type: Number, default: 18 },
 }, {
   timestamps: true
 });

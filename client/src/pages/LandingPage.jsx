@@ -36,7 +36,27 @@ const LandingPage = () => {
   const searchInputRef = useRef(null);
   const geocodeAbortRef = useRef(null);
   const geocodeReqSeq = useRef(0);
-  const { countries: allCountries, trendingCountries, display: countryDisplay } = useCountries();
+  const { countries: allCountries, trendingCountries, display: countryDisplay, documentCatalog } = useCountries();
+
+  // Global requirements for merging logic on cards
+  const [globalRequirements, setGlobalRequirements] = useState([]);
+  const [showVisaRequirements, setShowVisaRequirements] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await api.get("/config/destination-content");
+        if (alive && data?.success) {
+          if (data.config?.visaRequirements) setGlobalRequirements(data.config.visaRequirements);
+          if (data.config?.showVisaRequirements !== undefined) setShowVisaRequirements(data.config.showVisaRequirements);
+        }
+      } catch (err) {
+        console.error("Failed to fetch global requirements:", err);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Search bar state
   const [searchDestination, setSearchDestination] = useState("");
@@ -409,6 +429,9 @@ const LandingPage = () => {
         filteredCountries={filteredCountries}
         countryCardRefs={countryCardRefs}
         display={countryDisplay}
+        documentCatalog={documentCatalog}
+        globalRequirements={globalRequirements}
+        showVisaRequirements={showVisaRequirements}
         onNavigateDestination={handleNavigateDestination}
         onNavigateAll={handleNavigateAll}
       />

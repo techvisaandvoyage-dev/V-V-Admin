@@ -293,6 +293,7 @@ const CountryDetails = () => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalMode, setContactModalMode] = useState("phone");
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
+  const [activeSubNav, setActiveSubNav] = useState("how-it-works");
   const pendingContactAction = useRef(null);
   const [showStickyStartCta, setShowStickyStartCta] = useState(false);
   /**
@@ -317,14 +318,38 @@ const CountryDetails = () => {
   const postLoginHandlersRef = useRef({});
 
   const SERVICE_FEE_PER_TRAVELLER = 1500;
-  const GST_RATE = 0.18;
   const travellerCount = travelers.length;
+  const [gstEnabled, setGstEnabled] = useState(true);
+  const [gstRate, setGstRate] = useState(18);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await api.get("/config/payment");
+        if (!alive || !data?.success) return;
+        setGstEnabled(data.gstEnabled !== false);
+        const serverRate = Number(data.gstRate);
+        setGstRate(Number.isFinite(serverRate) && serverRate >= 0 ? serverRate : 18);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const effectiveGstEnabled = country?.gstEnabled ?? gstEnabled;
+  const effectiveGstRate = Number.isFinite(Number(country?.gstRate))
+    ? Number(country.gstRate)
+    : gstRate;
 
   const { serviceAmount, gstAmount, payableToUs } = useMemo(() => {
     const service = SERVICE_FEE_PER_TRAVELLER * travellerCount;
-    const gst = Math.round(service * GST_RATE);
+    const gst = effectiveGstEnabled ? Math.round(service * (effectiveGstRate / 100)) : 0;
     return { serviceAmount: service, gstAmount: gst, payableToUs: service + gst };
-  }, [travellerCount]);
+  }, [travellerCount, effectiveGstEnabled, effectiveGstRate]);
 
   /**
    * Destination-page copy:
@@ -884,11 +909,14 @@ const CountryDetails = () => {
     };
   }, [visaRequirements]);
 
-  const SUB_NAV = showTravelDetails
+  const SUB_NAV = useMemo(() => showTravelDetails
     ? [{ id: "travel-details", label: "Travel Details" }]
     : [
+        { id: "info", label: "Info" },
         { id: "how-it-works", label: "How it works" },
-        { id: "visa-requirements", label: "Visa Requirements" },
+        ...(destinationPageContent?.showVisaRequirements !== false
+          ? [{ id: "visa-requirements", label: "Visa Requirements" }]
+          : []),
         // Skip the Document Requirements nav entry when the universal toggle hides
         // the entire section — clicking it would scroll to nothing.
         ...(countryDisplay?.showRequiredDocuments !== false
@@ -897,11 +925,48 @@ const CountryDetails = () => {
         { id: "why-book-now", label: "Why book now?" },
         { id: "whats-included", label: "What's Included" },
         { id: "faqs", label: "FAQs" },
-      ];
+      ], [showTravelDetails, countryDisplay?.showRequiredDocuments, destinationPageContent?.showVisaRequirements]);
+
+  useEffect(() => {
+    setActiveSubNav(SUB_NAV[0]?.id || "");
+  }, [SUB_NAV]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !SUB_NAV.length) return;
+
+    const updateActiveSubNav = () => {
+      const scrollAnchor = window.scrollY + 190;
+      let nextActive = SUB_NAV[0]?.id || "";
+
+      for (const tab of SUB_NAV) {
+        const section = document.getElementById(tab.id);
+        if (!section) continue;
+        if (section.offsetTop <= scrollAnchor) {
+          nextActive = tab.id;
+        }
+      }
+
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8) {
+        nextActive = SUB_NAV[SUB_NAV.length - 1]?.id || nextActive;
+      }
+
+      setActiveSubNav((prev) => (prev === nextActive ? prev : nextActive));
+    };
+
+    updateActiveSubNav();
+    window.addEventListener("scroll", updateActiveSubNav, { passive: true });
+    window.addEventListener("resize", updateActiveSubNav);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSubNav);
+      window.removeEventListener("resize", updateActiveSubNav);
+    };
+  }, [SUB_NAV]);
 
   const scrollToSection = (sectionId) => {
     const node = document.getElementById(sectionId);
     if (!node) return;
+    setActiveSubNav(sectionId);
     const stickyOffset = 150;
     const targetTop = window.scrollY + node.getBoundingClientRect().top - stickyOffset;
     window.scrollTo({ top: targetTop, behavior: "smooth" });
@@ -1246,81 +1311,83 @@ const CountryDetails = () => {
         </ol>
       </motion.section>
 
-      <motion.section
-        id="visa-requirements"
-        initial="initial"
-        animate="animate"
-        variants={fadeUp}
-        className="overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-4 py-6 sm:px-8 sm:py-10"
-      >
-        <div className="w-full lg:mx-auto lg:max-w-6xl">
-          <div className="text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-cyan/10 text-cyan">
-              <ScrollText size={34} strokeWidth={2} />
-            </div>
-            <h2 className="mt-5 font-playfair text-2xl sm:text-4xl font-bold tracking-tight text-text-primary">
-              Visa Requirements
-            </h2>
-            <div className="mx-auto mt-4 flex w-full max-w-xs items-center justify-center gap-4 text-cyan">
-              <span className="h-px flex-1 bg-cyan/40" />
-              <ShieldCheck size={18} />
-              <span className="h-px flex-1 bg-cyan/40" />
-            </div>
-            <p className="mx-auto mt-5 max-w-3xl text-base sm:text-xl text-text-secondary">
-              Please ensure you have the following documents ready for a smooth visa application process.
-            </p>
-          </div>
-
-          <div className="mt-10 rounded-[1.75rem] bg-white/80 p-4 sm:p-6">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {parsedVisaRequirements.items.map((item, idx) => (
-                <motion.div
-                  key={`${item.title}-${idx}`}
-                  whileHover={{ y: -3, scale: 1.01 }}
-                  transition={{ duration: 0.24, ease }}
-                  className="flex items-start gap-4 rounded-[1.4rem] border border-cyan/15 bg-white/85 p-4 sm:p-5"
-                >
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-cyan/8 text-cyan sm:h-20 sm:w-20">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan text-background shadow-[0_14px_28px_rgba(34,211,238,0.22)] sm:h-12 sm:w-12">
-                      <i
-                        className={`${getVisaRequirementRemixIcon(item.title, item.description)} text-xl leading-none sm:text-2xl`}
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </div>
-                  <div className="flex-1 border-l border-dashed border-cyan/35 pl-4">
-                    <h3 className="text-base sm:text-lg lg:text-[1.7rem] font-semibold leading-tight text-text-primary">
-                      {item.title}
-                    </h3>
-                    {item.description ? (
-                      <p className="mt-3 text-sm sm:text-base leading-7 text-text-secondary">
-                        {item.description}
-                      </p>
-                    ) : null}
-                  </div>
-                </motion.div>
-              ))}
+      {destinationPageContent?.showVisaRequirements !== false && (
+        <motion.section
+          id="visa-requirements"
+          initial="initial"
+          animate="animate"
+          variants={fadeUp}
+          className="overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.12),transparent_30%),linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-4 py-6 sm:px-8 sm:py-10"
+        >
+          <div className="w-full lg:mx-auto lg:max-w-6xl">
+            <div className="text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-cyan/10 text-cyan">
+                <ScrollText size={34} strokeWidth={2} />
+              </div>
+              <h2 className="mt-5 font-playfair text-2xl sm:text-4xl font-bold tracking-tight text-text-primary">
+                Visa Requirements
+              </h2>
+              <div className="mx-auto mt-4 flex w-full max-w-xs items-center justify-center gap-4 text-cyan">
+                <span className="h-px flex-1 bg-cyan/40" />
+                <ShieldCheck size={18} />
+                <span className="h-px flex-1 bg-cyan/40" />
+              </div>
+              <p className="mx-auto mt-5 max-w-3xl text-base sm:text-xl text-text-secondary">
+                Please ensure you have the following documents ready for a smooth visa application process.
+              </p>
             </div>
 
-            <div className="mt-6 rounded-[1.35rem] bg-gradient-to-r from-cyan/10 via-amber-50 to-cyan/5 px-4 py-4 sm:px-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
-                  <span className="text-2xl font-semibold leading-none">i</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-lg font-semibold text-amber-700">Please Note</p>
-                  <p className="mt-1 text-xs sm:text-sm lg:text-base text-text-secondary">
-                    {parsedVisaRequirements.note}
-                  </p>
-                </div>
-                <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-white/70 text-amber-500">
-                  <ShieldCheck size={24} strokeWidth={2} />
+            <div className="mt-10 rounded-[1.75rem] bg-white/80 p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {parsedVisaRequirements.items.map((item, idx) => (
+                  <motion.div
+                    key={`${item.title}-${idx}`}
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    transition={{ duration: 0.24, ease }}
+                    className="flex items-start gap-4 rounded-[1.4rem] border border-cyan/15 bg-white/85 p-4 sm:p-5"
+                  >
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-cyan/8 text-cyan sm:h-20 sm:w-20">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan text-background shadow-[0_14px_28px_rgba(34,211,238,0.22)] sm:h-12 sm:w-12">
+                        <i
+                          className={`${getVisaRequirementRemixIcon(item.title, item.description)} text-xl leading-none sm:text-2xl`}
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </div>
+                    <div className="flex-1 border-l border-dashed border-cyan/35 pl-4">
+                      <h3 className="text-sm sm:text-base font-semibold leading-tight text-text-primary">
+                        {item.title}
+                      </h3>
+                      {item.description ? (
+                        <p className="mt-2 text-xs sm:text-sm leading-6 text-text-secondary">
+                          {item.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="mt-6 rounded-[1.35rem] bg-gradient-to-r from-cyan/10 via-amber-50 to-cyan/5 px-4 py-4 sm:px-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
+                    <span className="text-2xl font-semibold leading-none">i</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm sm:text-base font-semibold text-amber-700">Please Note</p>
+                    <p className="mt-1 text-xs sm:text-sm leading-6 text-text-secondary">
+                      {parsedVisaRequirements.note}
+                    </p>
+                  </div>
+                  <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-white/70 text-amber-500">
+                    <ShieldCheck size={24} strokeWidth={2} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </motion.section>
+        </motion.section>
+      )}
 
       {countryDisplay?.showRequiredDocuments !== false && (
         <motion.section
@@ -1675,7 +1742,7 @@ const CountryDetails = () => {
       <Navbar />
 
       {!showTravelDetails && (
-        <motion.div initial="initial" animate="animate" variants={fadeUp} className="w-full">
+        <motion.div id="info" initial="initial" animate="animate" variants={fadeUp} className="w-full">
           <div className="relative mx-auto w-full max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-3xl border border-border sm:max-w-[calc(100vw-3rem)] lg:max-w-[calc(100vw-4rem)]">
             <ImageWithShimmer
               src={country.imageUrl}
@@ -1737,9 +1804,20 @@ const CountryDetails = () => {
                 <li key={tab.id}>
                   <button
                     onClick={() => scrollToSection(tab.id)}
-                    className="py-6  text-sm font-medium whitespace-nowrap border-b-2 border-transparent text-text-secondary hover:text-text-primary hover:border-cyan/40 transition-colors"
+                    className={`relative py-6 text-sm font-medium whitespace-nowrap transition-colors ${
+                      activeSubNav === tab.id
+                        ? "text-text-primary"
+                        : "text-text-secondary hover:text-text-primary"
+                    }`}
                   >
                     {tab.label}
+                    {activeSubNav === tab.id ? (
+                      <motion.span
+                        layoutId="country-details-subnav-underline"
+                        className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-cyan"
+                        transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
+                      />
+                    ) : null}
                   </button>
                 </li>
               ))}
@@ -2045,57 +2123,70 @@ const CountryDetails = () => {
             >
               {showTravelDetails ? (
                 <>
-                  <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-2">Start Your Visa Process</p>
-                  <h3 className="text-2xl font-bold text-text-primary mb-5">Apply for {country.name}</h3>
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-start justify-between gap-3 text-sm">
-                      <span className="text-text-muted shrink-0">Visa</span>
-                      <span className="font-semibold text-text-primary text-right">{country.name} Visa</span>
-                    </div>
-                    <div className="flex items-start justify-between gap-3 text-sm">
-                      <span className="text-text-muted shrink-0">Visa type</span>
-                      <span className="font-semibold text-text-primary text-right">{visaOption}</span>
-                    </div>
-                    <div className="flex items-start justify-between gap-3 text-sm">
-                      <span className="text-text-muted shrink-0">Travel date</span>
-                      <span className="font-semibold text-text-primary text-right">{formatTravelRange()}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-text-muted">Travellers</span>
-                      <span className="font-semibold text-text-primary">{travellerCount}</span>
-                    </div>
-                    <div className="border-t border-border pt-3 mt-2 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-text-muted">Service</span>
-                      <span className="font-medium text-text-primary">₹{serviceAmount.toLocaleString("en-IN")}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-text-muted">GST (18%)</span>
-                      <span className="font-medium text-text-primary">₹{gstAmount.toLocaleString("en-IN")}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
-                      <span className="font-semibold text-text-primary">Payable to us</span>
-                      <span className="font-bold text-cyan">₹{payableToUs.toLocaleString("en-IN")}</span>
+                  <div className="mb-6">
+                    <div className="max-w-xl">
+                      <h3 className="text-3xl font-bold tracking-tight text-slate-950">Apply for {country.name}</h3>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        Take the next step towards your journey to {country.name}. Simple, secure and fast.
+                      </p>
                     </div>
                   </div>
-                  <p className="text-2xs text-text-muted pt-1">
-                    Government / embassy fees (if any) are shown separately at payment.
-                  </p>
+                  <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_25px_60px_-30px_rgba(15,23,42,0.2)] mb-7">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount to be paid</p>
+                      <p className="mt-3 text-5xl font-extrabold tracking-tight text-slate-950">₹{payableToUs.toLocaleString("en-IN")}</p>
+                    </div>
+                    <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({gstEnabled ? `${gstRate}%` : "0%"})</span>
+                        <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
+                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">Total Amount</span>
+                        <span className="text-lg font-semibold text-slate-900">₹{payableToUs.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                    <div className="mt-6 flex items-center gap-3 rounded-3xl border border-slate-200 bg-cyan/5 px-4 py-4 text-slate-600">
+                      <ShieldCheck className="h-5 w-5 text-cyan" />
+                      <div className="text-sm leading-tight">
+                        Secure & trusted payment. Your payment is 100% secure and encrypted.
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-7">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-2">Start Your Visa Process</p>
-                    <h3 className="text-2xl font-bold text-text-primary">Apply for {country.name}</h3>
+                    <div className="max-w-xl">
+                      <h3 className="text-3xl font-bold tracking-tight text-slate-950">Apply for {country.name}</h3>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        Take the next step towards your journey to {country.name}. Simple, secure and fast.
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-5xl font-bold tracking-tight text-text-primary">
-                      ₹{payableToUs.toLocaleString("en-IN")}
-                    </p>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-text-muted">
-                      To be paid now
-                    </p>
+                  <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_25px_60px_-30px_rgba(15,23,42,0.2)]">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount to be paid</p>
+                      <p className="mt-3 text-5xl font-extrabold tracking-tight text-slate-950">₹{payableToUs.toLocaleString("en-IN")}</p>
+                    </div>
+
+                    <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({gstEnabled ? `${gstRate}%` : "0%"})</span>
+                        <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
+                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">Total Amount</span>
+                        <span className="text-lg font-semibold text-slate-900">₹{payableToUs.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex items-center gap-3 rounded-3xl border border-slate-200 bg-cyan/5 px-4 py-4 text-slate-600">
+                      <ShieldCheck className="h-5 w-5 text-cyan" />
+                      <p className="text-sm leading-tight">
+                        Secure & trusted payment. Your payment is 100% secure and encrypted.
+                      </p>
+                    </div>
                   </div>
 
                   <Button
@@ -2107,17 +2198,6 @@ const CountryDetails = () => {
                   >
                     Start Application
                   </Button>
-
-                  <div className="space-y-4 border-t border-border pt-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm font-medium text-text-secondary">GST (18%)</span>
-                      <span className="text-lg font-bold text-text-primary">₹{gstAmount.toLocaleString("en-IN")}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
-                      <span className="text-base font-semibold text-text-primary">Total Amount</span>
-                      <span className="text-xl font-bold text-text-primary">₹{payableToUs.toLocaleString("en-IN")}</span>
-                    </div>
-                  </div>
                 </div>
               )}
             </motion.div>
@@ -2201,7 +2281,7 @@ const CountryDetails = () => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-text-muted">GST (18%)</span>
+                  <span className="text-text-muted">GST ({gstEnabled ? `${gstRate}%` : "0%"})</span>
                   <span className="font-medium text-text-primary">
                     ₹{gstAmount.toLocaleString("en-IN")}
                   </span>

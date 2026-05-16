@@ -248,6 +248,7 @@ const resolveCountryDoc = (country, settings) => {
   const useGlobalLengthOfStay = obj.useGlobalLengthOfStay !== false;
   const useGlobalEntryType = obj.useGlobalEntryType !== false;
   const useGlobalProcessingDays = obj.useGlobalProcessingDays !== false;
+  const useGlobalGst = obj.useGlobalGst !== false;
   const useGlobalRequiredDocuments = obj.useGlobalRequiredDocuments !== false;
   const visaTypeOverride = String(obj.visaType ?? '').trim();
   const validityOverride = String(obj.validity ?? '').trim();
@@ -257,6 +258,18 @@ const resolveCountryDoc = (country, settings) => {
   const requiredDocumentsOverride = Array.isArray(obj.requiredDocuments)
     ? obj.requiredDocuments.map((k) => String(k ?? '').trim()).filter(Boolean)
     : [];
+  const resolvedGstEnabled = useGlobalGst
+    ? settings?.gstEnabled !== false
+    : obj.gstEnabled !== false;
+  const resolvedGstRate = useGlobalGst
+    ? Number.isFinite(Number(settings?.gstRate))
+      ? Number(settings?.gstRate)
+      : 18
+    : Number.isFinite(Number(obj.gstRate))
+      ? Number(obj.gstRate)
+      : Number.isFinite(Number(settings?.gstRate))
+        ? Number(settings?.gstRate)
+        : 18;
   const resolvedVisaType =
     useGlobalVisaType && globalVisaType ? globalVisaType : visaTypeOverride || 'Tourist Visa';
   const resolvedValidity =
@@ -295,7 +308,10 @@ const resolveCountryDoc = (country, settings) => {
     useGlobalLengthOfStay,
     useGlobalEntryType,
     useGlobalProcessingDays,
+    useGlobalGst,
     useGlobalRequiredDocuments,
+    gstEnabled: resolvedGstEnabled,
+    gstRate: resolvedGstRate,
     visaTypeOverride,
     validityOverride,
     lengthOfStayOverride,
@@ -317,6 +333,7 @@ const resolveDisplayToggles = (settings) => ({
   showEntryType: settings?.showEntryType !== false,
   showProcessingDays: settings?.showProcessingDays !== false,
   showRequiredDocuments: settings?.showRequiredDocuments !== false,
+  showVisaRequirements: settings?.showVisaRequirements !== false,
 });
 
 const slugify = (str) =>
@@ -450,6 +467,7 @@ const addCountry = async (req, res) => {
       visaInformation,
       requirements, requiredDocuments, trending, successRate,
       whyBookNow, includedItems, faqs, howItWorks,
+      gstEnabled, gstRate, useGlobalGst,
       excludeDestinationWhyBookNow,
       excludeDestinationIncludedItems,
       excludeDestinationFaqQuestions,
@@ -527,6 +545,9 @@ const addCountry = async (req, res) => {
       description: description || '',
       requirements: Array.isArray(requirements) ? requirements.filter(Boolean) : [],
       requiredDocuments: typedReqDocs.length ? typedReqDocs : ['passport'],
+      useGlobalGst: useGlobalGst !== false,
+      gstEnabled: gstEnabled !== undefined ? Boolean(gstEnabled) : undefined,
+      gstRate: gstRate !== undefined ? (Number.isFinite(Number(gstRate)) ? Number(gstRate) : 0) : undefined,
       useGlobalRequiredDocuments: newUseGlobalRequiredDocuments,
       trending: Boolean(trending),
       successRate: Number(successRate) || 80,
@@ -560,6 +581,7 @@ const updateCountry = async (req, res) => {
       visaInformation,
       requirements, requiredDocuments, trending, successRate,
       whyBookNow, includedItems, faqs, howItWorks,
+      gstEnabled, gstRate, useGlobalGst,
       excludeDestinationWhyBookNow,
       excludeDestinationIncludedItems,
       excludeDestinationFaqQuestions,
@@ -646,6 +668,12 @@ const updateCountry = async (req, res) => {
           country.processingDays = typed;
         }
       }
+    }
+    if (useGlobalGst !== undefined) country.useGlobalGst = Boolean(useGlobalGst);
+    if (gstEnabled !== undefined) country.gstEnabled = Boolean(gstEnabled);
+    if (gstRate !== undefined) {
+      const parsedRate = Number(gstRate);
+      country.gstRate = Number.isFinite(parsedRate) && parsedRate >= 0 ? parsedRate : 0;
     }
     if (continent !== undefined) country.continent = continent;
     if (imageUrl !== undefined) country.imageUrl = imageUrl;
@@ -1064,11 +1092,13 @@ const updateCountryDisplayToggles = async (req, res) => {
     changed.showProcessingDays = incoming.showProcessingDays;
   if (typeof incoming.showRequiredDocuments === 'boolean')
     changed.showRequiredDocuments = incoming.showRequiredDocuments;
+  if (typeof incoming.showVisaRequirements === 'boolean')
+    changed.showVisaRequirements = incoming.showVisaRequirements;
   if (Object.keys(changed).length === 0) {
     return res.status(400).json({
       success: false,
       message:
-        'Provide at least one of showVisaType, showValidity, showLengthOfStay, showEntryType, showProcessingDays, showRequiredDocuments (boolean).',
+        'Provide at least one of showVisaType, showValidity, showLengthOfStay, showEntryType, showProcessingDays, showRequiredDocuments, showVisaRequirements (boolean).',
     });
   }
   console.log('[control] updateCountryDisplayToggles:', changed);

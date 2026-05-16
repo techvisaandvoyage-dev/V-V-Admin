@@ -27,6 +27,99 @@ const EMAIL_OTP_CONFIG_HINT =
 
 
 
+const buildOtpBoxes = (otp) =>
+  String(otp || '')
+    .split('')
+    .map(
+      (digit) => `
+        <td style="padding: 0 6px 12px 6px;">
+          <div style="width: 56px; height: 64px; line-height: 64px; text-align: center; border-radius: 12px; border: 1px solid #38558f; background: #13203d; color: #f8fbff; font-size: 34px; font-weight: 700; box-shadow: 0 12px 28px rgba(6, 15, 36, 0.35); font-family: Arial, sans-serif;">
+            ${digit}
+          </div>
+        </td>`
+    )
+    .join('');
+
+const buildOtpEmailTemplate = ({
+  preheader = 'Your VisaAndVoyage verification code is inside.',
+  title = 'Your OTP Code',
+  subtitle = 'Use the code below to continue.',
+  otp,
+  note = 'This OTP is valid for 10 minutes only. Do not share it with anyone.',
+  accentLabel = 'VisaAndVoyage',
+}) => `
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+    ${preheader}
+  </div>
+  <div style="margin:0; padding:24px 12px; background:#081120; font-family: Arial, Helvetica, sans-serif; color:#e7f1ff;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:720px; margin:0 auto; background:#0d1730; border:1px solid #243a67; border-radius:24px; overflow:hidden; box-shadow:0 18px 42px rgba(3, 8, 20, 0.45);">
+      <tr>
+        <td style="padding:28px 32px 20px 32px; background:linear-gradient(180deg, #13203d 0%, #0d1730 100%);">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+              <td align="left" style="font-size:14px; color:#7cb6ff; font-weight:600; padding-bottom:20px;">
+                <span style="display:inline-block; width:42px; height:42px; line-height:42px; text-align:center; border-radius:50%; background:#1f3d73; color:#e7f1ff; font-size:22px; margin-right:10px;">V</span>
+                <span style="font-size:18px; font-weight:700; color:#f8fbff; vertical-align:top; line-height:42px;">${accentLabel}</span>
+              </td>
+              <td align="right" style="font-size:15px; color:#8ec5ff; font-weight:500; padding-bottom:20px;">
+                Your Journey, Our Priority
+              </td>
+            </tr>
+          </table>
+
+          <div style="text-align:center; padding:12px 0 6px 0;">
+            <div style="font-size:18px; font-weight:600; color:#7cb6ff; letter-spacing:0.04em; text-transform:uppercase;">Secure Verification</div>
+            <h1 style="margin:14px 0 10px 0; font-size:42px; line-height:1.1; color:#f8fbff;">${title}</h1>
+            <p style="margin:0 auto; max-width:460px; font-size:22px; line-height:1.5; color:#bfd5f6;">
+              ${subtitle}
+            </p>
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:32px auto 16px auto;">
+            <tr>
+              ${buildOtpBoxes(otp)}
+            </tr>
+          </table>
+
+          <div style="text-align:center; padding:8px 0 10px 0;">
+            <div style="display:inline-block; padding:14px 20px; border-radius:16px; background:#162748; color:#dbe7ff; font-size:18px; line-height:1.6; border:1px solid #2a467c;">
+              ${note}
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:linear-gradient(180deg, #183c79 0%, #0f2451 100%); padding:22px 28px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+            <tr>
+              <td width="33.33%" valign="top" style="padding-right:12px; color:#ffffff;">
+                <div style="font-size:18px; font-weight:700; margin-bottom:6px;">Secure</div>
+                <div style="font-size:15px; line-height:1.6; color:#d9e7ff;">Your verification code is protected and time-bound.</div>
+              </td>
+              <td width="33.33%" valign="top" style="padding:0 12px; color:#ffffff;">
+                <div style="font-size:18px; font-weight:700; margin-bottom:6px;">Fast</div>
+                <div style="font-size:15px; line-height:1.6; color:#d9e7ff;">Use this OTP to complete your action without delay.</div>
+              </td>
+              <td width="33.33%" valign="top" style="padding-left:12px; color:#ffffff;">
+                <div style="font-size:18px; font-weight:700; margin-bottom:6px;">Support</div>
+                <div style="font-size:15px; line-height:1.6; color:#d9e7ff;">If this was not you, you can safely ignore this email.</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:22px 32px 28px 32px; text-align:center; background:#0d1730; color:#9eb6d9; font-size:15px; line-height:1.7; border-top:1px solid #20355d;">
+          If you did not request this code, no action is needed.<br />
+          &copy; 2026 VisaAndVoyage. All rights reserved.
+        </td>
+      </tr>
+    </table>
+  </div>
+`;
+
 const normalizeFirebaseName = (decodedToken) =>
   String(decodedToken.name || decodedToken.email?.split('@')[0] || 'Google User').trim();
 
@@ -138,14 +231,12 @@ const signupUser = async (req, res) => {
           const resent = await sendEmail({
             email,
             subject: 'Visa & Voyage - Verify your account',
-            html: `
-            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0d1117; border-radius: 16px; border: 1px solid #21262d;">
-              <h2 style="color: #06b6d4; margin-bottom: 8px;">Welcome to Visa & Voyage!</h2>
-              <p style="color: #8b949e; margin-bottom: 24px;">Here's a new verification code for your account:</p>
-              <div style="background: #161b22; border: 2px solid #06b6d4; border-radius: 12px; padding: 24px; text-align: center; letter-spacing: 0.5em; font-size: 32px; font-weight: bold; color: #f0f6fc; font-family: monospace;">${otp}</div>
-              <p style="color: #8b949e; font-size: 13px; margin-top: 20px;">This code expires in 10 minutes. Do not share it with anyone.</p>
-            </div>
-          `,
+            html: buildOtpEmailTemplate({
+              preheader: 'Your fresh Visa & Voyage verification code is ready.',
+              title: 'Your OTP Code',
+              subtitle: "Use the following One-Time Password (OTP) to verify your email and continue.",
+              otp,
+            }),
           });
           if (!resent) {
             await Otp.deleteMany({ identifier, purpose: 'signup' });
@@ -172,14 +263,12 @@ const signupUser = async (req, res) => {
       const signupSent = await sendEmail({
         email,
         subject: 'Visa & Voyage - Verify your account',
-        html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0d1117; border-radius: 16px; border: 1px solid #21262d;">
-          <h2 style="color: #06b6d4; margin-bottom: 8px;">Welcome to Visa & Voyage!</h2>
-          <p style="color: #8b949e; margin-bottom: 24px;">Enter the code below to verify your account:</p>
-          <div style="background: #161b22; border: 2px solid #06b6d4; border-radius: 12px; padding: 24px; text-align: center; letter-spacing: 0.5em; font-size: 32px; font-weight: bold; color: #f0f6fc; font-family: monospace;">${otp}</div>
-          <p style="color: #8b949e; font-size: 13px; margin-top: 20px;">This code expires in 10 minutes. Do not share it with anyone.</p>
-        </div>
-      `,
+        html: buildOtpEmailTemplate({
+          preheader: 'Verify your Visa & Voyage account with this OTP.',
+          title: 'Your OTP Code',
+          subtitle: 'Use the following One-Time Password (OTP) to verify your email and continue.',
+          otp,
+        }),
       });
 
       if (!signupSent) {
@@ -211,12 +300,9 @@ const signupUser = async (req, res) => {
           const payload = {
             success: true,
             message:
-              'OTP ready — SMS not configured; check the server terminal or use the test code if your app shows one.',
+              'OTP is ready.',
           };
-          if (
-            process.env.NODE_ENV !== 'production' ||
-            process.env.LOGIN_OTP_DEV_REVEAL === 'true'
-          ) {
+          if (process.env.LOGIN_OTP_DEV_REVEAL === 'true') {
             payload.devOtp = otp;
           }
           return res.status(201).json(payload);
@@ -224,7 +310,7 @@ const signupUser = async (req, res) => {
         await Otp.deleteMany({ identifier, purpose: 'signup' });
         return res.status(502).json({
           success: false,
-          message: 'Could not send SMS. Configure SMS91 in Admin settings or .env and try again.',
+          message: 'Could not send the verification code. Please try again.',
         });
       }
       return res.status(400).json({ success: false, message: 'An account with this phone number already exists' });
@@ -248,12 +334,9 @@ const signupUser = async (req, res) => {
       const payload = {
         success: true,
         message:
-          'Account created — SMS not configured; OTP is valid. Check the server log or use the test code if shown.',
+          'Account created. OTP is ready.',
       };
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.LOGIN_OTP_DEV_REVEAL === 'true'
-      ) {
+      if (process.env.LOGIN_OTP_DEV_REVEAL === 'true') {
         payload.devOtp = otp;
       }
       return res.status(201).json(payload);
@@ -263,7 +346,7 @@ const signupUser = async (req, res) => {
     await User.findByIdAndDelete(user._id);
     return res.status(502).json({
       success: false,
-      message: 'Could not send SMS. Configure SMS91 in Admin settings or .env.',
+      message: 'Could not send the verification code. Please try again.',
     });
   } catch (error) {
     console.error(error);
@@ -382,14 +465,13 @@ const sendLoginOtp = async (req, res) => {
       const loginEmailSent = await sendEmail({
         email: key,
         subject: 'Visa & Voyage - Login OTP',
-        html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0d1117; border-radius: 16px; border: 1px solid #21262d;">
-          <h2 style="color: #06b6d4; margin-bottom: 8px;">Your Visa & Voyage Login Code</h2>
-          <p style="color: #8b949e; margin-bottom: 24px;">Use the code below to log in to your Visa & Voyage account:</p>
-          <div style="background: #161b22; border: 2px solid #06b6d4; border-radius: 12px; padding: 24px; text-align: center; letter-spacing: 0.5em; font-size: 32px; font-weight: bold; color: #f0f6fc; font-family: monospace;">${otp}</div>
-          <p style="color: #8b949e; font-size: 13px; margin-top: 20px;">This ${otpLength}-digit code expires in 10 minutes. Do not share it with anyone.</p>
-        </div>
-      `
+        html: buildOtpEmailTemplate({
+          preheader: 'Your Visa & Voyage login OTP is ready.',
+          title: 'Your OTP Code',
+          subtitle: 'Use the following One-Time Password (OTP) to log in to your account securely.',
+          otp,
+          note: `This ${otpLength}-digit OTP is valid for 10 minutes only. Do not share it with anyone.`,
+        })
       });
       if (!loginEmailSent) {
         await Otp.deleteMany({ identifier: key, purpose: 'login' });
@@ -407,7 +489,7 @@ const sendLoginOtp = async (req, res) => {
       } else {
         return res.status(502).json({
           success: false,
-          message: 'Could not send SMS. Please try again in a few minutes.',
+          message: 'Could not send the login code. Please try again in a few minutes.',
         });
       }
     }
@@ -418,14 +500,11 @@ const sendLoginOtp = async (req, res) => {
         type === 'email'
           ? 'OTP sent to your email'
           : smsResult?.skipped
-            ? 'OTP ready — SMS not configured; check server terminal or use the code shown in the app if provided.'
+            ? 'OTP sent to your registered number'
             : 'OTP sent to your registered number',
     };
-    /** devOtp when: non-production, explicit flag, or phone login with SMS skipped (no gateway). */
-    const revealLoginOtp =
-      process.env.NODE_ENV !== 'production' ||
-      process.env.LOGIN_OTP_DEV_REVEAL === 'true' ||
-      (type === 'phone' && smsResult?.skipped);
+    /** Only reveal dev OTP when explicitly enabled. */
+    const revealLoginOtp = process.env.LOGIN_OTP_DEV_REVEAL === 'true';
     if (revealLoginOtp) {
       payload.devOtp = otp;
     }
@@ -920,14 +999,12 @@ const requestForgotPasswordOtp = async (req, res) => {
       const forgotSent = await sendEmail({
         email: key,
         subject: 'Visa & Voyage - Password Reset OTP',
-        html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #0d1117; border-radius: 16px; border: 1px solid #21262d;">
-          <h2 style="color: #06b6d4; margin-bottom: 8px;">Reset your Visa & Voyage password</h2>
-          <p style="color: #8b949e; margin-bottom: 24px;">Use this OTP to reset your password:</p>
-          <div style="background: #161b22; border: 2px solid #06b6d4; border-radius: 12px; padding: 24px; text-align: center; letter-spacing: 0.5em; font-size: 32px; font-weight: bold; color: #f0f6fc; font-family: monospace;">${otp}</div>
-          <p style="color: #8b949e; font-size: 13px; margin-top: 20px;">This code expires in 10 minutes. Do not share it with anyone.</p>
-        </div>
-      `
+        html: buildOtpEmailTemplate({
+          preheader: 'Use this OTP to reset your Visa & Voyage password.',
+          title: 'Reset OTP Code',
+          subtitle: 'Use the following One-Time Password (OTP) to reset your password and continue.',
+          otp,
+        })
       });
 
       if (!forgotSent) {
@@ -954,12 +1031,9 @@ const requestForgotPasswordOtp = async (req, res) => {
       const payload = {
         success: true,
         message:
-          'OTP is ready — SMS not configured. Check the server terminal for the code, or configure SMS91 in Admin settings.',
+          'Password reset OTP sent to your phone',
       };
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.LOGIN_OTP_DEV_REVEAL === 'true'
-      ) {
+      if (process.env.LOGIN_OTP_DEV_REVEAL === 'true') {
         payload.devOtp = otp;
       }
       return res.json(payload);
@@ -968,7 +1042,7 @@ const requestForgotPasswordOtp = async (req, res) => {
     await Otp.deleteMany({ identifier: key, purpose: 'password_reset' });
     return res.status(502).json({
       success: false,
-      message: 'Could not send SMS. Please try again in a few minutes.',
+      message: 'Could not send the reset code. Please try again in a few minutes.',
     });
   } catch (error) {
     console.error(error);
@@ -1049,3 +1123,4 @@ module.exports = {
   resetForgotPassword,
   changePassword
 };
+

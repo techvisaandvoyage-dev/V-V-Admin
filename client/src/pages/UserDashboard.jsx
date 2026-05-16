@@ -12,7 +12,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import { motion } from "framer-motion";
 import Sidebar from "../components/layout/Sidebar";
-import { useAuthStore, SERVER_URL } from "../store/authStore";
+import { api, useAuthStore, SERVER_URL } from "../store/authStore";
 import { useDataStore } from "../store/dataStore";
 import { useUIStore } from "../store/uiStore";
 import { getApplicationProgress, DOCUMENT_LABELS } from "../utils/applicationProgress";

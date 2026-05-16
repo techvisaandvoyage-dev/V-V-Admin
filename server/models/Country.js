@@ -103,6 +103,14 @@ const countrySchema = new mongoose.Schema({
   },
   /** If true, public responses ignore this country's `processingDays` and use the global default. */
   useGlobalProcessingDays: { type: Boolean, default: true },
+
+  /** Per-country GST override. If true, the country uses its own GST settings; otherwise global settings apply. */
+  useGlobalGst: { type: Boolean, default: true },
+  /** If `useGlobalGst` is false, this value is used for the country payment summary. */
+  gstEnabled: { type: Boolean },
+  /** If `useGlobalGst` is false, this rate is used for the country payment summary. */
+  gstRate: { type: Number, min: 0 },
+
   continent: { type: String, default: 'Global' },
   imageUrl: { type: String, default: '' },
   description: { type: String, default: '' },

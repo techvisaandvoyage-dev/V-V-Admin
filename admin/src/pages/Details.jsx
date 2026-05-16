@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, Eye, CreditCard, Link, Upload, UploadCloud, Phone, MessageSquare } from "lucide-react";
+import { ArrowLeft, FileText, Download, CheckCircle, Clock, MapPin, User, Mail, Calendar, Plane, CreditCard, Link, Upload, UploadCloud, Phone, MessageSquare } from "lucide-react";
 import { useUIStore } from "../store/uiStore";
 import { useDataStore } from "../store/dataStore";
 import Navbar from "../components/layout/Navbar";
@@ -308,6 +308,59 @@ const Details = () => {
     }
   };
 
+  const compressImageFile = async (file) => {
+    const MAX_BYTES = 500 * 1024;
+    if (file.size <= MAX_BYTES) return file;
+    if (!file.type.startsWith("image/")) return file;
+
+    const isPng = file.type === "image/png";
+    const targetType = isPng ? "image/webp" : file.type;
+    const url = URL.createObjectURL(file);
+
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = url;
+      });
+      URL.revokeObjectURL(url);
+
+      const maxDimension = Math.max(img.width, img.height);
+      const scale = maxDimension > 2000 ? 2000 / maxDimension : 1;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      let quality = 0.85;
+      let blob = await new Promise((resolve) => canvas.toBlob(resolve, targetType, quality));
+      if (!blob) return file;
+
+      while (blob.size > MAX_BYTES && quality > 0.35) {
+        quality -= 0.15;
+        blob = await new Promise((resolve) => canvas.toBlob(resolve, targetType, quality));
+        if (!blob) return file;
+      }
+
+      if (blob.size >= file.size) {
+        return file;
+      }
+
+      const extension = targetType === file.type
+        ? file.name.substring(file.name.lastIndexOf("."))
+        : targetType === "image/webp"
+          ? ".webp"
+          : ".jpg";
+      const baseName = file.name.replace(/\.[^/.]+$/, "");
+      return new File([blob], `${baseName}${extension}`, { type: targetType });
+    } catch (uploadError) {
+      URL.revokeObjectURL(url);
+      return file;
+    }
+  };
+
   const handleVisaFileUpload = async (file) => {
     if (!file) return;
     const allowedTypes = [
@@ -324,6 +377,10 @@ const Details = () => {
 
     setVisaFileUploading(true);
     try {
+      const uploadFile = await compressImageFile(file);
+      if (uploadFile !== file) {
+        showToast("Large image compressed automatically before upload.", "info");
+      }
       if (id.startsWith("bk-")) {
         // Fallback for mock data
         showToast("Cannot upload visa file for mock applications.", "info");
@@ -332,7 +389,7 @@ const Details = () => {
       }
 
       const formData = new FormData();
-      formData.append("visaFile", file);
+      formData.append("visaFile", uploadFile);
       const { data } = await api.post(`/admin/applications/${id}/visa-file`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -510,7 +567,7 @@ const Details = () => {
                     const isSingleTravelerApplication = travelerDocumentCards.length === 1;
                     const rootDocs = rootDocumentsByTraveler.get(travelerNo) || [];
                     const effectiveRootDocs =
-                      travelerNo === 1 && isSingleTravelerApplication
+                      travelerNo === 1
                         ? [...rootDocs, ...legacyDocumentsFiltered]
                         : rootDocs;
                     const effectiveGdriveLink =
@@ -712,54 +769,8 @@ const Details = () => {
                 </div>
               )}
 
-              {legacyDocumentsFiltered.length > 0 && travelerDocumentCards.length !== 1 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {legacyDocumentsFiltered.map((doc, idx) => {
-                    const fileName = doc.split('/').pop();
-                    const fullUrl = `${SERVER_URL}${doc}`;
-
-                    return (
-                      <div key={idx} className="p-4 bg-surface-2 rounded-xl border border-border flex flex-col gap-4">
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="w-10 h-10 rounded-lg bg-surface-3 border border-border flex items-center justify-center flex-shrink-0">
-                            <FileText size={20} className="text-cyan" />
-                          </div>
-                          <div className="flex-1 min-w-0 flex flex-col justify-center">
-                            <p className="text-sm font-medium text-text-primary truncate" title={fileName}>
-                              {fileName}
-                            </p>
-                            <p className="text-xs text-text-muted">Document</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-auto pt-2 border-t border-border/50">
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            className="flex-1 h-9 text-xs"
-                            onClick={() => window.open(fullUrl, '_blank')}
-                          >
-                            <Eye size={14} className="mr-1.5" />
-                            Preview
-                          </Button>
-                          <Button 
-                            variant="primary" 
-                            size="sm" 
-                            className="flex-1 h-9 text-xs"
-                            onClick={() => handleDownload(doc)}
-                          >
-                            <Download size={14} className="mr-1.5" />
-                            Download
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                !hasAnyUploadedDocs && travelerDocumentCards.length === 0 && (
-                  <p className="text-sm text-text-muted text-center py-6">No documents were uploaded.</p>
-                )
+              {!hasAnyUploadedDocs && travelerDocumentCards.length === 0 && (
+                <p className="text-sm text-text-muted text-center py-6">No documents were uploaded.</p>
               )}
             </Card>
           </div>

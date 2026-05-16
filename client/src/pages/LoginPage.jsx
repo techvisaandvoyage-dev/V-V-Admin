@@ -404,13 +404,12 @@ const LoginPage = () => {
                   )}
                   {loginMethod === "firebase_email" && (
                     <p className="text-center text-[12px] text-text-muted -mt-2 mb-2 px-1">
-                      Use the email and password from your Firebase account (at least 6 characters when you signed up).
+                      Use the email and password on your account.
                     </p>
                   )}
                   {loginMethod === "otp" && (
                     <p className="text-center text-[12px] text-text-muted -mt-2 mb-2 px-1">
-                      Enter the email or mobile on your account. We&apos;ll email or text a code (SMS needs SMS91
-                      configured).
+                      Enter the email or mobile on your account. We&apos;ll email or text a code.
                     </p>
                   )}
                 </>
@@ -725,7 +724,7 @@ const LoginPage = () => {
                     {loginMethod === "password"
                       ? "Continue"
                       : loginMethod === "firebase_email"
-                        ? "Log in with Firebase"
+                        ? "Continue with Email"
                         : "Send OTP"}
                   </Button>
                 )}
@@ -780,23 +779,6 @@ const LoginPage = () => {
                   )}
                 </p>
               </div>
-
-              {loginTestOtp.length >= 4 && (
-                <div className="mb-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[14px] text-amber-700">
-                  <p className="mb-1 font-medium">Testing mode</p>
-                  <p className="mb-2">
-                    Your login OTP:{" "}
-                    <span className="font-mono font-bold tracking-widest text-amber-900">{loginTestOtp}</span>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setOtpDigits(loginTestOtp.split(""))}
-                    className="font-medium text-amber-700 underline-offset-2 hover:text-amber-900 hover:underline"
-                  >
-                    Fill OTP boxes
-                  </button>
-                </div>
-              )}
 
               <form onSubmit={handleVerifyOtp} className="space-y-6">
                 <AnimatePresence>

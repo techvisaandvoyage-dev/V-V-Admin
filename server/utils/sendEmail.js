@@ -21,6 +21,28 @@ const normalizeSmtpService = (serviceRaw) => {
   return service;
 };
 
+const createSmtpTransportOptions = (config) => {
+  if (String(config.service || '').toLowerCase() === 'brevo') {
+    return {
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    };
+  }
+
+  return {
+    service: config.service,
+    auth: {
+      user: config.user,
+      pass: config.pass,
+    },
+  };
+};
+
 const getMailConfig = async () => {
   let s = null;
   try {
@@ -30,9 +52,9 @@ const getMailConfig = async () => {
     /* settings unavailable */
   }
 
-  const envUser = String(process.env.EMAIL_USER || '').trim();
-  const envPass = String(process.env.EMAIL_PASS || '').trim();
-  const envService = String(process.env.EMAIL_SERVICE || 'gmail').trim() || 'gmail';
+  const envUser = String(process.env.BREVO_SMTP_USER || process.env.EMAIL_USER || '').trim();
+  const envPass = String(process.env.BREVO_SMTP_KEY || process.env.EMAIL_PASS || '').trim();
+  const envService = String(process.env.EMAIL_SERVICE || (process.env.BREVO_SMTP_USER ? 'brevo' : 'gmail')).trim() || 'gmail';
   const envSa = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
 
   if (s) {
@@ -41,8 +63,10 @@ const getMailConfig = async () => {
     const serviceField = String(s.smtpEmailService || process.env.EMAIL_SERVICE || 'gmail').trim() || 'gmail';
     const saRaw = String(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || s.firebaseServiceAccountJson || '').trim();
 
+    const from = String(s.smtpFromEmail || '').trim();
+
     if (user && pass) {
-      return { kind: 'smtp', user, pass, service: normalizeSmtpService(serviceField) };
+      return { kind: 'smtp', user, pass, from, service: normalizeSmtpService(serviceField) };
     }
 
     if (user && !pass && serviceField.toLowerCase() === 'gmail-oauth' && saRaw) {
@@ -58,12 +82,18 @@ const getMailConfig = async () => {
 
     /* Admin saved the send-from address but app password only lives in .env */
     if (user && !pass && envPass && serviceField.toLowerCase() !== 'gmail-oauth') {
-      return { kind: 'smtp', user, pass: envPass, service: normalizeSmtpService(serviceField) };
+      return { kind: 'smtp', user, pass: envPass, from, service: normalizeSmtpService(serviceField) };
     }
   }
 
   if (envUser && envPass) {
-    return { kind: 'smtp', user: envUser, pass: envPass, service: normalizeSmtpService(envService) };
+    return {
+      kind: 'smtp',
+      user: envUser,
+      pass: envPass,
+      from: String(process.env.EMAIL_FROM || '').trim(),
+      service: normalizeSmtpService(envService),
+    };
   }
 
   if (envUser && !envPass && envService.toLowerCase() === 'gmail-oauth' && envSa) {
@@ -82,7 +112,13 @@ const getMailConfig = async () => {
     const dbPass = String(s.smtpEmailPass || '').trim();
     const dbService = String(s.smtpEmailService || process.env.EMAIL_SERVICE || 'gmail').trim() || 'gmail';
     if (dbPass && dbService.toLowerCase() !== 'gmail-oauth') {
-      return { kind: 'smtp', user: envUser, pass: dbPass, service: normalizeSmtpService(dbService) };
+      return {
+        kind: 'smtp',
+        user: envUser,
+        pass: dbPass,
+        from: String(s.smtpFromEmail || '').trim(),
+        service: normalizeSmtpService(dbService),
+      };
     }
   }
 
@@ -91,14 +127,8 @@ const getMailConfig = async () => {
 
 const createMailTransport = async (config) => {
   if (config.kind === 'smtp') {
-    const transporter = nodemailer.createTransport({
-      service: config.service,
-      auth: {
-        user: config.user,
-        pass: config.pass,
-      },
-    });
-    return { transporter, fromAddress: config.user };
+    const transporter = nodemailer.createTransport(createSmtpTransportOptions(config));
+    return { transporter, fromAddress: config.from || config.user };
   }
 
   if (config.kind === 'gmail-oauth-delegated') {

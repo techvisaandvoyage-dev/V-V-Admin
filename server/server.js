@@ -53,11 +53,13 @@ app.use('/api/users', require('./routes/userRoutes'));
 // Public Config Routes
 const {
   getRazorpayKeyId,
+  getPaymentConfig,
   getFirebaseConfig,
   getUploadSettings,
   getDestinationPageContent,
 } = require('./controllers/settingsController');
 app.get('/api/config/razorpay', getRazorpayKeyId);
+app.get('/api/config/payment', getPaymentConfig);
 app.get('/api/config/firebase', getFirebaseConfig);
 app.get('/api/config/upload-settings', getUploadSettings);
 app.get('/api/config/destination-content', getDestinationPageContent);
