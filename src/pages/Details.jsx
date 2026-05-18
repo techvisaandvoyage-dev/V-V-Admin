@@ -449,10 +449,16 @@ const Details = () => {
             </button>
             <h1 className="text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-3">
               Application Details
-              <StatusBadge status={application.status} />
+              <StatusBadge status={
+                application.status === 'approved' || application.status === 'rejected' || application.status === 'cancelled'
+                  ? application.status
+                  : application.paymentStatus === 'completed'
+                    ? (progress.allDocumentsUploaded ? 'review' : 'doc_pending')
+                    : 'pending'
+              } />
             </h1>
             <p className="text-text-secondary text-sm mt-1">
-              Application ID: {application._id} • Submitted on {new Date(application.createdAt).toLocaleDateString()}
+              Application ID: {application.applicationId || application._id} • Submitted on {new Date(application.createdAt).toLocaleDateString()}
             </p>
           </div>
         </div>
@@ -787,6 +793,12 @@ const Details = () => {
                   <span className="font-medium text-text-primary">₹{application.fee}.00</span>
                 </li>
                 <li className="flex justify-between items-center">
+                  <span className="text-text-secondary">Application ID</span>
+                  <span className="font-mono text-xs bg-surface-3 px-2 py-1 rounded text-text-primary">
+                    {application.applicationId || application._id}
+                  </span>
+                </li>
+                <li className="flex justify-between items-center">
                   <span className="text-text-secondary">Transaction ID</span>
                   <span className="font-mono text-xs bg-surface-3 px-2 py-1 rounded text-text-primary">
                     {application.transactionId || application.paymentIntentId || "N/A"}
@@ -822,10 +834,13 @@ const Details = () => {
                   id="admin-application-status"
                   label="Application status"
                   className="h-10 min-h-[2.5rem] bg-background py-0 pr-8 leading-[2.5rem]"
-                  value={application.status || "pending"}
+                  value={
+                    application.status === 'approved' || application.status === 'rejected'
+                      ? application.status
+                      : 'review'
+                  }
                   onChange={(e) => handleUpdateStatus(e.target.value)}
                   options={[
-                    { value: "pending", label: "Pending" },
                     { value: "review", label: "Under review" },
                     { value: "approved", label: "Approved" },
                     { value: "rejected", label: "Rejected" },

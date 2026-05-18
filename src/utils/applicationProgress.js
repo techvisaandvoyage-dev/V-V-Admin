@@ -36,7 +36,9 @@ export const DOCUMENT_LABELS = {
 
 export const getApplicationProgress = (application, settings = { enableFileUpload: true, enableGDriveUpload: true }) => {
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
-  const requiredDocuments = Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
+  const requiredDocuments = Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
+    ? settings.customRequiredDocs
+    : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
     ? application.requiredDocuments
     : ["passport"];
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
