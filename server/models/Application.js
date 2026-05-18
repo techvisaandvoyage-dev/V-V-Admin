@@ -21,6 +21,13 @@ const applicationSchema = new mongoose.Schema({
   visaType: { type: String, required: true },
   fee: { type: Number, required: true },
   processingDays: { type: Number },
+  applicationId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true,
+    trim: true,
+  },
   transactionId: { type: String },
   paymentMethod: { type: String },
   paymentStatus: {

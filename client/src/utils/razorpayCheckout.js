@@ -12,7 +12,7 @@ export const loadRazorpayScript = () =>
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
-
+  
 export async function validateRazorpayCheckoutReadiness() {
   const loaded = await loadRazorpayScript();
   if (!loaded) {

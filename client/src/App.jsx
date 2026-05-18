@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Toast from "./components/ui/Toast";
 import ClientErrorBoundary from "./components/ClientErrorBoundary";
 import FirebaseGoogleRedirectHandler from "./components/auth/FirebaseGoogleRedirectHandler";
+import ExitIntentBanner from "./components/common/ExitIntentBanner";
 import AppRoutes from "./routes/AppRoutes";
 
 /** Outside Suspense so lazy routes still reset scroll on SPA navigation. */
@@ -37,6 +38,7 @@ function App() {
       <BrowserRouter>
         <ScrollToTop />
         <FirebaseGoogleRedirectHandler />
+        <ExitIntentBanner />
         {/* Global toast notification */}
         <Toast />
         <ClientErrorBoundary>
@@ -48,5 +50,4 @@ function App() {
 }
 
 export default App;
-
 

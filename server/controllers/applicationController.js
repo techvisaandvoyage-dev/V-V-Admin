@@ -1,6 +1,10 @@
 const Application = require('../models/Application');
+const Counter = require('../models/Counter');
 const Country = require('../models/Country');
 const User = require('../models/User');
+
+const APPLICATION_ID_COUNTER = 'applicationId';
+const APPLICATION_ID_START = 1045601;
 
 // Fix: Improved helper to ensure it ALWAYS returns a valid number
 const normalizeProcessingDays = (rawValue) => {
@@ -18,6 +22,58 @@ const normalizeProcessingDays = (rawValue) => {
 
   const result = Number(matches[matches.length - 1]);
   return isNaN(result) ? 0 : result; // Final check for NaN
+};
+
+const getNextApplicationId = async () => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      let counter = await Counter.findOne({ name: APPLICATION_ID_COUNTER });
+      if (!counter) {
+        try {
+          counter = await Counter.create({
+            name: APPLICATION_ID_COUNTER,
+            value: APPLICATION_ID_START,
+          });
+          return String(counter.value);
+        } catch (err) {
+          if (err.code === 11000 && attempt === 0) {
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (counter.value < APPLICATION_ID_START) {
+        counter = await Counter.findOneAndUpdate(
+          { name: APPLICATION_ID_COUNTER },
+          { $set: { value: APPLICATION_ID_START } },
+          { returnDocument: 'after', new: true }
+        );
+        return String(counter.value);
+      }
+
+      counter = await Counter.findOneAndUpdate(
+        { name: APPLICATION_ID_COUNTER },
+        { $inc: { value: 1 } },
+        { returnDocument: 'after', new: true }
+      );
+
+      return String(counter.value);
+    } catch (error) {
+      if (error?.code === 11000 && attempt === 0) continue;
+      throw error;
+    }
+  }
+
+  throw new Error('Could not generate application ID');
+};
+
+const appendApplicantNotes = (existingValue, incomingValue) => {
+  const existing = String(existingValue || '').trim();
+  const incoming = String(incomingValue || '').trim();
+  if (!incoming) return existing;
+  const combined = existing ? `${existing}\n\n${incoming}` : incoming;
+  return combined.slice(0, 8000);
 };
 
 /**
@@ -115,6 +171,7 @@ const createCheckoutDraft = async (req, res) => {
 
     const application = await Application.create({
       user: req.user.id,
+      applicationId: await getNextApplicationId(),
       firstName,
       lastName,
       email: user.email,
@@ -174,7 +231,7 @@ const updateUserApplication = async (req, res) => {
       if (!canSaveApplicantNotes) {
         return res.status(403).json({ success: false, message: 'Further information cannot be updated for this application.' });
       }
-      updates.applicantNotes = String(req.body.applicantNotes ?? '').trim().slice(0, 8000);
+      updates.applicantNotes = appendApplicantNotes(application.applicantNotes, req.body.applicantNotes);
     }
 
     if (!canEditBasic) {
@@ -413,6 +470,7 @@ const submitApplication = async (req, res) => {
 
     const application = await Application.create({
       user: req.user.id,
+      applicationId: await getNextApplicationId(),
       firstName,
       lastName,
       email,

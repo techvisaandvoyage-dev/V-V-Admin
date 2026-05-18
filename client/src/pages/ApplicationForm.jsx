@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Upload,
   AlertCircle,
+  Info,
   Briefcase,
   Banknote,
   GraduationCap,
@@ -29,7 +30,6 @@ import {
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
-import GoogleDriveLinkHint from "../components/application/GoogleDriveLinkHint";
 import { getCountryById, COUNTRIES } from "../data/countries";
 import { api, useAuthStore } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
@@ -557,10 +557,22 @@ const ApplicationForm = () => {
         travelDateTo,
         visaOption: visaForSummary,
       };
-      navigate(`/dashboard/application/${appId}/summary`, {
+      const sourceMeta = {
+        from: "application-form",
+        backTo: `/apply/${country.id}`,
+        applicationDraftId: appId,
+        preserveForm: true,
+      };
+      try {
+        sessionStorage.setItem("paymentSummarySource", JSON.stringify(sourceMeta));
+      } catch {
+        /* ignore storage errors */
+      }
+      navigate(`/destination/${country.id}/summary`, {
         state: {
           // `docsSkipped` is the same flag CountryDetails → "Upload later"
           // sets, so the summary page surfaces the consistent "skipped" banner.
+          ...sourceMeta,
           docsSkipped: !everythingUploaded,
           summaryData: {
             applicationId: appId,
@@ -662,9 +674,11 @@ const ApplicationForm = () => {
             // Replace so history is not […, destination, apply, destination]; Back on country won't return to apply.
             navigate(`/destination/${cid}`, { replace: true });
           }}
-          className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary"
+          aria-label="Back"
+          title="Back"
+          className="group inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-surface text-text-muted shadow-sm transition-all duration-200 hover:-translate-x-0.5 hover:border-cyan/40 hover:bg-cyan/5 hover:text-cyan"
         >
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={18} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
         </button>
 
         <div>
@@ -744,11 +758,24 @@ const ApplicationForm = () => {
               {uploadSettings.enableGDriveUpload && (
                 <>
                 <div>
-                  <label className="text-xs text-text-muted block mb-1.5">
-                    Google Drive link
-                    {uploadSettings.enableFileUpload
-                      ? " (optional if you upload every file below)"
-                      : " (required)"}
+                  <label className="text-xs text-text-muted mb-1.5 flex items-center gap-1.5">
+                    <span>
+                      Google Drive link
+                      {uploadSettings.enableFileUpload
+                        ? " (optional if you upload every file below)"
+                        : " (required)"}
+                    </span>
+                    <span className="group relative inline-flex">
+                      <span
+                        className="inline-flex rounded-full p-0.5 text-text-muted transition-all duration-150 hover:bg-cyan/10 hover:text-cyan"
+                        aria-label="How to share your folder guide"
+                      >
+                        <Info size={12} />
+                      </span>
+                      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
+                        How to share your folder guide: open your Google Drive folder, click Share, change access to Anyone with the link, and paste that folder link here.
+                      </span>
+                    </span>
                   </label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                     <input
@@ -773,7 +800,7 @@ const ApplicationForm = () => {
                     </Button>
                   </div>
                 </div>
-                <div>
+                {false && <div>
                   <label className="text-xs text-text-muted block mb-1.5">
                     Further information — Google Drive (optional)
                   </label>
@@ -799,7 +826,7 @@ const ApplicationForm = () => {
                       Save Link
                     </Button>
                   </div>
-                </div>
+                </div>}
               </>
               )}
 
@@ -931,11 +958,6 @@ const ApplicationForm = () => {
             </div>
           ))}
             </div>
-            {uploadSettings.enableGDriveUpload && (
-              <div className="rounded-2xl border border-border bg-surface-2 p-4 mt-4">
-                <GoogleDriveLinkHint variant="shared" />
-              </div>
-            )}
             </>
           )}
         </section>

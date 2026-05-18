@@ -135,6 +135,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/destination/:countryId/summary"
+        element={
+          <ProtectedRoute requiredRole="user">
+            <ApplicationSummaryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/dashboard/*"
         element={
           <ProtectedRoute requiredRole="user">

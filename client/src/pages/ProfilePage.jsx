@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  User, Mail, Camera, Shield, KeyRound, 
-  Save, X, Edit3, ArrowLeft, Loader2, Phone
+import {
+  User, Mail, Camera, Shield, KeyRound,
+  Save, X, Edit3, ArrowLeft, Loader2, Phone, Search, ChevronDown,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
@@ -12,32 +12,55 @@ import Button from "../components/ui/Button";
 import Input, { Select } from "../components/ui/Input";
 import { useNavigate } from "react-router-dom";
 
+const PHONE_COUNTRY_OPTIONS = [
+  { value: "+91", label: "🇮🇳 India (+91)" },
+  { value: "+1", label: "🇺🇸 United States (+1)" },
+  { value: "+44", label: "🇬🇧 United Kingdom (+44)" },
+  { value: "+61", label: "🇦🇺 Australia (+61)" },
+  { value: "+971", label: "🇦🇪 UAE (+971)" },
+  { value: "+966", label: "🇸🇦 Saudi Arabia (+966)" },
+  { value: "+65", label: "🇸🇬 Singapore (+65)" },
+  { value: "+60", label: "🇲🇾 Malaysia (+60)" },
+];
+
+const DEFAULT_PHONE_COUNTRY_CODE = "+91";
+
+const parseProfilePhone = (value) => {
+  const digits = String(value || "").replace(/\D/g, "");
+  return {
+    countryCode: DEFAULT_PHONE_COUNTRY_CODE,
+    phone: digits.slice(-10),
+  };
+};
+
 const ProfilePage = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
     navigate("/dashboard");
   };
-  
-  const { 
-    user, updateProfile, uploadProfileImage, 
-    changeUserPassword, isLoading, sessionAuthMethod 
+
+  const {
+    user, updateProfile, uploadProfileImage,
+    changeUserPassword, isLoading, sessionAuthMethod,
   } = useAuthStore();
   const { showToast } = useUIStore();
-  
-  const fileInputRef = useRef(null);
 
-  // Edit Mode State
+  const fileInputRef = useRef(null);
+  const countryCodeDropdownRef = useRef(null);
+
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [countryCodeOpen, setCountryCodeOpen] = useState(false);
+  const [countryCodeSearch, setCountryCodeSearch] = useState("");
 
-  // Form State
   const [formData, setFormData] = useState({
     name: "",
     age: "",
     gender: "",
-    email: "", // Read-only
+    email: "",
     phone: "",
+    phoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
   });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [passwordErrors, setPasswordErrors] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -77,32 +100,41 @@ const ProfilePage = () => {
     return errors;
   };
 
-  // Populate form data on mount or user change
   useEffect(() => {
     if (user) {
+      const parsedPhone = parseProfilePhone(user.phone);
       setFormData({
         name: user.name || "",
         age: user.age || "",
         gender: user.gender || "Other",
         email: user.email || "",
-        phone: user.phone || "",
+        phone: parsedPhone.phone,
+        phoneCountryCode: parsedPhone.countryCode,
       });
     }
   }, [user]);
 
-  // Handle Form Change
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!countryCodeDropdownRef.current?.contains(event.target)) {
+        setCountryCodeOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Handle Save Profile
   const handleSave = async () => {
-    // Only pass editable fields
     const updates = {
       name: formData.name,
       age: formData.age ? Number(formData.age) : undefined,
       gender: formData.gender,
-      phone: formData.phone.trim(),
+      phone: String(formData.phone || "").replace(/\D/g, "").slice(0, 10),
     };
 
     const { success } = await updateProfile(updates);
@@ -114,22 +146,21 @@ const ProfilePage = () => {
     }
   };
 
-  // Handle Cancel Edit
   const handleCancel = () => {
     setIsEditing(false);
-    // Revert form data
     if (user) {
+      const parsedPhone = parseProfilePhone(user.phone);
       setFormData({
         name: user.name || "",
         age: user.age || "",
         gender: user.gender || "Other",
         email: user.email || "",
-        phone: user.phone || "",
+        phone: parsedPhone.phone,
+        phoneCountryCode: parsedPhone.countryCode,
       });
     }
   };
 
-  // Handle Image Upload
   const handleImageClick = () => {
     fileInputRef.current?.click();
   };
@@ -150,7 +181,7 @@ const ProfilePage = () => {
     setIsUploading(true);
     const { success } = await uploadProfileImage(file);
     setIsUploading(false);
-    
+
     if (success) {
       showToast("Profile image updated!");
     } else {
@@ -181,6 +212,14 @@ const ProfilePage = () => {
 
   if (!user) return null;
 
+  const displayPhone = String(user.phone || formData.phone).replace(/\D/g, "");
+  const filteredCountryOptions = PHONE_COUNTRY_OPTIONS.filter((option) =>
+    option.label.toLowerCase().includes(countryCodeSearch.trim().toLowerCase())
+  );
+  const selectedCountryOption =
+    PHONE_COUNTRY_OPTIONS.find((option) => option.value === formData.phoneCountryCode) ||
+    PHONE_COUNTRY_OPTIONS[0];
+
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
       <Navbar />
@@ -194,9 +233,7 @@ const ProfilePage = () => {
           <ArrowLeft size={16} /> Back
         </button>
 
-        {/* Header & Avatar Section */}
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8">
-          {/* Avatar Container */}
           <div className="relative group cursor-pointer" onClick={handleImageClick}>
             <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-surface shadow-xl bg-surface-2 flex items-center justify-center relative">
               {isUploading ? (
@@ -206,24 +243,21 @@ const ProfilePage = () => {
               ) : (
                 <User size={48} className="text-text-muted" />
               )}
-              
-              {/* Overlay */}
+
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <Camera size={24} className="text-white" />
               </div>
             </div>
-            
-            {/* Hidden File Input */}
-            <input 
-              type="file" 
+
+            <input
+              type="file"
               ref={fileInputRef}
-              className="hidden" 
+              className="hidden"
               accept="image/png, image/jpeg, image/jpg"
               onChange={handleFileChange}
             />
           </div>
 
-          {/* Title Info */}
           <div className="text-center sm:text-left pt-2 sm:pt-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-1">
               {user.name}
@@ -235,19 +269,18 @@ const ProfilePage = () => {
               <p className="text-text-secondary flex items-center justify-center sm:justify-start gap-2 mt-1 text-sm">
                 <Phone size={14} className="shrink-0" />
                 <span>
-                  {String(user.phone || formData.phone).replace(/\D/g, "").length === 10
-                    ? `+91 ${String(user.phone || formData.phone).replace(/\D/g, "").slice(0, 5)} ${String(user.phone || formData.phone).replace(/\D/g, "").slice(5)}`
+                  {displayPhone.length === 10
+                    ? `+91 ${displayPhone.slice(0, 5)} ${displayPhone.slice(5)}`
                     : user.phone || formData.phone}
                 </span>
               </p>
             )}
           </div>
 
-          {/* Global Edit Action */}
           <div className="sm:ml-auto pt-2 sm:pt-4">
             {!isEditing && (
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 leftIcon={<Edit3 size={16} />}
                 onClick={() => setIsEditing(true)}
               >
@@ -258,8 +291,6 @@ const ProfilePage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Information Grid */}
           <div className="md:col-span-2 space-y-6">
             <Card>
               <h2 className="text-lg font-semibold text-text-primary border-b border-border pb-4 mb-6 flex items-center gap-2">
@@ -276,35 +307,101 @@ const ProfilePage = () => {
                   disabled={!isEditing}
                   className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
                 />
-                
+
                 <Input
                   label="Email Address"
                   name="email"
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  disabled={true} // Always disabled
+                  disabled
                   className="opacity-50 bg-surface-3 cursor-not-allowed"
                   helper="Email cannot be changed"
                 />
 
-                <Input
-                  label="Mobile number"
-                  name="phone"
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  placeholder="10-digit mobile (e.g. 9876543210)"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
-                  helper={
-                    isEditing
-                      ? "Indian mobile — 10 digits. Saved when you use OTP login too."
-                      : "Add or edit in Edit Profile. Filled automatically after phone OTP log-in."
-                  }
-                />
+                <div className="sm:col-span-2 flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-text-secondary">
+                    Mobile number
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-[200px_minmax(0,1fr)] gap-3">
+                    <div ref={countryCodeDropdownRef} className="relative">
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => {
+                          if (!isEditing) return;
+                          setCountryCodeOpen((prev) => !prev);
+                          setCountryCodeSearch("");
+                        }}
+                        className={`w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm text-text-primary transition-all duration-200 ${
+                          !isEditing ? "opacity-70 cursor-default" : "hover:border-cyan/40 focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                        }`}
+                      >
+                        <span className="truncate text-left">{selectedCountryOption.label}</span>
+                        <ChevronDown size={16} className={`shrink-0 transition-transform ${countryCodeOpen ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {countryCodeOpen && isEditing && (
+                        <div className="absolute z-20 mt-2 w-full rounded-2xl border border-border bg-surface shadow-xl overflow-hidden">
+                          <div className="relative border-b border-border p-3">
+                            <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" />
+                            <input
+                              type="text"
+                              value={countryCodeSearch}
+                              onChange={(e) => setCountryCodeSearch(e.target.value)}
+                              placeholder="Search country"
+                              autoFocus
+                              className="w-full rounded-xl border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan"
+                            />
+                          </div>
+                          <div className="max-h-64 overflow-y-auto py-2">
+                            {filteredCountryOptions.length ? (
+                              filteredCountryOptions.map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData((prev) => ({ ...prev, phoneCountryCode: option.value }));
+                                    setCountryCodeOpen(false);
+                                    setCountryCodeSearch("");
+                                  }}
+                                  className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                                    formData.phoneCountryCode === option.value
+                                      ? "bg-cyan/10 text-cyan"
+                                      : "text-text-primary hover:bg-surface-2"
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))
+                            ) : (
+                              <p className="px-4 py-3 text-sm text-text-muted">No countries found.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <Input
+                      name="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      placeholder="Enter phone number"
+                      value={formData.phone}
+                      onChange={(e) => {
+                        const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setFormData((prev) => ({ ...prev, phone: digitsOnly }));
+                      }}
+                      disabled={!isEditing}
+                      className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
+                    />
+                  </div>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {isEditing
+                      ? "Choose a country code and enter a 10-digit mobile number."
+                      : "Add or edit in Edit Profile. Filled automatically after phone OTP log-in."}
+                  </p>
+                </div>
 
                 <Input
                   label="Age"
@@ -326,32 +423,30 @@ const ProfilePage = () => {
                   options={[
                     { value: "Male", label: "Male" },
                     { value: "Female", label: "Female" },
-                    { value: "Other", label: "Other" }
+                    { value: "Other", label: "Other" },
                   ]}
                   className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
                 />
-
               </div>
 
-              {/* Action Buttons */}
               <AnimatePresence>
                 {isEditing && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     className="flex justify-end gap-3 mt-6 pt-6 border-t border-border overflow-hidden"
                   >
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       leftIcon={<X size={16} />}
                       onClick={handleCancel}
                       disabled={isLoading}
                     >
                       Cancel
                     </Button>
-                    <Button 
-                      variant="primary" 
+                    <Button
+                      variant="primary"
                       leftIcon={<Save size={16} />}
                       onClick={handleSave}
                       loading={isLoading}
@@ -364,7 +459,6 @@ const ProfilePage = () => {
             </Card>
           </div>
 
-          {/* Security Section Sidebar */}
           {sessionAuthMethod !== "google" && (
             <div className="space-y-6">
               <Card>
@@ -372,58 +466,56 @@ const ProfilePage = () => {
                   <Shield size={18} className="text-amber-400" />
                   Security
                 </h3>
-                
+
                 <div className="space-y-4">
                   <p className="text-xs text-text-secondary leading-relaxed">
                     To update your password, please provide your current password and choose a strong new one.
                   </p>
 
-                  <Input 
-                    label="Current Password" 
-                    type="password" 
+                  <Input
+                    label="Current Password"
+                    type="password"
                     name="currentPassword"
                     value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
-                    placeholder="••••••••"
+                    onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                    placeholder="........"
                     error={passwordErrors.currentPassword}
                   />
 
-                  <Input 
-                    label="New Password" 
-                    type="password" 
+                  <Input
+                    label="New Password"
+                    type="password"
                     name="newPassword"
                     value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
-                    placeholder="••••••••"
+                    onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                    placeholder="........"
                     helper="Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char"
                     error={passwordErrors.newPassword}
                   />
 
-                  <Input 
-                    label="Confirm New Password" 
-                    type="password" 
+                  <Input
+                    label="Confirm New Password"
+                    type="password"
                     name="confirmPassword"
                     value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm(p => ({ ...p, confirmPassword: e.target.value }))}
-                    placeholder="••••••••"
+                    onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                    placeholder="........"
                     error={passwordErrors.confirmPassword}
                   />
 
-                  <Button 
-                    variant="primary" 
-                    fullWidth 
+                  <Button
+                    variant="primary"
+                    fullWidth
                     leftIcon={<KeyRound size={16} />}
                     onClick={handleChangePassword}
                     loading={isChangingPassword}
                   >
                     Update Password
                   </Button>
-
                 </div>
               </Card>
             </div>
           )}
-
         </div>
       </main>
     </div>

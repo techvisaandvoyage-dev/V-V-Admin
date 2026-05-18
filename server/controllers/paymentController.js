@@ -137,6 +137,7 @@ const verifyPayment = async (req, res) => {
     application.transactionId = razorpay_payment_id;
     application.paymentMethod = 'Razorpay';
     application.paymentStatus = 'completed';
+    application.status = 'review';
     const orderLine = `Razorpay order: ${razorpay_order_id}`;
     appendApplicationNote(application, orderLine);
     appendApplicationNote(application, `Payment completed on ${new Date().toISOString()}`);
@@ -160,7 +161,7 @@ const verifyPayment = async (req, res) => {
  */
 const getMyTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.find({ user: req.user.id }).populate('application', 'countryName flagEmoji visaType').sort({ createdAt: -1 });
+    const transactions = await Transaction.find({ user: req.user.id }).populate('application', 'applicationId countryName flagEmoji visaType').sort({ createdAt: -1 });
     res.json({ success: true, transactions });
   } catch (error) {
     console.error('Error fetching user transactions:', error);
@@ -177,7 +178,7 @@ const getAllTransactions = async (req, res) => {
   try {
     const transactions = await Transaction.find()
       .populate('user', 'name email')
-      .populate('application', 'countryName flagEmoji visaType firstName lastName transactionId paymentStatus')
+      .populate('application', 'applicationId countryName flagEmoji visaType firstName lastName transactionId paymentStatus')
       .sort({ createdAt: -1 });
     res.json({ success: true, transactions });
   } catch (error) {

@@ -8,6 +8,18 @@ const {
 const FIREBASE_ADMIN_APP_NAME = 'visa-voyage-admin';
 let firebaseAdminConfigSignature = '';
 
+const normalizeStorageBucket = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  return raw
+    .replace(/^gs:\/\//i, '')
+    .replace(/^https?:\/\/storage\.googleapis\.com\//i, '')
+    .replace(/^https?:\/\/firebasestorage\.googleapis\.com\/v0\/b\//i, '')
+    .replace(/\/.*$/, '')
+    .trim();
+};
+
 /**
  * Initialize and return the Firebase Admin app.
  * Re-initializes if the configuration (projectId, storageBucket, or service account) changes.
@@ -15,7 +27,9 @@ let firebaseAdminConfigSignature = '';
 const getFirebaseAdminApp = async () => {
   const settings = await Settings.findOne({ singleton: 'global' }).lean();
   const projectId = String(settings?.firebaseProjectId || process.env.FIREBASE_PROJECT_ID || '').trim();
-  const storageBucket = String(settings?.firebaseStorageBucket || process.env.FIREBASE_STORAGE_BUCKET || '').trim();
+  const storageBucket = normalizeStorageBucket(
+    settings?.firebaseStorageBucket || process.env.FIREBASE_STORAGE_BUCKET || ''
+  );
   
   const { parsed: parsedAccount, rawUsed } = loadServiceAccountSources({
     rawFromDb: settings?.firebaseServiceAccountJson,

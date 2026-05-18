@@ -113,7 +113,29 @@ const uploadToFirebase = async (buffer, filename, mimetype, options = {}) => {
 
     return `https://storage.googleapis.com/${bucket.name}/documents/${filename}`;
   } catch (error) {
-    console.error('Firebase Upload Error:', error);
+    const bucketName = (() => {
+      try {
+        const app = require('firebase-admin').apps.find((item) => item.name === 'visa-voyage-admin');
+        return app?.options?.storageBucket || '';
+      } catch {
+        return '';
+      }
+    })();
+
+    const isMissingBucket =
+      error?.code === 404 ||
+      error?.status === 404 ||
+      String(error?.message || '').toLowerCase().includes('bucket does not exist');
+
+    if (isMissingBucket) {
+      console.error(
+        `Firebase Upload Error: Storage bucket "${bucketName || 'unknown'}" was not found. ` +
+        'Update Admin -> Settings -> Firebase -> Storage Bucket or FIREBASE_STORAGE_BUCKET. ' +
+        'Mongo settings override .env when present.'
+      );
+    } else {
+      console.error('Firebase Upload Error:', error);
+    }
     if (allowLocalFallback) {
       console.warn(`Falling back to local document storage for ${filename}`);
       return saveBufferToLocalDocuments(buffer, filename);

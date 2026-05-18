@@ -53,7 +53,7 @@ import {
 } from "../utils/contactVerificationGate";
 import { loadTravelDraft, saveTravelDraft } from "../utils/travelDraftStorage";
 import { getLocalDateYmd } from "../utils/dateInput";
-import { matchesCountryRouteId } from "../utils/countryRouting";
+import { matchesCountryRouteId, getCountryRouteId } from "../utils/countryRouting";
 
 const ease = [0.16, 1, 0.3, 1];
 const fadeUp = {
@@ -668,6 +668,45 @@ const CountryDetails = () => {
   }, [showTravelDetails, travelers]);
 
   useEffect(() => {
+    const handleGlobalClickToFocusName = (event) => {
+      if (!showTravelDetails) return;
+
+      const target = event.target;
+      if (!target) return;
+
+      const isInteractive = (
+        target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "BUTTON" ||
+        target.closest("button") ||
+        target.closest("a") ||
+        target.closest(".react-datepicker") ||
+        target.closest(".date-picker-container")
+      );
+
+      if (isInteractive) return;
+
+      const firstEmptyIndex = travelers.findIndex((traveler) => !String(traveler?.name || "").trim());
+      const targetIndex = firstEmptyIndex >= 0 ? firstEmptyIndex : 0;
+      const targetInput = travelerNameInputRefs.current[targetIndex];
+      
+      if (targetInput) {
+        // Use a short timeout so we don't steal focus from an ongoing browser native action
+        setTimeout(() => {
+          if (document.activeElement?.tagName !== "INPUT") {
+            targetInput.focus({ preventScroll: true });
+          }
+        }, 10);
+      }
+    };
+
+    window.addEventListener("click", handleGlobalClickToFocusName);
+    return () => window.removeEventListener("click", handleGlobalClickToFocusName);
+  }, [showTravelDetails, travelers]);
+
+  useEffect(() => {
     if (showTravelDetails) {
       setShowStickyStartCta(false);
       startApplicationCardSeenRef.current = false;
@@ -746,6 +785,27 @@ const CountryDetails = () => {
     }
   }, [countryId]);
 
+  useEffect(() => {
+    if (location.state?.restoreTravelDetails) {
+      const restore = location.state.restoreTravelDetails;
+      if (restore.travelDateFrom) setTravelDateFrom(restore.travelDateFrom);
+      if (restore.travelDateTo) setTravelDateTo(restore.travelDateTo);
+      if (restore.visaOption) setVisaOption(restore.visaOption);
+      if (Array.isArray(restore.travelers)) {
+        setTravelers(restore.travelers.map((t) => ({ name: String(t.name || "") })));
+      }
+      setShowTravelDetails(true);
+      window.setTimeout(() => {
+        const node = document.getElementById("travel-details");
+        if (node) {
+          const stickyOffset = 150;
+          const targetTop = window.scrollY + node.getBoundingClientRect().top - stickyOffset;
+          window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+        }
+      }, 180);
+    }
+  }, [location.state]);
+
   // Read `?postLoginAction=...` once on mount, then strip it from the URL so
   // a manual refresh doesn't keep re-triggering the resumed flow. The actual
   // dispatch happens in the next effect once everything is hydrated.
@@ -817,7 +877,7 @@ const CountryDetails = () => {
   const handleBack = () => {
     if (showTravelDetails) {
       setShowTravelDetails(false);
-      saveTravelDraft(country.id, {
+      saveTravelDraft(countryId, {
         travelDateFrom,
         travelDateTo,
         visaOption,
@@ -1025,13 +1085,17 @@ const CountryDetails = () => {
    * redirect can swallow the state.
    */
   const persistCurrentTravelDraft = () => {
-    saveTravelDraft(country.id, {
+    saveTravelDraft(countryId, {
       travelDateFrom,
       travelDateTo,
       visaOption,
       travelers: travelers.map((t) => ({ name: String(t.name || "") })),
       showTravelDetails: true,
     });
+    localStorage.setItem("lastActiveCountryId", countryId);
+    if (country?.name) {
+      localStorage.setItem("lastActiveCountryName", country.name);
+    }
   };
 
   /** Build the `redirect=` value used when a guest needs to log in mid-flow. */
@@ -1068,7 +1132,7 @@ const CountryDetails = () => {
   };
 
   const handleUploadDocsLater = async () => {
-    if (!validateTravelDetails("Upload documents later")) return;
+    if (!validateTravelDetails("Proceed to Summary")) return;
     const travelerNames = getTravelerNames();
 
     const token = localStorage.getItem("token");
@@ -1086,10 +1150,23 @@ const CountryDetails = () => {
         showToast("Could not create your application draft.", "error");
         return;
       }
+      const routeId = getCountryRouteId(country);
+      const sourceMeta = {
+        from: "travel-details",
+        backTo: `/destination/${routeId}`,
+        applicationDraftId: appId,
+        preserveForm: true,
+      };
+      try {
+        sessionStorage.setItem("paymentSummarySource", JSON.stringify(sourceMeta));
+      } catch {
+        /* ignore storage errors */
+      }
       // Travel draft is already saved by `persistCurrentTravelDraft()` above —
       // just navigate forward.
-      navigate(`/dashboard/application/${appId}/summary`, {
+      navigate(`/destination/${routeId}/summary`, {
         state: {
+          ...sourceMeta,
           docsSkipped: true,
           summaryData: {
             applicationId: appId,
@@ -1104,8 +1181,15 @@ const CountryDetails = () => {
             travelDateTo: travelDateTo || null,
           },
           applicationPrev: {
-            path: `/destination/${country.id}`,
-            state: {},
+            path: `/destination/${routeId}`,
+            state: {
+              restoreTravelDetails: {
+                travelDateFrom: travelDateFrom || null,
+                travelDateTo: travelDateTo || null,
+                visaOption: visaOption || country.visaType || "e-Visa",
+                travelers: travelers.map((t) => ({ name: String(t.name || "") })),
+              },
+            },
           },
         },
       });
@@ -1796,7 +1880,8 @@ const CountryDetails = () => {
         </motion.div>
       )}
 
-      <div className="sticky top-0 z-40 bg-background/100 border-b border-border/50 shadow-sm hidden sm:block">
+      {!showTravelDetails && (
+        <div className="sticky top-0 z-40 bg-background/100 border-b border-border/50 shadow-sm hidden sm:block">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex min-h-18 items-center text-center justify-between gap-4">
             <ul className="flex min-w-0 flex-1 items-center justify-center gap-8 overflow-x-auto no-scrollbar">
@@ -1846,6 +1931,7 @@ const CountryDetails = () => {
           </div>
         </div>
       </div>
+      )}
 
       <main className="flex-1 w-full px-3 sm:px-6 py-8 sm:py-12">
         {showTravelDetails && (
@@ -1971,7 +2057,17 @@ const CountryDetails = () => {
                     endDate={travelDateTo}
                     minDate={minDepartureYmd}
                     open={calendarOpen}
-                    onOpenChange={setCalendarOpen}
+                    onOpenChange={(isOpen) => {
+                      setCalendarOpen(isOpen);
+                      if (!isOpen) {
+                        setTimeout(() => {
+                          const firstEmptyIndex = travelers.findIndex((t) => !String(t?.name || "").trim());
+                          const targetIndex = firstEmptyIndex >= 0 ? firstEmptyIndex : 0;
+                          const targetInput = travelerNameInputRefs.current[targetIndex];
+                          if (targetInput) targetInput.focus({ preventScroll: true });
+                        }, 50);
+                      }
+                    }}
                     invalid={dateWarning}
                     onChange={({ startDate, endDate }) => {
                       setTravelDateFrom(startDate);
@@ -2078,30 +2174,18 @@ const CountryDetails = () => {
                   ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    variant="secondary"
-                    size="lg"
-                    fullWidth
-                    className="sm:flex-1"
-                    onClick={handleUploadDocsNow}
-                  >
-                    Upload documents now
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    className="sm:flex-1"
-                    onClick={handleUploadDocsLater}
-                    loading={draftCreating}
-                    disabled={draftCreating}
-                  >
-                    Upload documents later
-                  </Button>
-                </div>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onClick={handleUploadDocsLater}
+                  loading={draftCreating}
+                  disabled={draftCreating}
+                >
+                  Proceed to Summary
+                </Button>
                 <p className="text-xs text-text-muted">
-                  Required documents are uploaded on the next page after these traveler details are saved.
+                  You can continue to payment now and upload required documents later from your application dashboard.
                 </p>
               </motion.section>
             ) : null}

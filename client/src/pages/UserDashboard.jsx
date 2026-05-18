@@ -3,9 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PlusCircle, Clock, CheckCircle, FileText, ChevronRight, Calendar, Search, Filter,
   TrendingUp, Globe, ArrowLeft, User, Mail, Smartphone, Download,
-  CreditCard, Image as ImageIcon, ShieldCheck, Plane, Building2,
-  Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt,
-  Home, Car, MapPin, ScrollText, HeartHandshake,
 } from "lucide-react";
 import { StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
@@ -15,7 +12,7 @@ import Sidebar from "../components/layout/Sidebar";
 import { api, useAuthStore, SERVER_URL } from "../store/authStore";
 import { useDataStore } from "../store/dataStore";
 import { useUIStore } from "../store/uiStore";
-import { getApplicationProgress, DOCUMENT_LABELS } from "../utils/applicationProgress";
+import { getApplicationProgress } from "../utils/applicationProgress";
 import ContactVerificationModal from "../components/account/ContactVerificationModal";
 import { needsPhoneContactGate, needsEmailContactGate } from "../utils/contactVerificationGate";
 
@@ -24,49 +21,26 @@ import { needsPhoneContactGate, needsEmailContactGate } from "../utils/contactVe
  * tiny "missing documents" icon chips on each booking card. Unknown keys
  * (custom admin-added docs) fall back to a generic FileText icon.
  */
-const DOCUMENT_ICONS = {
-  passport: FileText,
-  oldPassport: FileText,
-  photo: ImageIcon,
-  idCard: CreditCard,
-  panCard: CreditCard,
-  drivingLicense: Car,
-  birthCertificate: FileText,
-  dobCertificate: FileText,
-  marriageCertificate: HeartHandshake,
-  educationCertificate: GraduationCap,
-  employmentLetter: Briefcase,
-  offerLetter: Briefcase,
-  salarySlip: Receipt,
-  form16: Receipt,
-  taxReturn: Receipt,
-  bankStatement: Banknote,
-  bankCertificate: Banknote,
-  propertyDocuments: Home,
-  travelInsurance: ShieldCheck,
-  healthInsurance: ShieldCheck,
-  flightTicket: Plane,
-  hotelBooking: Building2,
-  itinerary: MapPin,
-  coverLetter: FileText,
-  invitationLetter: FileText,
-  sponsorLetter: FileText,
-  policeClearance: ScrollText,
-  noObjectionCertificate: ScrollText,
-  yellowFever: Stethoscope,
-  covidVaccination: Stethoscope,
-  visaApplicationForm: Stamp,
-  businessLicense: Briefcase,
-  companyRegistration: Briefcase,
-};
-const getDocumentIcon = (key) => DOCUMENT_ICONS[key] || FileText;
-
 const fmtDate = (iso) => {
   if (!iso) return "N/A";
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? "N/A"
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const resolveApplicationStatus = (booking, progress) => {
+  if (!booking || typeof booking !== "object") return "pending";
+  if (booking.status === "approved" || booking.status === "rejected" || booking.status === "cancelled") {
+    return booking.status;
+  }
+  if (booking.status === "review") {
+    return "review";
+  }
+  if (booking.paymentStatus === "completed") {
+    return progress.allDocumentsUploaded ? "review" : "doc_pending";
+  }
+  return "pending";
 };
 
 const UserDashboard = () => {
@@ -152,16 +126,25 @@ const UserDashboard = () => {
   const filteredBookings = safeBookings.filter((booking) => {
     const q = searchQuery.toLowerCase();
     const countryName = String(booking.countryName || "").toLowerCase();
-    const matchSearch = countryName.includes(q);
-    const matchStatus = statusFilter === "all" || booking.status === statusFilter;
+    const professionalId = String(booking.applicationId || "").toLowerCase();
+    const matchSearch = countryName.includes(q) || professionalId.includes(q);
+    const progress = getApplicationProgress(booking, uploadSettings);
+    const resolvedStatus = resolveApplicationStatus(booking, progress);
+    const matchStatus = statusFilter === "all" || resolvedStatus === statusFilter;
     return matchSearch && matchStatus;
   });
 
   const stats = {
     total: safeBookings.length,
     approved: safeBookings.filter((b) => b.status === "approved").length,
-    pending: safeBookings.filter((b) => b.status === "pending" || b.paymentStatus === "pending_payment").length,
-    review: safeBookings.filter((b) => b.status === "review").length,
+    pending: safeBookings.filter((b) => {
+      const progress = getApplicationProgress(b, uploadSettings);
+      return resolveApplicationStatus(b, progress) === "pending" || resolveApplicationStatus(b, progress) === "doc_pending";
+    }).length,
+    review: safeBookings.filter((b) => {
+      const progress = getApplicationProgress(b, uploadSettings);
+      return resolveApplicationStatus(b, progress) === "review";
+    }).length,
   };
 
   if (loading) {
@@ -354,9 +337,10 @@ const UserDashboard = () => {
                     id="status-filter"
                   >
                     <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
+                    <option value="pending">Pending Payment</option>
+                    <option value="doc_pending">Doc Pending</option>
                     <option value="review">Under Review</option>
+                    <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
                   </select>
                 </div>
@@ -379,7 +363,7 @@ const UserDashboard = () => {
                 ) : (
                   filteredBookings.map((booking, i) => {
                     const progress = getApplicationProgress(booking, uploadSettings);
-                    const nextPendingTraveler = progress.missingByTraveler.find((item) => item.missingLabels.length);
+                    const resolvedStatus = resolveApplicationStatus(booking, progress);
                     const paymentLabel =
                       booking.paymentStatus === "completed"
                         ? "Paid"
@@ -422,33 +406,16 @@ const UserDashboard = () => {
                               <h3 className="font-semibold text-text-primary truncate">
                                 {booking.countryName || "Unknown Country"}
                               </h3>
-                              <StatusBadge status={booking.status || "pending"} />
+                              <StatusBadge status={resolvedStatus} />
                               <span className={`hidden sm:inline-block text-2xs font-medium rounded-full px-2 py-0.5 border ${paymentClass}`}>
                                 {paymentLabel}
                               </span>
-                              {booking.detailsPending && (
-                                <span className="hidden sm:inline-block text-2xs font-medium text-amber-400 border border-amber-500/30 rounded-full px-2 py-0.5">
-                                  Complete details
-                                </span>
-                              )}
                             </div>
+                            <p className="text-[11px] font-mono text-text-muted mb-1">
+                              Application ID: {booking.applicationId || booking._id || booking.id}
+                            </p>
                             <p className="text-xs text-text-muted">{booking.visaType || "Visa Application"}</p>
                             
-                            {/* Simplified pending message for mobile */}
-                            <div className="sm:hidden mt-1 space-y-0.5">
-                              {!progress.allDocumentsUploaded && (
-                                <p className="text-[10px] font-medium text-amber-500">
-                                  {progress.totalMissingDocuments} document{progress.totalMissingDocuments === 1 ? "" : "s"} missing
-                                </p>
-                              )}
-                              {booking.detailsPending && (
-                                <p className="text-[10px] font-medium text-amber-500">
-                                  Complete details required
-                                </p>
-                              )}
-                            </div>
-                            
-                            {/* Detailed info hidden on mobile for a cleaner look */}
                             <div className="hidden sm:block">
                               <div className="flex items-center gap-3 mt-1.5">
                                 <span className="flex items-center gap-1 text-xs text-text-muted">
@@ -460,47 +427,10 @@ const UserDashboard = () => {
                                 </span>
                               </div>
                               <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <span className={`text-xs font-medium ${progress.allDocumentsUploaded ? "text-emerald-400" : "text-amber-400"}`}>
-                                  {progress.allDocumentsUploaded
-                                    ? "All required documents uploaded"
-                                    : `${progress.totalMissingDocuments} document${progress.totalMissingDocuments === 1 ? "" : "s"} missing`}
-                                </span>
                                 {booking.visaFilePath && (
                                   <span className="text-xs text-emerald-400">
                                     Visa file received
                                   </span>
-                                )}
-                                {!progress.allDocumentsUploaded && nextPendingTraveler && (
-                                  <div className="flex items-center gap-2 text-xs text-text-muted min-w-0">
-                                    <span className="shrink-0">{nextPendingTraveler.travelerName}:</span>
-                                    <div className="flex items-center gap-1 flex-wrap">
-                                      {nextPendingTraveler.missingKeys?.length ? (
-                                        nextPendingTraveler.missingKeys.slice(0, 5).map((key) => {
-                                          const Icon = getDocumentIcon(key);
-                                          const label = DOCUMENT_LABELS[key] || key;
-                                          return (
-                                            <span
-                                              key={key}
-                                              title={label}
-                                              aria-label={label}
-                                              className="h-5 w-5 inline-flex items-center justify-center rounded-md bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20"
-                                            >
-                                              <Icon size={11} strokeWidth={2} />
-                                            </span>
-                                          );
-                                        })
-                                      ) : (
-                                        <span className="truncate">
-                                          {nextPendingTraveler.missingLabels.slice(0, 2).join(", ")}
-                                        </span>
-                                      )}
-                                      {nextPendingTraveler.missingKeys?.length > 5 && (
-                                        <span className="text-[11px] text-amber-400">
-                                          +{nextPendingTraveler.missingKeys.length - 5}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
                                 )}
                               </div>
                             </div>

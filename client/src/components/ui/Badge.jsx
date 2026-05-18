@@ -9,7 +9,7 @@
  * @param {boolean} dot  — show animated status dot
  * @param {"sm"|"md"} size
  */
-const Badge = ({ children, variant = "pending", dot = false, size = "md", className = "" }) => {
+const Badge = ({ children, variant = "pending", dot = false, size = "md", className = "", tooltip = "" }) => {
   // ── Variant color map ────────────────────────────────────
   const variants = {
     // Booking statuses
@@ -20,6 +20,7 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
     submitted: "bg-purple-500/15 text-purple-400 border-purple-500/30",
     cancelled: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
     pending_payment: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+    doc_pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
 
     // Difficulty levels
     easy:      "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -41,6 +42,7 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
     submitted: "bg-purple-400",
     cancelled: "bg-zinc-400",
     pending_payment: "bg-orange-400",
+    doc_pending: "bg-amber-400",
     easy:      "bg-emerald-400",
     moderate:  "bg-amber-400",
     hard:      "bg-red-400",
@@ -55,24 +57,31 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
   };
 
   return (
-    <span
-      className={`
-        inline-flex items-center gap-1.5 rounded-full font-medium border
-        ${variants[variant] || variants.default}
-        ${sizes[size]}
-        ${className}
-      `}
-    >
-      {/* Optional animated dot */}
-      {dot && (
-        <span
-          className={`
-            w-1.5 h-1.5 rounded-full flex-shrink-0 status-dot-pulse
-            ${dotColors[variant] || "bg-text-muted"}
-          `}
-        />
-      )}
-      {children}
+    <span className={`relative inline-flex ${tooltip ? "group cursor-help" : ""}`}>
+      <span
+        className={`
+          inline-flex items-center gap-1.5 rounded-full font-medium border
+          ${variants[variant] || variants.default}
+          ${sizes[size]}
+          ${className}
+        `}
+      >
+        {/* Optional animated dot */}
+        {dot && (
+          <span
+            className={`
+              w-1.5 h-1.5 rounded-full flex-shrink-0 status-dot-pulse
+              ${dotColors[variant] || "bg-text-muted"}
+            `}
+          />
+        )}
+        {children}
+      </span>
+      {tooltip ? (
+        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
+          {tooltip}
+        </span>
+      ) : null}
     </span>
   );
 };
@@ -87,9 +96,14 @@ export const StatusBadge = ({ status, ...props }) => {
     submitted: "Submitted",
     cancelled: "Cancelled",
     pending_payment: "Pending Payment",
+    doc_pending: "Doc Pending",
+  };
+  const tooltips = {
+    pending: "Your application is saved and waiting for the next step from your side or our team.",
+    review: "Our team is checking your documents and details. We will update the status after review.",
   };
   return (
-    <Badge variant={status} dot {...props}>
+    <Badge variant={status} dot tooltip={tooltips[status] || ""} {...props}>
       {labels[status] || status}
     </Badge>
   );

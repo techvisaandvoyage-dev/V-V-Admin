@@ -34,9 +34,19 @@ export const DOCUMENT_LABELS = {
   companyRegistration: "Company Registration Certificate",
 };
 
+const hasStoredDocument = (docs, key) => {
+  if (!docs || !key) return false;
+  if (docs instanceof Map) return Boolean(docs.get(key));
+  if (typeof docs.get === "function") return Boolean(docs.get(key));
+  if (typeof docs === "object") return Boolean(docs[key]);
+  return false;
+};
+
 export const getApplicationProgress = (application, settings = { enableFileUpload: true, enableGDriveUpload: true }) => {
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
-  const requiredDocuments = Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
+  const requiredDocuments = Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
+    ? settings.customRequiredDocs
+    : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
     ? application.requiredDocuments
     : ["passport"];
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
@@ -58,7 +68,7 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     const hasDriveLink = hasTravelerGdrive || hasLegacyRootGdrive;
 
     const docs = uploaded?.documents || {};
-    const missingKeys = requiredDocuments.filter((key) => !docs[key]);
+    const missingKeys = requiredDocuments.filter((key) => !hasStoredDocument(docs, key));
     const hasAllFiles = missingKeys.length === 0;
 
     // Logic: If both are enabled, we require files for "complete" status.

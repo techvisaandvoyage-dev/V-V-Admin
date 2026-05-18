@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle, CreditCard, FileText, Loader2, ShieldCheck, Info } from "lucide-react";
+import { ArrowLeft, CheckCircle, CreditCard, Loader2, ShieldCheck, Info } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import { api, useAuthStore } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
 import { openRazorpayForApplication, validateRazorpayCheckoutReadiness } from "../utils/razorpayCheckout";
+import { slugifyCountryRoute } from "../utils/countryRouting";
+import { getLocalDateYmd } from "../utils/dateInput";
 
 const normalizeProcessingDays = (value) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -22,9 +24,18 @@ const GST_RATE = 0.18;
 const TERMS_CMS_SLUG = "terms-and-conditions";
 
 const ApplicationSummaryPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const { id: paramId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  const id = paramId 
+    || location.state?.summaryData?.applicationId 
+    || (() => {
+         try {
+           const raw = sessionStorage.getItem("paymentSummarySource");
+           return raw ? JSON.parse(raw).applicationDraftId : null;
+         } catch { return null; }
+       })();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
 
@@ -166,72 +177,138 @@ const ApplicationSummaryPage = () => {
     return entries.slice(0, travelerCount).every(entryHasUpload);
   }, [docsSkipped, summaryData, application?.travellerDocuments, travelerCount]);
 
-  const hasDriveLink = useMemo(() => {
-    const entries = Array.isArray(application?.travellerDocuments)
-      ? application.travellerDocuments
-      : [];
-    return entries.some(entry => typeof entry.gdriveLink === "string" && entry.gdriveLink.trim().length > 0);
-  }, [application?.travellerDocuments]);
-  const UPLOAD_SECTION_HASH = "#document-upload-section";
-
-  const openDocumentUploadSection = () => {
-    if (!summaryData?.countryId && !id) {
-      navigate("/dashboard");
-      return;
-    }
-    if (id) {
-      navigate(`/dashboard/application/${id}${UPLOAD_SECTION_HASH}`);
-      return;
-    }
-    navigate(`/apply/${summaryData.countryId}${UPLOAD_SECTION_HASH}`, {
-      state: {
-        travelerNames: summaryData.travelerNames,
-        travellerCount: summaryData.travellerCount,
-        visaOption: summaryData.visaType,
-        travelDateFrom: summaryData.travelDateFrom ?? null,
-        travelDateTo: summaryData.travelDateTo ?? null,
-      },
-    });
-  };
-
   const handleBack = () => {
-    const prev = location.state?.applicationPrev;
-    if (prev?.path) {
-      navigate(prev.path, { state: prev.state ?? {} });
-      return;
+    const formatDateToYmd = (val) => {
+      if (!val) return null;
+      const str = String(val);
+      if (str.includes("T")) return str.slice(0, 10);
+      return str;
+    };
+
+    const restoreTravelDetails = {
+      travelDateFrom: formatDateToYmd(summaryData?.travelDateFrom ?? application?.travelDate),
+      travelDateTo: formatDateToYmd(summaryData?.travelDateTo ?? application?.returnDate),
+      visaOption: summaryData?.visaType || application?.visaType,
+      travelers: (summaryData?.travelerNames || application?.travelerNames || []).map((name) => ({
+        name: String(name || ""),
+      })),
+    };
+
+    const savedCountryId = localStorage.getItem("lastActiveCountryId");
+    const savedCountryName = localStorage.getItem("lastActiveCountryName");
+
+    let exactBackPath = location.state?.backTo || location.state?.applicationPrev?.path;
+    if (!exactBackPath) {
+      try {
+        const rawSource = sessionStorage.getItem("paymentSummarySource");
+        if (rawSource) {
+          const source = JSON.parse(rawSource);
+          if (source?.backTo) exactBackPath = source.backTo;
+        }
+      } catch (e) {
+        /* ignore */
+      }
     }
-    /* "Upload documents later" → summary; Back should reopen travel details on country page */
-    if (docsSkipped && summaryData?.countryId) {
-      navigate(`/destination/${encodeURIComponent(summaryData.countryId)}`);
-      return;
-    }
-    /* Upload docs completed then summary; Back → document upload page */
-    if (
-      summaryData?.countryId &&
-      summaryData.docsUploaded === true &&
-      id
-    ) {
-      navigate(`/apply/${encodeURIComponent(summaryData.countryId)}`, {
-        state: {
-          travelerNames: summaryData.travelerNames,
-          travellerCount: summaryData.travellerCount,
-          travelDateFrom: summaryData.travelDateFrom ?? null,
-          travelDateTo: summaryData.travelDateTo ?? null,
-          visaOption: summaryData.visaType,
-        },
+
+    const countryRoute = slugifyCountryRoute(
+      summaryData?.countryName ||
+      application?.countryName ||
+      savedCountryName ||
+      ""
+    );
+
+    if (exactBackPath || countryRoute) {
+      const draftCountryKey = exactBackPath ? exactBackPath.split('/').pop() : countryRoute;
+      try {
+        const draftKey = `travelDraft_${draftCountryKey}`;
+        const existingRaw = localStorage.getItem(draftKey);
+        const existingDraft = existingRaw ? JSON.parse(existingRaw) : null;
+
+        const hasNewData =
+          restoreTravelDetails.travelers &&
+          restoreTravelDetails.travelers.length > 0 &&
+          restoreTravelDetails.travelers.some((t) => String(t.name || "").trim().length > 0);
+
+        if (hasNewData || !existingDraft) {
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({
+              travelDateFrom: restoreTravelDetails.travelDateFrom,
+              travelDateTo: restoreTravelDetails.travelDateTo,
+              visaOption: restoreTravelDetails.visaOption,
+              travelers: restoreTravelDetails.travelers,
+              showTravelDetails: true,
+            })
+          );
+        } else if (existingDraft) {
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({
+              ...existingDraft,
+              showTravelDetails: true,
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Failed to write fallback travel draft", err);
+      }
+
+      navigate(exactBackPath || `/destination/${encodeURIComponent(countryRoute)}`, {
+        state: { restoreTravelDetails },
+        replace: false,
       });
       return;
     }
-    if (id) {
-      navigate(`/dashboard/application/${encodeURIComponent(id)}`);
+
+    const countryId =
+      summaryData?.countryId ||
+      application?.countryId ||
+      savedCountryId;
+
+    if (countryId) {
+      try {
+        const draftKey = `travelDraft_${countryId}`;
+        const existingRaw = localStorage.getItem(draftKey);
+        const existingDraft = existingRaw ? JSON.parse(existingRaw) : null;
+
+        const hasNewData =
+          restoreTravelDetails.travelers &&
+          restoreTravelDetails.travelers.length > 0 &&
+          restoreTravelDetails.travelers.some((t) => String(t.name || "").trim().length > 0);
+
+        if (hasNewData || !existingDraft) {
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({
+              travelDateFrom: restoreTravelDetails.travelDateFrom,
+              travelDateTo: restoreTravelDetails.travelDateTo,
+              visaOption: restoreTravelDetails.visaOption,
+              travelers: restoreTravelDetails.travelers,
+              showTravelDetails: true,
+            })
+          );
+        } else if (existingDraft) {
+          localStorage.setItem(
+            draftKey,
+            JSON.stringify({
+              ...existingDraft,
+              showTravelDetails: true,
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Failed to write fallback travel draft", err);
+      }
+
+      navigate(`/destination/${encodeURIComponent(countryId)}`, {
+        state: { restoreTravelDetails },
+        replace: false,
+      });
       return;
     }
-    const cid = summaryData?.countryId;
-    if (cid) {
-      navigate(`/destination/${encodeURIComponent(cid)}`);
-      return;
-    }
-    navigate("/dashboard");
+
+    // Default ultimate fallback - home page instead of dashboard
+    navigate("/", { replace: false });
   };
 
   const resolvePayAmountRupees = (appDoc) => {
@@ -340,10 +417,12 @@ const ApplicationSummaryPage = () => {
 
         {/* Back */}
         <button
+          type="button"
           onClick={handleBack}
-          className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors"
+          className="group flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-cyan transition-colors mb-6 w-fit"
         >
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} className="pointer-events-none group-hover:-translate-x-1 transition-transform" />
+          Back
         </button>
 
         {/* Header */}
@@ -353,19 +432,9 @@ const ApplicationSummaryPage = () => {
           </p>
           <h1 className="text-2xl font-bold text-text-primary">Payment Summary</h1>
           <p className="text-sm text-text-secondary mt-1">{application.visaType}</p>
-        </div>
-
-        {/* Progress steps */}
-        <div className="grid grid-cols-3 gap-2 text-[11px] font-medium">
-          <div className="rounded-lg bg-cyan/10 border border-cyan/30 p-2 text-cyan text-center">Application</div>
-          <div className={`rounded-lg p-2 text-center border text-[11px] font-medium ${
-            docsUploaded
-              ? "bg-cyan/10 border-cyan/30 text-cyan"
-              : "bg-amber-500/10 border-amber-500/30 text-amber-400"
-          }`}>
-            Documents
-          </div>
-          <div className="rounded-lg bg-cyan/10 border border-cyan/30 p-2 text-cyan text-center">Payment</div>
+          <p className="text-xs font-mono text-text-muted mt-2">
+            Application ID: {application.applicationId || application._id || "Will be assigned on application creation"}
+          </p>
         </div>
 
         {/* Travelers */}
@@ -379,33 +448,7 @@ const ApplicationSummaryPage = () => {
           ))}
         </div>
 
-        {/* Document status */}
-        <div className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${
-          docsUploaded
-            ? "border-emerald-500/30 bg-emerald-500/5"
-            : "border-amber-500/30 bg-amber-500/5"
-        }`}>
-          <div>
-            <p className="text-xs text-text-muted">Document Status</p>
-            <p className={`text-sm font-semibold mt-0.5 ${docsUploaded ? "text-emerald-400" : hasDriveLink ? "text-cyan" : "text-amber-400"}`}>
-              {docsUploaded ? "All documents uploaded" : hasDriveLink ? "Google Drive link submitted" : "Pending Upload"}
-            </p>
-          </div>
-          {docsUploaded ? (
-            <CheckCircle size={20} className="text-emerald-400 shrink-0" />
-          ) : (
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={<FileText size={14} />}
-              onClick={openDocumentUploadSection}
-            >
-              Upload now
-            </Button>
-          )}
-        </div>
-
-        {docsSkipped && (
+        {(!docsUploaded || docsSkipped) && (
           <div className="rounded-2xl border border-cyan/30 bg-cyan/5 p-4">
             <div className="flex items-start gap-3">
               <Info size={18} className="text-cyan mt-0.5 shrink-0" />
@@ -414,9 +457,7 @@ const ApplicationSummaryPage = () => {
                   Documents can be uploaded after payment
                 </p>
                 <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-                  You selected <span className="font-medium text-text-primary">Upload Documents Later</span>.
-                  Complete payment now, then upload required traveler documents from your
-                  dashboard application section.
+                  Complete payment now, then upload required traveler documents from your dashboard application section.
                 </p>
               </div>
             </div>
@@ -502,20 +543,19 @@ const ApplicationSummaryPage = () => {
         title={termsPage?.title || "Terms and Conditions"}
         size="md"
         footer={
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
-                className="mt-0.5 w-4 h-4 shrink-0 rounded border-border text-cyan accent-cyan"
-              />
-              <span className="text-sm text-text-secondary leading-snug">
-                I agree to the terms and conditions and understand that the amount above covers service charges only.
-              </span>
-            </label>
-            <Button variant="secondary" size="md" fullWidth onClick={() => setTermsModalOpen(false)}>
-              Close
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="md" onClick={() => setTermsModalOpen(false)}>
+              Deny
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                setTermsAccepted(true);
+                setTermsModalOpen(false);
+              }}
+            >
+              Accept
             </Button>
           </div>
         }

@@ -1040,7 +1040,7 @@ const Dashboard = () => {
   // ── Filter applications ───────────────────────────────────
   const filteredBookings = bookings.filter((b) => {
     const q = searchQuery.toLowerCase();
-    const idStr = String(b._id || b.id || "").toLowerCase();
+    const idStr = String(b.applicationId || b._id || b.id || "").toLowerCase();
     const txnStr = String(b.transactionId || "").toLowerCase();
     const phoneDigits = String(b.user?.phone || "").replace(/\D/g, "");
     const qDigits = q.replace(/\D/g, "");
@@ -1053,7 +1053,14 @@ const Dashboard = () => {
       (qDigits.length >= 3 && phoneDigits.includes(qDigits)) ||
       idStr.includes(q) ||
       txnStr.includes(q);
-    const matchStatus = statusFilter === "all" || b.status === statusFilter;
+    const progress = getApplicationProgress(b, settingsForm);
+    const resolvedStatus =
+      b.status === 'approved' || b.status === 'rejected' || b.status === 'cancelled'
+        ? b.status
+        : b.paymentStatus === 'completed'
+          ? (progress.allDocumentsUploaded ? 'review' : 'doc_pending')
+          : 'pending';
+    const matchStatus = statusFilter === "all" || resolvedStatus === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -2115,7 +2122,7 @@ const Dashboard = () => {
   const liveAnalytics = {
     total:    bookings.length,
     revenue:  bookings.reduce((s, b) => s + b.fee, 0),
-    pending:  bookings.filter((b) => b.status === "pending" || b.status === "review").length,
+    pending:  bookings.filter((b) => b.status === "pending" || b.status === "review" || b.status === "doc_pending").length,
     approvalRate: Math.round((bookings.filter((b) => b.status === "approved").length / bookings.length) * 100),
   };
 
@@ -2312,10 +2319,16 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {[
                   { label: "Approved",    count: bookings.filter(b=>b.status==="approved").length,  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-                  { label: "Under Review",count: bookings.filter(b=>b.status==="review").length,    color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/20" },
-                  { label: "Pending",     count: bookings.filter(b=>b.status==="pending").length,   color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20" },
+                  { label: "Under Review",count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      return b.status !== "approved" && b.status !== "rejected" && b.status !== "cancelled" && b.paymentStatus === "completed" && progress.allDocumentsUploaded;
+                    }).length, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+                  { label: "Doc Pending", count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      return b.status !== "approved" && b.status !== "rejected" && b.status !== "cancelled" && b.paymentStatus === "completed" && !progress.allDocumentsUploaded;
+                    }).length, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
                   { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
-                  { label: "Cancelled",   count: bookings.filter(b=>b.status==="cancelled").length, color: "text-zinc-400",    bg: "bg-zinc-500/10",    border: "border-zinc-500/20" },
+                  { label: "Pending Payment", count: bookings.filter(b=>b.status!=="approved" && b.status!=="rejected" && b.status!=="cancelled" && b.paymentStatus!=="completed").length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
                 ].map(({ label, count, color, bg, border }) => (
                   <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
                     <div className={`text-3xl font-bold ${color}`}>{count}</div>
@@ -2360,9 +2373,10 @@ const Dashboard = () => {
                       id="admin-status-filter"
                     >
                       <option value="all">All Status</option>
-                      <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
+                      <option value="pending">Pending Payment</option>
+                      <option value="doc_pending">Doc Pending</option>
                       <option value="review">Under Review</option>
+                      <option value="approved">Approved</option>
                       <option value="rejected">Rejected</option>
                     </select>
                   </div>
@@ -2381,10 +2395,12 @@ const Dashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
-                      {filteredBookings.map((b) => (
-                        <tr key={b._id || b.id} className="hover:bg-surface-3/50 transition-colors group">
+                      {filteredBookings.map((b) => {
+                        const progress = getApplicationProgress(b, settingsForm);
+                        return (
+                          <tr key={b._id || b.id} className="hover:bg-surface-3/50 transition-colors group">
                           <td className="py-3 pr-6 font-mono text-xs text-text-muted whitespace-nowrap">
-                            {b._id || b.id}
+                            {b.applicationId || b._id || b.id}
                           </td>
                           <td className="py-3 pr-6 whitespace-nowrap">
                             <div>
@@ -2439,7 +2455,6 @@ const Dashboard = () => {
                           </td>
                           <td className="py-3 pr-6">
                             {(() => {
-                              const progress = getApplicationProgress(b, settingsForm);
                               const nextPendingTraveler = progress.missingByTraveler.find((item) => item.missingLabels.length);
                               return (
                                 <div className="space-y-1">
@@ -2456,7 +2471,13 @@ const Dashboard = () => {
                             })()}
                           </td>
                           <td className="py-3 pr-6">
-                            <StatusBadge status={b.status} />
+                            <StatusBadge status={
+                              b.status === 'approved' || b.status === 'rejected' || b.status === 'cancelled'
+                                ? b.status
+                                : b.paymentStatus === 'completed'
+                                  ? (progress.allDocumentsUploaded ? 'review' : 'doc_pending')
+                                  : 'pending'
+                            } />
                           </td>
                           <td className="py-3 pr-2">
                             <button
@@ -2469,7 +2490,8 @@ const Dashboard = () => {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                     </tbody>
                   </table>
 
@@ -5941,7 +5963,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
 
 
 

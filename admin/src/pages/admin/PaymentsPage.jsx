@@ -13,6 +13,7 @@ const PaymentsPage = ({ transactions }) => (
             <tr className="border-b border-border/50 text-sm text-text-muted">
               <th className="py-3 px-4 font-medium">Date</th>
               <th className="py-3 px-4 font-medium">User</th>
+              <th className="py-3 px-4 font-medium">Application ID</th>
               <th className="py-3 px-4 font-medium">Payment ID</th>
               <th className="py-3 px-4 font-medium">Amount</th>
               <th className="py-3 px-4 font-medium">Status</th>
@@ -21,7 +22,7 @@ const PaymentsPage = ({ transactions }) => (
           <tbody className="text-sm">
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan="5" className="py-8 text-center text-text-muted">No transactions found.</td>
+                <td colSpan="6" className="py-8 text-center text-text-muted">No transactions found.</td>
               </tr>
             ) : (
               transactions.map((transaction) => (
@@ -32,6 +33,9 @@ const PaymentsPage = ({ transactions }) => (
                   <td className="py-3 px-4 text-text-primary font-medium">
                     {transaction.user?.name || "Unknown"}
                     <div className="text-xs text-text-muted font-normal">{transaction.user?.email || ""}</div>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-xs text-text-secondary">
+                    {transaction.application?.applicationId || transaction.application?._id || "N/A"}
                   </td>
                   <td className="py-3 px-4 font-mono text-xs text-text-secondary">
                     {transaction.razorpayPaymentId || transaction.paymentId || transaction.razorpayOrderId || "N/A"}
