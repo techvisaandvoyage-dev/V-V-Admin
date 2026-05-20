@@ -33,7 +33,7 @@ const Sidebar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
   return (
@@ -50,7 +50,7 @@ const Sidebar = () => {
       >
         {/* Logo / Brand as Back Button & Collapse Toggle */}
         <div className="flex items-center h-16 px-4 border-b border-border flex-shrink-0">
-          <Link to="/" className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-80 transition-opacity cursor-pointer group" title="Back to Home">
+          <Link to="/" replace className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-80 transition-opacity cursor-pointer group" title="Back to Home">
             <div className="w-8 h-8 rounded-lg bg-cyan flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
               <Plane size={16} className="text-background" strokeWidth={2.5} />
             </div>

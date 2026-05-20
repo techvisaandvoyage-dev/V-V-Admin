@@ -34,6 +34,18 @@ export const DOCUMENT_LABELS = {
   companyRegistration: "Company Registration Certificate",
 };
 
+const getTravelerNoFromDocumentPath = (path) => {
+  const fileName = String(path || "").split("/").pop() || "";
+  const match = fileName.match(/^traveler-(\d+)_/i);
+  return match ? Number(match[1]) : null;
+};
+
+const getDocumentKeyFromPath = (path) => {
+  const fileName = String(path || "").split("/").pop() || "";
+  const match = fileName.match(/^traveler-\d+_([^._]+)/i);
+  return match ? String(match[1] || "").trim() : "";
+};
+
 export const getApplicationProgress = (application, settings = { enableFileUpload: true, enableGDriveUpload: true }) => {
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
   const requiredDocuments = Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
@@ -42,6 +54,7 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     ? application.requiredDocuments
     : ["passport"];
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
+  const rootDocuments = Array.isArray(application?.documents) ? application.documents.filter(Boolean) : [];
   const rootGdrive = String(application?.gdriveLink || "").trim();
   const singleTravellerRootDrive = travellerCount === 1 && Boolean(rootGdrive);
 
@@ -60,24 +73,27 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     const hasDriveLink = hasTravelerGdrive || hasLegacyRootGdrive;
 
     const docsRaw = uploaded?.documents || {};
+    const rootDocKeys = rootDocuments
+      .filter((path) => Number(getTravelerNoFromDocumentPath(path)) === travelerNo)
+      .map(getDocumentKeyFromPath)
+      .filter(Boolean);
     // Handle both Map (via .get()) and plain object (direct access)
     const getDoc = (key) => {
       if (typeof docsRaw.get === "function") return docsRaw.get(key);
       return docsRaw[key];
     };
 
-    const missingKeys = requiredDocuments.filter((key) => !getDoc(key));
+    const missingKeys = requiredDocuments.filter((key) => !getDoc(key) && !rootDocKeys.includes(key));
     const hasAllFiles = missingKeys.length === 0;
 
     // Logic: If both are enabled, we require files for "complete" status.
     // If only GDrive is enabled, Drive link is enough.
     // If only File Upload is enabled, Files are required.
-    let complete = false;
-    if (fileOn && gdOn) {
-      complete = hasAllFiles;
-    } else if (fileOn) {
-      complete = hasAllFiles;
-    } else if (gdOn) {
+    // Already-uploaded required files should always count as complete, even if
+    // the admin later turns off file uploads globally. The toggles control what
+    // users can submit next, not whether existing uploads remain valid.
+    let complete = hasAllFiles;
+    if (!complete && !fileOn && gdOn) {
       complete = hasDriveLink;
     }
 
@@ -98,4 +114,34 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     missingByTraveler,
     allDocumentsUploaded: missingByTraveler.every((item) => item.complete),
   };
+};
+
+export const resolveApplicationStatus = (application, progress) => {
+  if (!application || typeof application !== "object") return "pending";
+  if (
+    application.status === "approved" ||
+    application.status === "rejected" ||
+    application.status === "cancelled"
+  ) {
+    return application.status;
+  }
+  if (application.status === "review") {
+    return "review";
+  }
+
+  const normalizedPaymentStatus = String(
+    application.paymentStatus ||
+    application.payment?.status ||
+    application.razorpayPaymentStatus ||
+    ""
+  ).trim().toLowerCase();
+  const isPaymentCompleted =
+    application.isPaid === true ||
+    ["paid", "completed", "success", "captured"].includes(normalizedPaymentStatus);
+
+  if (isPaymentCompleted) {
+    return progress?.allDocumentsUploaded ? "review" : "doc_pending";
+  }
+
+  return "pending";
 };

@@ -15,6 +15,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import {
   Search, MapPin,
+  ArrowRight, ShieldCheck, FileText, Lock, Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Navbar from "../components/layout/Navbar";
@@ -25,9 +26,33 @@ import { useCountries } from "../hooks/useCountries";
 import { api } from "../store/authStore";
 import { getCountryFlagEmoji, getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
 import { getCountryRouteId } from "../utils/countryRouting";
+import heroImage from "../assets/hero.png";
 
-const GEOCODE_DEBOUNCE_MS = 680;
-const GEOCODE_MIN_CHARS = 3;
+  const GEOCODE_DEBOUNCE_MS = 680;
+  const GEOCODE_MIN_CHARS = 3;
+
+const DEFAULT_HERO_HIGHLIGHTS = [
+  {
+    icon: Zap,
+    title: "Fast Processing",
+    body: "Quick application flow and updates",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Trusted Guidance",
+    body: "Accurate help for every step",
+  },
+  {
+    icon: FileText,
+    title: "All-in-One Platform",
+    body: "Search, apply, track, and upload",
+  },
+  {
+    icon: Lock,
+    title: "Secure & Private",
+    body: "Your documents stay protected",
+  },
+];
 
 // ── Animation variants ─────────────────────────────────────
 const LandingPage = () => {
@@ -36,11 +61,46 @@ const LandingPage = () => {
   const searchInputRef = useRef(null);
   const geocodeAbortRef = useRef(null);
   const geocodeReqSeq = useRef(0);
+  const homeExitGuardRef = useRef(false);
   const { countries: allCountries, trendingCountries, display: countryDisplay, documentCatalog } = useCountries();
 
   // Global requirements for merging logic on cards
   const [globalRequirements, setGlobalRequirements] = useState([]);
   const [showVisaRequirements, setShowVisaRequirements] = useState(true);
+  const [heroHighlights, setHeroHighlights] = useState(DEFAULT_HERO_HIGHLIGHTS);
+
+  useEffect(() => {
+    if (homeExitGuardRef.current) return undefined;
+    homeExitGuardRef.current = true;
+
+    const pushHomeGuardState = () => {
+      window.history.pushState(
+        { vbHomeExitGuard: true, time: Date.now() },
+        "",
+        window.location.href
+      );
+    };
+
+    const handleHomeBackAttempt = () => {
+      const shouldLeave = window.confirm("Do you want to close VISAANDVOYAGE?");
+
+      if (!shouldLeave) {
+        pushHomeGuardState();
+        return;
+      }
+
+      window.removeEventListener("popstate", handleHomeBackAttempt);
+      window.close();
+    };
+
+    pushHomeGuardState();
+    window.addEventListener("popstate", handleHomeBackAttempt);
+
+    return () => {
+      window.removeEventListener("popstate", handleHomeBackAttempt);
+      homeExitGuardRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -50,6 +110,15 @@ const LandingPage = () => {
         if (alive && data?.success) {
           if (data.config?.visaRequirements) setGlobalRequirements(data.config.visaRequirements);
           if (data.config?.showVisaRequirements !== undefined) setShowVisaRequirements(data.config.showVisaRequirements);
+          if (Array.isArray(data.config?.landingHeroHighlights) && data.config.landingHeroHighlights.length) {
+            setHeroHighlights(
+              DEFAULT_HERO_HIGHLIGHTS.map((fallback, index) => ({
+                ...fallback,
+                title: String(data.config.landingHeroHighlights[index]?.title ?? "").trim() || fallback.title,
+                body: String(data.config.landingHeroHighlights[index]?.body ?? "").trim() || fallback.body,
+              }))
+            );
+          }
         }
       } catch (err) {
         console.error("Failed to fetch global requirements:", err);
@@ -276,151 +345,200 @@ const LandingPage = () => {
 
       <section
         id="hero"
-        className="relative min-h-[78vh] flex items-center justify-center overflow-hidden hero-gradient pt-20"
+        className="relative overflow-hidden pt-20"
       >
-        <div className="absolute inset-0 dot-pattern opacity-40" aria-hidden="true" />
-
+        <div className="absolute inset-0 hero-gradient" aria-hidden="true" />
         <div
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-20 blur-[120px]"
-          style={{ background: "radial-gradient(circle, #0284c7 0%, transparent 70%)" }}
+          className="absolute inset-0 bg-cover bg-[78%_top] sm:bg-[75%_18%] lg:bg-[72%_center] bg-no-repeat opacity-95"
+          style={{ backgroundImage: `url(${heroImage})` }}
           aria-hidden="true"
         />
+        <div
+          className="absolute inset-0 hidden sm:block"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(248,251,255,0.98) 0%, rgba(248,251,255,0.94) 28%, rgba(248,251,255,0.72) 52%, rgba(248,251,255,0.18) 72%, rgba(248,251,255,0.04) 100%)",
+          }}
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-0 sm:hidden"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(248,251,255,0.78) 0%, rgba(248,251,255,0.60) 26%, rgba(248,251,255,0.28) 52%, rgba(248,251,255,0.78) 100%)",
+          }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 dot-pattern opacity-25" aria-hidden="true" />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background via-background/85 to-transparent" aria-hidden="true" />
 
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-10"
-          >
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan/20 bg-cyan/10 text-cyan text-xs sm:text-sm font-medium">
-              Fast, Reliable, Visa Guidance
-            </span>
-
-            <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight text-text-primary">
-              Your Visa Journey,
-              <span className="block text-gradient-cyan">Made Simple</span>
-            </h1>
-
-            <p className="mt-4 max-w-2xl mx-auto text-sm sm:text-base text-text-secondary">
-              Compare destinations, understand requirements, and start your application in minutes.
-              From documentation to approval updates, everything stays in one place.
-            </p>
-
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => navigate("/destinations")}
-                id="hero-explore-destinations-btn"
+        <div className="relative z-10 mx-auto flex min-h-[88vh] sm:min-h-[84vh] w-full max-w-7xl items-center px-4 pb-16 sm:px-6 lg:px-8">
+          <div className="w-full">
+            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="max-w-3xl"
               >
-                Explore Destinations
-              </Button>
+                <span className="inline-flex items-center gap-2 rounded-full border border-cyan/20 bg-white/70 px-4 py-2 text-xs font-semibold tracking-[0.01em] text-cyan shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-md sm:text-sm">
+                  <ShieldCheck size={14} />
+                  Fast. Reliable. Visa Guidance.
+                </span>
+
+                <h1 className="mt-6 max-w-3xl text-5xl font-bold leading-[0.96] tracking-[-0.04em] text-[#102a5c] sm:text-6xl lg:text-7xl">
+                  Your Visa Journey,
+                  <span className="mt-1 block bg-gradient-to-r from-[#2e8cf8] via-cyan to-[#0f63d8] bg-clip-text text-transparent">
+                    Made Simple
+                  </span>
+                </h1>
+
+                <p className="mt-6 max-w-xl text-base leading-8 text-[#5f7598] sm:text-lg">
+                  Compare destinations, understand requirements, and start your application in minutes.
+                  From documentation to approval updates, everything stays in one place.
+                </p>
+
+                <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={() => navigate("/destinations")}
+                    rightIcon={<ArrowRight size={18} />}
+                    className="rounded-2xl px-7 shadow-[0_18px_40px_rgba(14,116,217,0.28)]"
+                    id="hero-explore-destinations-btn"
+                  >
+                    Explore Destinations
+                  </Button>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.65, delay: 0.18 }}
+                className="hidden min-h-[460px] lg:block"
+              />
             </div>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="w-full mb-8"
-          >
-            <form
-              onSubmit={handleSearch}
-              autoComplete="off"
-              className="glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-5 border border-cyan/30"
-              role="search"
-              aria-label="Search visa destinations"
+            <motion.div
+              initial={{ opacity: 0, y: 34 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, delay: 0.24 }}
+              className="relative z-20 mt-12 mx-auto w-full max-w-6xl"
             >
-              <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 sm:py-2 w-full min-w-0">
-                <Search
-                  strokeWidth={2.2}
-                  className="text-cyan flex-shrink-0 w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]"
-                  aria-hidden
-                />
-                <input
-                  ref={searchInputRef}
-                  type="text"
+              <div className="overflow-visible rounded-[2rem] border border-white/75 bg-white/88 p-4 shadow-[0_32px_90px_rgba(17,34,68,0.14)] backdrop-blur-xl sm:p-6">
+                <form
+                  onSubmit={handleSearch}
                   autoComplete="off"
-                  placeholder="Search country, city, or state..."
-                  value={searchDestination}
-                  onChange={(e) => setSearchDestination(e.target.value)}
-                  className="flex-1 min-w-0 bg-transparent text-text-primary placeholder:text-[#6e8cab] text-base sm:text-lg md:text-xl lg:text-2xl focus:outline-none"
-                  aria-label="Destination search"
-                  id="hero-destination-input"
-                  autoFocus
-                />
-              </div>
-            </form>
-
-            {searchTerm && (
-              <div className="max-w-4xl mx-auto mt-4 text-left">
-                <div className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[min(70vh,520px)]">
-                  {suggestionRows.length > 0 ? (
-                    <div className="overflow-y-auto overscroll-contain divide-y divide-border">
-                      {suggestionRows.map((row) => (
-                        <button
-                          type="button"
-                          key={row.key}
-                          onClick={() => handleSuggestionRowClick(row)}
-                          className="w-full flex items-start justify-between gap-3 px-4 py-3 text-sm text-text-primary hover:bg-surface-2 transition-colors text-left"
-                        >
-                          <span className="flex flex-col gap-0.5 min-w-0 flex-1">
-                            {row.kind === "country" ? (
-                              <>
-                                <span className="font-medium truncate">{row.country.name}</span>
-                                {row.hint ? (
-                                  <span className="text-xs text-text-muted">{row.hint}</span>
-                                ) : null}
-                              </>
-                            ) : (
-                              <>
-                                <span className="flex items-center gap-2 font-medium text-text-primary min-w-0">
-                                  <MapPin size={14} className="text-cyan flex-shrink-0 mt-0.5" />
-                                  <span className="truncate">{row.primaryLabel}</span>
-                                </span>
-                                <span className="text-xs text-text-muted pl-6 truncate">
-                                  {row.detailLabel}
-                                </span>
-                              </>
-                            )}
-                          </span>
-                          <span className="w-9 h-9 rounded-full bg-background border border-border flex items-center justify-center text-lg shadow-sm flex-shrink-0">
-                            {getCountryFlagEmoji(row.country.name, row.country.flagEmoji)}
-                          </span>
-                        </button>
-                      ))}
+                  className="relative rounded-[1.6rem] border border-sky-100 bg-white px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:px-6"
+                  role="search"
+                  aria-label="Search visa destinations"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-cyan sm:h-14 sm:w-14">
+                      <Search strokeWidth={2.2} className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
                     </div>
-                  ) : (
-                    <div className="px-4 py-3 text-sm text-text-muted">
-                      No matching destinations found.
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Search country, city, or state..."
+                      value={searchDestination}
+                      onChange={(e) => setSearchDestination(e.target.value)}
+                      className="flex-1 min-w-0 bg-transparent text-lg text-text-primary placeholder:text-[#8ea0bb] focus:outline-none sm:text-2xl"
+                      aria-label="Destination search"
+                      id="hero-destination-input"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-cyan text-white shadow-[0_16px_36px_rgba(14,116,217,0.28)] transition-all hover:scale-[1.03] hover:bg-cyan-dim sm:h-14 sm:w-14"
+                      aria-label="Search destinations"
+                    >
+                      <Search className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {searchTerm && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+16px)] z-30 text-left">
+                      <div className="max-h-[min(70vh,520px)] overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
+                      {suggestionRows.length > 0 ? (
+                        <div className="overflow-y-auto overscroll-contain divide-y divide-border">
+                          {suggestionRows.map((row) => (
+                            <button
+                              type="button"
+                              key={row.key}
+                              onClick={() => handleSuggestionRowClick(row)}
+                              className="w-full flex items-start justify-between gap-3 px-4 py-3 text-sm text-text-primary hover:bg-surface-2 transition-colors text-left"
+                            >
+                              <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                {row.kind === "country" ? (
+                                  <>
+                                    <span className="font-medium truncate">{row.country.name}</span>
+                                    {row.hint ? (
+                                      <span className="text-xs text-text-muted">{row.hint}</span>
+                                    ) : null}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="flex items-center gap-2 font-medium text-text-primary min-w-0">
+                                      <MapPin size={14} className="text-cyan flex-shrink-0 mt-0.5" />
+                                      <span className="truncate">{row.primaryLabel}</span>
+                                    </span>
+                                    <span className="text-xs text-text-muted pl-6 truncate">
+                                      {row.detailLabel}
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                              <span className="w-9 h-9 rounded-full bg-background border border-border flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+                                {getCountryFlagEmoji(row.country.name, row.country.flagEmoji)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 text-sm text-text-muted">
+                          No matching destinations found.
+                        </div>
+                      )}
+                      </div>
                     </div>
                   )}
+                </form>
+
+                <div className="mt-6 grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2 xl:grid-cols-4">
+                  {heroHighlights.map(({ icon: Icon, title, body }) => (
+                    <div key={title} className="flex items-start gap-3 px-1">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-cyan">
+                        <Icon size={18} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#16325f]">{title}</p>
+                        <p className="mt-1 text-xs leading-5 text-[#7388a8]">{body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2 border-t border-slate-100 pt-5 text-center sm:gap-3">
+                  <span className="mr-1 text-xs font-medium text-[#8092ad]">Popular:</span>
+                  {["USA", "UK", "EU Schengen", "Dubai", "Japan"].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setSearchDestination(tag);
+                      }}
+                      className="rounded-full border border-sky-100 bg-sky-50 px-3.5 py-1.5 text-xs font-medium text-[#146fd8] transition-colors hover:border-cyan/40 hover:bg-cyan/10 hover:text-cyan"
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="flex flex-wrap justify-center gap-3 mt-6 px-4"
-          >
-            <span className="text-xs text-text-muted">Popular:</span>
-            {["USA", "UK", "EU Schengen", "Dubai", "Japan"].map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => {
-                  setSearchDestination(tag);
-                }}
-                className="text-xs text-text-secondary hover:text-cyan px-3 py-1.5 rounded-md hover:bg-cyan/10 transition-colors border border-transparent hover:border-cyan/30"
-              >
-                {tag}
-              </button>
-            ))}
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </section>
 

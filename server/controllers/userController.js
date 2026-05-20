@@ -770,7 +770,7 @@ const getUserProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true, user });
+    res.json({ success: true, user: { ...user.toObject(), hasPassword: Boolean(user.password) } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -854,9 +854,10 @@ const changePassword = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // If user registered with Google and has no password, they can't "change" it this way
     if (!user.password) {
-      return res.status(400).json({ success: false, message: 'Account uses third-party login. Cannot change password.' });
+      user.password = newPassword;
+      await user.save();
+      return res.json({ success: true, message: 'Password created successfully' });
     }
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
@@ -1123,4 +1124,3 @@ module.exports = {
   resetForgotPassword,
   changePassword
 };
-

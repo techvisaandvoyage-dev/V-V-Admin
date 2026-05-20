@@ -153,8 +153,15 @@ const buildStoredFilename = (file, prefix = 'doc') => {
         ? '.png'
         : file.mimetype === 'image/webp'
           ? '.webp'
-          : '.jpg'
+        : '.jpg'
   );
+  const originalBase = String(file?.originalname || '')
+    .replace(/\.[^/.]+$/, '')
+    .trim();
+  const travelerPrefix = originalBase.match(/^traveler-\d+_[a-zA-Z0-9-]+/);
+  if (travelerPrefix) {
+    return `${travelerPrefix[0]}_${uniqueSuffix}${extension}`;
+  }
   return `${prefix}-${uniqueSuffix}${extension}`;
 };
 

@@ -235,6 +235,7 @@ const getOrCreateSettings = async () => {
  */
 const resolveCountryDoc = (country, settings) => {
   const obj = country?.toObject ? country.toObject() : { ...country };
+  const globalBasePrice = Number(settings?.globalBasePrice);
   const globalVisaType = String(settings?.globalVisaType ?? '').trim();
   const globalValidity = String(settings?.globalValidity ?? '').trim();
   const globalLengthOfStay = String(settings?.globalLengthOfStay ?? '').trim();
@@ -248,8 +249,10 @@ const resolveCountryDoc = (country, settings) => {
   const useGlobalLengthOfStay = obj.useGlobalLengthOfStay !== false;
   const useGlobalEntryType = obj.useGlobalEntryType !== false;
   const useGlobalProcessingDays = obj.useGlobalProcessingDays !== false;
+  const useGlobalBasePrice = obj.useGlobalBasePrice === true;
   const useGlobalGst = obj.useGlobalGst !== false;
   const useGlobalRequiredDocuments = obj.useGlobalRequiredDocuments !== false;
+  const basePriceOverride = Number.isFinite(Number(obj.basePrice)) ? Number(obj.basePrice) : 0;
   const visaTypeOverride = String(obj.visaType ?? '').trim();
   const validityOverride = String(obj.validity ?? '').trim();
   const lengthOfStayOverride = String(obj.lengthOfStay ?? '').trim();
@@ -270,6 +273,10 @@ const resolveCountryDoc = (country, settings) => {
       : Number.isFinite(Number(settings?.gstRate))
         ? Number(settings?.gstRate)
         : 18;
+  const resolvedBasePrice =
+    useGlobalBasePrice && Number.isFinite(globalBasePrice) && globalBasePrice >= 0
+      ? globalBasePrice
+      : basePriceOverride;
   const resolvedVisaType =
     useGlobalVisaType && globalVisaType ? globalVisaType : visaTypeOverride || 'Tourist Visa';
   const resolvedValidity =
@@ -296,6 +303,7 @@ const resolveCountryDoc = (country, settings) => {
   });
   return {
     ...obj,
+    basePrice: resolvedBasePrice,
     visaType: resolvedVisaType,
     validity: resolvedValidity,
     lengthOfStay: resolvedLengthOfStay,
@@ -308,10 +316,12 @@ const resolveCountryDoc = (country, settings) => {
     useGlobalLengthOfStay,
     useGlobalEntryType,
     useGlobalProcessingDays,
+    useGlobalBasePrice,
     useGlobalGst,
     useGlobalRequiredDocuments,
     gstEnabled: resolvedGstEnabled,
     gstRate: resolvedGstRate,
+    basePriceOverride,
     visaTypeOverride,
     validityOverride,
     lengthOfStayOverride,
@@ -334,6 +344,7 @@ const resolveDisplayToggles = (settings) => ({
   showProcessingDays: settings?.showProcessingDays !== false,
   showRequiredDocuments: settings?.showRequiredDocuments !== false,
   showVisaRequirements: settings?.showVisaRequirements !== false,
+  maintenanceModeEnabled: settings?.maintenanceModeEnabled === true,
 });
 
 const slugify = (str) =>
@@ -478,6 +489,12 @@ const addCountry = async (req, res) => {
     if (!name || !basePrice) {
       return res.status(400).json({ success: false, message: 'Name and base price are required.' });
     }
+    if (!Number.isFinite(Number(basePrice)) || Number(basePrice) < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Base Price must be a valid number greater than or equal to 0.',
+      });
+    }
 
     const slug = slugify(name);
     const existing = await Country.findOne({ slug });
@@ -492,6 +509,7 @@ const addCountry = async (req, res) => {
     const globalLengthOfStay = String(settings?.globalLengthOfStay ?? '').trim();
     const globalEntryType = String(settings?.globalEntryType ?? '').trim();
     const globalProcessingDays = String(settings?.globalProcessingDays ?? '').trim();
+    const globalBasePrice = Number(settings?.globalBasePrice);
     const globalRequiredDocs = Array.isArray(settings?.globalRequiredDocuments)
       ? settings.globalRequiredDocuments.map((k) => String(k ?? '').trim()).filter(Boolean)
       : [];
@@ -500,6 +518,7 @@ const addCountry = async (req, res) => {
     const typedLengthOfStay = String(lengthOfStay ?? '').trim();
     const typedEntryType = String(entryType ?? '').trim();
     const typedProcessingDays = String(processingDays ?? '').trim();
+    const parsedBasePrice = Number(basePrice);
     const sanitizedVisaInformation = sanitizeVisaInformation(
       visaInformation,
       {
@@ -516,6 +535,12 @@ const addCountry = async (req, res) => {
     const newUseGlobalLengthOfStay = !typedLengthOfStay || typedLengthOfStay === globalLengthOfStay;
     const newUseGlobalEntryType = !typedEntryType || typedEntryType === globalEntryType;
     const newUseGlobalProcessingDays = !typedProcessingDays || typedProcessingDays === globalProcessingDays;
+    const newUseGlobalBasePrice =
+      Number.isFinite(parsedBasePrice) &&
+      parsedBasePrice >= 0 &&
+      Number.isFinite(globalBasePrice) &&
+      globalBasePrice >= 0 &&
+      parsedBasePrice === globalBasePrice;
     // Treat as "same as global" when the typed set equals the global set (ignore order).
     const newUseGlobalRequiredDocuments =
       typedReqDocs.length === 0 ||
@@ -527,7 +552,8 @@ const addCountry = async (req, res) => {
       slug,
       name,
       flagEmoji: flagEmoji || '🌍',
-      basePrice: Number(basePrice),
+      basePrice: parsedBasePrice,
+      useGlobalBasePrice: newUseGlobalBasePrice,
       processingDays: typedProcessingDays || '5-10',
       useGlobalProcessingDays: newUseGlobalProcessingDays,
       difficulty: difficulty || 'moderate',
@@ -597,7 +623,6 @@ const updateCountry = async (req, res) => {
     }
     if (name !== undefined) country.name = name;
     if (flagEmoji !== undefined) country.flagEmoji = flagEmoji;
-    if (basePrice !== undefined) country.basePrice = Number(basePrice);
     if (difficulty !== undefined) country.difficulty = difficulty;
     // Visa Type / Validity / Processing Days are part of the universal control system. The save logic:
     //   • If the admin clears the field → flip `useGlobal*` = true so the country
@@ -606,6 +631,7 @@ const updateCountry = async (req, res) => {
     //     (no point in storing a redundant override).
     //   • If the admin types something different → mark as a per-country override.
     if (
+      basePrice !== undefined ||
       visaType !== undefined ||
       validity !== undefined ||
       lengthOfStay !== undefined ||
@@ -618,6 +644,23 @@ const updateCountry = async (req, res) => {
       const globalLengthOfStay = String(settings?.globalLengthOfStay ?? '').trim();
       const globalEntryType = String(settings?.globalEntryType ?? '').trim();
       const globalProcessingDays = String(settings?.globalProcessingDays ?? '').trim();
+      const globalBasePrice = Number(settings?.globalBasePrice);
+      if (basePrice !== undefined) {
+        const parsed = Number(basePrice);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Base Price must be a valid number greater than or equal to 0.',
+          });
+        }
+        if (Number.isFinite(globalBasePrice) && globalBasePrice >= 0 && parsed === globalBasePrice) {
+          country.useGlobalBasePrice = true;
+          country.basePrice = parsed;
+        } else {
+          country.useGlobalBasePrice = false;
+          country.basePrice = parsed;
+        }
+      }
       if (visaType !== undefined) {
         const typed = String(visaType ?? '').trim();
         if (!typed || typed === globalVisaType) {
@@ -829,6 +872,9 @@ const getGlobalCountryDefaults = async (req, res) => {
   try {
     const settings = await getOrCreateSettings();
     const totalCountries = await Country.countDocuments();
+    const usingGlobalBasePrice = await Country.countDocuments({
+      useGlobalBasePrice: true,
+    });
     const usingGlobalVisaType = await Country.countDocuments({
       $or: [{ useGlobalVisaType: { $exists: false } }, { useGlobalVisaType: true }],
     });
@@ -853,6 +899,10 @@ const getGlobalCountryDefaults = async (req, res) => {
     res.json({
       success: true,
       defaults: {
+        globalBasePrice:
+          Number.isFinite(Number(settings?.globalBasePrice)) && Number(settings?.globalBasePrice) >= 0
+            ? Number(settings?.globalBasePrice)
+            : null,
         globalVisaType: String(settings?.globalVisaType ?? '').trim(),
         globalValidity: String(settings?.globalValidity ?? '').trim(),
         globalLengthOfStay: String(settings?.globalLengthOfStay ?? '').trim(),
@@ -864,12 +914,14 @@ const getGlobalCountryDefaults = async (req, res) => {
       documentCatalog: buildDocumentCatalog(settings),
       stats: {
         totalCountries,
+        usingGlobalBasePrice,
         usingGlobalVisaType,
         usingGlobalValidity,
         usingGlobalLengthOfStay,
         usingGlobalEntryType,
         usingGlobalProcessingDays,
         usingGlobalRequiredDocuments,
+        overridingBasePrice: Math.max(0, totalCountries - usingGlobalBasePrice),
         overridingVisaType: Math.max(0, totalCountries - usingGlobalVisaType),
         overridingValidity: Math.max(0, totalCountries - usingGlobalValidity),
         overridingLengthOfStay: Math.max(0, totalCountries - usingGlobalLengthOfStay),
@@ -880,6 +932,46 @@ const getGlobalCountryDefaults = async (req, res) => {
     });
   } catch (err) {
     console.error('[control] getGlobalCountryDefaults error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error' });
+  }
+};
+
+/**
+ * @route   POST /api/admin/control/base-price
+ * @desc    Set the universal `globalBasePrice` and flip every country's
+ *          `useGlobalBasePrice=true`.
+ * @access  Admin
+ * @body    { basePrice: number }
+ */
+const updateGlobalBasePrice = async (req, res) => {
+  const parsedBasePrice = Number(req.body?.basePrice);
+  console.log('[control] updateGlobalBasePrice:', {
+    basePrice: req.body?.basePrice,
+    admin: req.user?.id || '(none)',
+  });
+  if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Base Price must be a valid number greater than or equal to 0.',
+    });
+  }
+  try {
+    const settings = await getOrCreateSettings();
+    settings.globalBasePrice = parsedBasePrice;
+    await settings.save();
+    const result = await Country.updateMany(
+      {},
+      { $set: { useGlobalBasePrice: true, basePrice: parsedBasePrice } }
+    );
+    res.json({
+      success: true,
+      globalBasePrice: parsedBasePrice,
+      matched: result.matchedCount ?? result.n ?? 0,
+      modified: result.modifiedCount ?? result.nModified ?? 0,
+      message: `Base Price set to ₹${parsedBasePrice} on all countries.`,
+    });
+  } catch (err) {
+    console.error('[control] updateGlobalBasePrice error:', err);
     res.status(500).json({ success: false, message: err.message || 'Server error' });
   }
 };
@@ -1094,11 +1186,13 @@ const updateCountryDisplayToggles = async (req, res) => {
     changed.showRequiredDocuments = incoming.showRequiredDocuments;
   if (typeof incoming.showVisaRequirements === 'boolean')
     changed.showVisaRequirements = incoming.showVisaRequirements;
+  if (typeof incoming.maintenanceModeEnabled === 'boolean')
+    changed.maintenanceModeEnabled = incoming.maintenanceModeEnabled;
   if (Object.keys(changed).length === 0) {
     return res.status(400).json({
       success: false,
       message:
-        'Provide at least one of showVisaType, showValidity, showLengthOfStay, showEntryType, showProcessingDays, showRequiredDocuments, showVisaRequirements (boolean).',
+        'Provide at least one of showVisaType, showValidity, showLengthOfStay, showEntryType, showProcessingDays, showRequiredDocuments, showVisaRequirements, maintenanceModeEnabled (boolean).',
     });
   }
   console.log('[control] updateCountryDisplayToggles:', changed);
@@ -1327,6 +1421,7 @@ module.exports = {
   uploadCountryImage,
   refreshUnsplashCountryImages,
   getGlobalCountryDefaults,
+  updateGlobalBasePrice,
   updateGlobalVisaType,
   updateGlobalValidity,
   updateGlobalLengthOfStay,

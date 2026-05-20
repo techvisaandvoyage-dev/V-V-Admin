@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import { getAdminAppUrl } from "../../utils/adminAppUrl";
+import NotificationBell from "./NotificationBell";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -34,14 +35,21 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    navigate("/", { replace: true });
   };
+
+  const isLanding = location.pathname === "/";
+  const isTransientPage =
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname.startsWith("/apply") ||
+    location.pathname.endsWith("/summary");
 
   const handleDashboardOpen = () => {
     if (user?.role === "admin") {
       window.location.href = getAdminAppUrl("/");
     } else {
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: isTransientPage });
     }
   };
 
@@ -49,11 +57,9 @@ const Navbar = () => {
     if (isAuthenticated) {
       handleDashboardOpen();
     } else {
-      navigate("/login");
+      navigate("/login", { replace: isTransientPage });
     }
   };
-
-  const isLanding = location.pathname === "/";
 
   return (
     <>
@@ -71,6 +77,7 @@ const Navbar = () => {
             {/* ── Logo ── */}
             <Link
               to="/"
+              replace
               className="flex items-center gap-2.5 group"
               aria-label="VISAANDVOYAGE Home"
             >
@@ -86,6 +93,7 @@ const Navbar = () => {
             <div className="hidden md:flex items-center gap-2">
               <Link
                 to="/destinations"
+                replace={isTransientPage}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   location.pathname.startsWith("/destination")
                     ? "text-black"
@@ -97,6 +105,7 @@ const Navbar = () => {
               </Link>
               <Link
                 to="/blog"
+                replace={isTransientPage}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   location.pathname.startsWith("/blog")
                     ? "text-black"
@@ -106,10 +115,11 @@ const Navbar = () => {
                 <BookOpen size={15} />
                 Blog
               </Link>
+              <NotificationBell className="ml-2" />
               <button
                 id="user-dashboard-btn"
                 onClick={handleProfileIconClick}
-                className="ml-2 w-10 h-10 rounded-full bg-cyan/15 border border-cyan/30 flex items-center justify-center text-cyan hover:bg-cyan/20 hover:shadow-cyan-glow transition-all duration-200"
+                className="w-10 h-10 rounded-full bg-cyan/15 border border-cyan/30 flex items-center justify-center text-cyan hover:bg-cyan/20 hover:shadow-cyan-glow transition-all duration-200"
                 aria-label={isAuthenticated ? "Open dashboard" : "Open login"}
               >
                 <User size={18} />
@@ -141,6 +151,7 @@ const Navbar = () => {
               <div className="px-4 py-4 space-y-1">
                 <Link
                   to="/destinations"
+                  replace={isTransientPage}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-3 rounded-lg transition-colors"
                 >
                   <Globe size={15} />
@@ -148,6 +159,7 @@ const Navbar = () => {
                 </Link>
                 <Link
                   to="/blog"
+                  replace={isTransientPage}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-3 rounded-lg transition-colors"
                 >
                   <BookOpen size={15} />
@@ -162,7 +174,7 @@ const Navbar = () => {
                           if (user?.role === "admin") {
                             window.location.href = getAdminAppUrl("/");
                           } else {
-                            navigate("/dashboard");
+                            navigate("/dashboard", { replace: isTransientPage });
                           }
                         }}
                         className="flex items-center gap-2 px-4 py-2.5 text-sm text-cyan hover:bg-cyan/10 rounded-lg transition-colors"
@@ -180,7 +192,7 @@ const Navbar = () => {
                     </>
                   ) : (
                     <button
-                      onClick={() => navigate("/login")}
+                      onClick={() => navigate("/login", { replace: isTransientPage })}
                       className="mx-4 my-2 px-4 py-2.5 bg-cyan text-background text-sm font-bold rounded-xl hover:bg-cyan/90 transition-all text-center shadow-lg shadow-cyan/20"
                     >
                       Sign In

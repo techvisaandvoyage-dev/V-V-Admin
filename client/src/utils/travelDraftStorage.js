@@ -12,7 +12,13 @@ export function saveTravelDraft(countryId, draft) {
         travelDateFrom: draft.travelDateFrom ?? "",
         travelDateTo: draft.travelDateTo ?? "",
         visaOption: draft.visaOption ?? "e-Visa",
-        travelers: Array.isArray(draft.travelers) ? draft.travelers : [],
+        sharedDriveLink: draft.sharedDriveLink ?? "",
+        travelers: Array.isArray(draft.travelers)
+          ? draft.travelers.map((traveler) => ({
+              ...traveler,
+              name: traveler?.name ?? traveler?.fullName ?? "",
+            }))
+          : [],
         showTravelDetails: draft.showTravelDetails !== false,
       })
     );

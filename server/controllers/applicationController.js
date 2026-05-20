@@ -2,6 +2,9 @@ const Application = require('../models/Application');
 const Counter = require('../models/Counter');
 const Country = require('../models/Country');
 const User = require('../models/User');
+const TravelerProfile = require('../models/TravelerProfile');
+const { buildTravelerSnapshot } = require('../utils/travelerProfile');
+const { loadSettingsDocument } = require('../utils/settingsDocument');
 
 const APPLICATION_ID_COUNTER = 'applicationId';
 const APPLICATION_ID_START = 1045601;
@@ -76,6 +79,129 @@ const appendApplicantNotes = (existingValue, incomingValue) => {
   return combined.slice(0, 8000);
 };
 
+const resolveCheckoutPricing = async (countryId, travelerCount = 1) => {
+  const country = await Country.findOne({ slug: String(countryId) }).select(
+    'requiredDocuments basePrice useGlobalBasePrice useGlobalGst gstEnabled gstRate'
+  );
+  const settings = await loadSettingsDocument();
+  const requiredDocuments =
+    Array.isArray(country?.requiredDocuments) && country.requiredDocuments.length
+      ? country.requiredDocuments
+      : ['passport'];
+
+  const globalBasePrice = Number(settings?.globalBasePrice);
+  const countryBasePrice = Number(country?.basePrice);
+  const baseFee =
+    country?.useGlobalBasePrice === true &&
+    Number.isFinite(globalBasePrice) &&
+    globalBasePrice >= 0
+      ? globalBasePrice
+      : Number.isFinite(countryBasePrice) && countryBasePrice >= 0
+        ? countryBasePrice
+        : 0;
+
+  const useGlobalGst = country?.useGlobalGst !== false;
+  const gstEnabled = useGlobalGst ? settings?.gstEnabled !== false : country?.gstEnabled !== false;
+  const globalGstRate = Number(settings?.gstRate);
+  const countryGstRate = Number(country?.gstRate);
+  const gstRate = useGlobalGst
+    ? Number.isFinite(globalGstRate) && globalGstRate >= 0
+      ? globalGstRate
+      : 18
+    : Number.isFinite(countryGstRate) && countryGstRate >= 0
+      ? countryGstRate
+      : Number.isFinite(globalGstRate) && globalGstRate >= 0
+        ? globalGstRate
+        : 18;
+  const count = Math.max(1, Number(travelerCount) || 1);
+  const serviceAmount = baseFee * count;
+  const gstAmount = gstEnabled ? Math.round(serviceAmount * (gstRate / 100)) : 0;
+  const fee = serviceAmount + gstAmount;
+
+  return {
+    requiredDocuments,
+    baseFee,
+    serviceAmount,
+    gstEnabled,
+    gstRate,
+    gstAmount,
+    fee,
+  };
+};
+
+const travelerSnapshotHasRequiredFields = (snapshot) => {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+
+  const requiredStrings = [
+    'fullName',
+    'gender',
+    'passportNumber',
+    'nationality',
+    'mobileNumber',
+    'email',
+    'relationship',
+  ];
+
+  for (const key of requiredStrings) {
+    if (!String(snapshot[key] || '').trim()) return false;
+  }
+
+  const requiredDates = ['dateOfBirth', 'passportExpiryDate'];
+  for (const key of requiredDates) {
+    const value = snapshot[key];
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return false;
+  }
+
+  return true;
+};
+
+const normalizeTravelerSelections = async (
+  rawTravelers = [],
+  rawTravelerNames = [],
+  count = 1,
+  userId,
+  options = {}
+) => {
+  const { allowIncompleteSnapshot = false } = options;
+  const list = Array.isArray(rawTravelers) ? rawTravelers : [];
+  const ids = list
+    .map((entry) => String(entry?.travelerProfileId || entry?.travelerId || '').trim())
+    .filter(Boolean);
+
+  const savedTravelers = ids.length
+    ? await TravelerProfile.find({ _id: { $in: ids }, userId })
+    : [];
+  const savedTravelerMap = new Map(savedTravelers.map((entry) => [String(entry._id), entry]));
+
+  const travelerSelections = Array.from({ length: count }, (_, index) => {
+    const incoming = list[index] || {};
+    const travelerNo = index + 1;
+    const travelerProfileId = String(incoming.travelerProfileId || incoming.travelerId || '').trim();
+    const savedTraveler = travelerProfileId ? savedTravelerMap.get(travelerProfileId) : null;
+    const fallbackName = Array.isArray(rawTravelerNames) ? rawTravelerNames[index] : '';
+    const snapshotCandidate = buildTravelerSnapshot(
+      savedTraveler || { ...incoming, fullName: incoming.fullName || incoming.name || fallbackName || `Traveler ${travelerNo}` },
+      savedTraveler ? savedTraveler._id : travelerProfileId || null
+    );
+    const snapshot = allowIncompleteSnapshot && !travelerSnapshotHasRequiredFields(snapshotCandidate)
+      ? null
+      : snapshotCandidate;
+
+    return {
+      travelerNo,
+      travelerProfileId: savedTraveler ? savedTraveler._id : travelerProfileId || null,
+      travelerSnapshot: snapshot,
+    };
+  });
+
+  const travelerNames = travelerSelections.map(
+    (entry, index) => String(entry?.travelerSnapshot?.fullName || rawTravelerNames?.[index] || `Traveler ${index + 1}`).trim()
+  );
+
+  return { travelerSelections, travelerNames };
+};
+
 /**
  * @route   POST /api/users/application
  * @desc    Submit a new visa application with documents
@@ -98,6 +224,7 @@ const createCheckoutDraft = async (req, res) => {
       travellerCount: rawCount,
       processingDays: rawProcessing,
       travelerNames: rawTravelerNames,
+      travelers: rawTravelers,
     } = req.body;
 
     if (!countryId || !countryName) {
@@ -114,20 +241,17 @@ const createCheckoutDraft = async (req, res) => {
       user.name = 'Admin';
     }
 
-    const country = await Country.findOne({ slug: String(countryId) }).select('requiredDocuments');
-    const requiredDocuments = Array.isArray(country?.requiredDocuments) && country.requiredDocuments.length
-      ? country.requiredDocuments
-      : ['passport'];
-
     const count = Math.min(Math.max(1, parseInt(rawCount, 10) || 1), 20);
-    const travelerNames = Array.isArray(rawTravelerNames)
-      ? rawTravelerNames.slice(0, count).map((n) => String(n || '').trim())
-      : [];
-    const SERVICE = 1500;
-    const GST_RATE = 0.18;
-    const serviceAmount = SERVICE * count;
-    const gstAmount = Math.round(serviceAmount * GST_RATE);
-    const fee = serviceAmount + gstAmount;
+    const pricing = await resolveCheckoutPricing(countryId, count);
+    const requiredDocuments = pricing.requiredDocuments;
+    const { travelerSelections, travelerNames } = await normalizeTravelerSelections(
+      rawTravelers,
+      rawTravelerNames,
+      count,
+      req.user.id,
+      { allowIncompleteSnapshot: true }
+    );
+    const fee = pricing.fee;
 
     const nameParts = (user.name || 'Applicant').trim().split(/\s+/);
     const firstName = nameParts[0] || 'Applicant';
@@ -163,6 +287,7 @@ const createCheckoutDraft = async (req, res) => {
       existingDraft.processingDays = normalizeProcessingDays(rawProcessing);
       existingDraft.travellerCount = count;
       existingDraft.travelerNames = travelerNames;
+      existingDraft.travelerSelections = travelerSelections;
       existingDraft.requiredDocuments = requiredDocuments;
       existingDraft.detailsPending = true;
       await existingDraft.save();
@@ -193,6 +318,7 @@ const createCheckoutDraft = async (req, res) => {
       requiredDocuments,
       travellerCount: count,
       travelerNames,
+      travelerSelections,
       detailsPending: true,
       notes: 'Service fee checkout — complete passport and documents in your dashboard.',
     });
@@ -295,6 +421,8 @@ const updateUserApplication = async (req, res) => {
         travelerName,
         gdriveLink: travelerGdriveLink,
         gdriveFurtherInfoLink: travelerGdriveFurtherInfoLink,
+        otherDocuments: travelerOtherDocuments,
+        documents: travelerDocuments,
       } = travelerUpdate;
       if (Number.isFinite(Number(travelerNo))) {
         const travellers = Array.isArray(application.travellerDocuments) ? [...application.travellerDocuments] : [];
@@ -306,13 +434,20 @@ const updateUserApplication = async (req, res) => {
           if (travelerGdriveFurtherInfoLink !== undefined) {
             travellers[existingIdx].gdriveFurtherInfoLink = String(travelerGdriveFurtherInfoLink || '').trim();
           }
+          if (travelerOtherDocuments !== undefined) {
+            travellers[existingIdx].otherDocuments = travelerOtherDocuments;
+          }
+          if (travelerDocuments !== undefined) {
+            travellers[existingIdx].documents = travelerDocuments;
+          }
         } else {
           travellers.push({
             travelerNo: Number(travelerNo),
             travelerName: travelerName || '',
             gdriveLink: travelerGdriveLink || '',
             gdriveFurtherInfoLink: String(travelerGdriveFurtherInfoLink || '').trim(),
-            documents: {}
+            otherDocuments: travelerOtherDocuments || [],
+            documents: travelerDocuments || {},
           });
         }
         updates.travellerDocuments = travellers.sort((a, b) => a.travelerNo - b.travelerNo);
@@ -424,6 +559,42 @@ const appendApplicationDocuments = async (req, res) => {
       if (existingIdx >= 0) travellers[existingIdx] = payload;
       else travellers.push(payload);
       application.travellerDocuments = travellers.sort((a, b) => a.travelerNo - b.travelerNo);
+      application.markModified('travellerDocuments');
+
+      // Auto-transition status to 'review' if all required documents are uploaded
+      const requiredDocs = Array.isArray(application.requiredDocuments) && application.requiredDocuments.length
+        ? application.requiredDocuments
+        : ['passport'];
+      const travellerCount = Math.max(1, application.travellerCount || 1);
+
+      let allUploaded = true;
+      for (let tNo = 1; tNo <= travellerCount; tNo += 1) {
+        const tr = travellers.find((entry) => Number(entry?.travelerNo) === tNo);
+        if (!tr) {
+          allUploaded = false;
+          break;
+        }
+        const docs = tr.documents || {};
+        for (const key of requiredDocs) {
+          const val = typeof docs.get === 'function' ? docs.get(key) : docs[key];
+          if (!val || typeof val !== 'string' || !val.trim()) {
+            allUploaded = false;
+            break;
+          }
+        }
+        if (!allUploaded) break;
+      }
+
+      console.log('--- auto-transition debug ---');
+      console.log('requiredDocs:', requiredDocs);
+      console.log('travellerCount:', travellerCount);
+      console.log('allUploaded:', allUploaded);
+      console.log('currentStatus:', application.status);
+
+      if (allUploaded && application.status !== 'approved' && application.status !== 'rejected' && application.status !== 'cancelled') {
+        application.status = 'review';
+        console.log('Transitioned status to: review');
+      }
     }
 
     await application.save();
@@ -462,11 +633,22 @@ const submitApplication = async (req, res) => {
       firstName, lastName, email, passportNo, nationality,
       dob, travelDate, returnDate, countryId, countryName,
       flagEmoji, visaType, fee, processingDays,
-      transactionId, paymentMethod, paymentStatus, requiredDocuments
+      transactionId, paymentMethod, paymentStatus, requiredDocuments,
+      travelerNames: rawTravelerNames,
+      travelers: rawTravelers,
+      travellerCount: rawTravellerCount,
     } = req.body;
 
     // Normalizing the processing days to avoid "NaN" error
     const parsedProcessingDays = normalizeProcessingDays(processingDays);
+
+    const count = Math.min(Math.max(1, parseInt(rawTravellerCount, 10) || 1), 20);
+    const { travelerSelections, travelerNames } = await normalizeTravelerSelections(
+      rawTravelers,
+      rawTravelerNames,
+      count,
+      req.user.id
+    );
 
     const application = await Application.create({
       user: req.user.id,
@@ -491,7 +673,10 @@ const submitApplication = async (req, res) => {
       documents: req.body.documents || [],
       requiredDocuments: Array.isArray(requiredDocuments) && requiredDocuments.length
         ? requiredDocuments
-        : ['passport']
+        : ['passport'],
+      travellerCount: count,
+      travelerNames,
+      travelerSelections,
     });
 
     res.status(201).json({ success: true, application });

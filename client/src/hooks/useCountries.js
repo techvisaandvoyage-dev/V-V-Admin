@@ -25,7 +25,7 @@ const withBlankImageUrl = (country) => ({
  * is instant — without it, mobile users open a link and see blank cards until the
  * Render API responds (cold start can take 30–60s on the free tier).
  */
-const COUNTRIES_CACHE_KEY = "vb_countries_api_v16";
+const COUNTRIES_CACHE_KEY = "vb_countries_api_v17";
 const COUNTRIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_DISPLAY = Object.freeze({
@@ -243,6 +243,8 @@ export function normalizeCountryFromApi(c) {
     name: c.name,
     flagEmoji: getCountryFlagEmoji(c.name, c.flagEmoji),
     basePrice: c.basePrice,
+    useGlobalBasePrice: c.useGlobalBasePrice === true,
+    basePriceOverride: Number.isFinite(Number(c.basePriceOverride)) ? Number(c.basePriceOverride) : c.basePrice,
     processingDays: c.processingDays || "5-10",
     difficulty: c.difficulty || "moderate",
     /**
@@ -271,6 +273,9 @@ export function normalizeCountryFromApi(c) {
     requirements: Array.isArray(c.requirements) ? c.requirements : [],
     requiredDocuments: Array.isArray(c.requiredDocuments) ? c.requiredDocuments : ["passport"],
     useGlobalRequiredDocuments: c.useGlobalRequiredDocuments !== false,
+    useGlobalGst: c.useGlobalGst !== false,
+    gstEnabled: c.gstEnabled !== false,
+    gstRate: Number.isFinite(Number(c.gstRate)) ? Number(c.gstRate) : 18,
     requiredDocumentsOverride: Array.isArray(c.requiredDocumentsOverride)
       ? c.requiredDocumentsOverride.map((k) => String(k ?? "").trim()).filter(Boolean)
       : [],

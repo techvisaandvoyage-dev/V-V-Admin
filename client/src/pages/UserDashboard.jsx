@@ -2,17 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PlusCircle, Clock, CheckCircle, FileText, ChevronRight, Calendar, Search, Filter,
-  TrendingUp, Globe, ArrowLeft, User, Mail, Smartphone, Download,
+  TrendingUp, Globe, ArrowLeft, User, Mail, Smartphone, Download, Users, Star, Pencil, Trash2, ShieldCheck,
 } from "lucide-react";
 import { StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import Modal from "../components/ui/Modal";
 import { motion } from "framer-motion";
 import Sidebar from "../components/layout/Sidebar";
 import { api, useAuthStore, SERVER_URL } from "../store/authStore";
 import { useDataStore } from "../store/dataStore";
 import { useUIStore } from "../store/uiStore";
-import { getApplicationProgress } from "../utils/applicationProgress";
+import { getApplicationProgress, getDerivedApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 import ContactVerificationModal from "../components/account/ContactVerificationModal";
 import { needsPhoneContactGate, needsEmailContactGate } from "../utils/contactVerificationGate";
 
@@ -29,18 +30,34 @@ const fmtDate = (iso) => {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-const resolveApplicationStatus = (booking, progress) => {
-  if (!booking || typeof booking !== "object") return "pending";
-  if (booking.status === "approved" || booking.status === "rejected" || booking.status === "cancelled") {
-    return booking.status;
+const travelerFormDefaults = {
+  fullName: "",
+  dateOfBirth: "",
+  gender: "",
+  passportNumber: "",
+  passportExpiryDate: "",
+  nationality: "",
+  mobileNumber: "",
+  email: "",
+  relationship: "Self",
+  isDefault: false,
+};
+
+const getApplicationDocSuccessStorageKey = (applicationId) =>
+  applicationId ? `application-doc-successes:${applicationId}` : "";
+
+const getStoredUploadSuccesses = (booking) => {
+  const applicationId = String(booking?._id || booking?.id || "");
+  if (!applicationId) return {};
+
+  try {
+    const raw = localStorage.getItem(getApplicationDocSuccessStorageKey(applicationId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
   }
-  if (booking.status === "review") {
-    return "review";
-  }
-  if (booking.paymentStatus === "completed") {
-    return progress.allDocumentsUploaded ? "review" : "doc_pending";
-  }
-  return "pending";
 };
 
 const UserDashboard = () => {
@@ -58,21 +75,39 @@ const UserDashboard = () => {
   const [uploadSettings, setUploadSettings] = useState({
     enableGDriveUpload: true,
     enableFileUpload: true,
+    showTravelerDetails: true,
   });
+  const [requiredDocsByCountry, setRequiredDocsByCountry] = useState({});
+  const [travelers, setTravelers] = useState([]);
+  const [travelersLoading, setTravelersLoading] = useState(true);
+  const [travelerModalOpen, setTravelerModalOpen] = useState(false);
+  const [editingTravelerId, setEditingTravelerId] = useState("");
+  const [travelerForm, setTravelerForm] = useState({ ...travelerFormDefaults });
+  const [travelerSubmitting, setTravelerSubmitting] = useState(false);
+  const [travelerDeletingId, setTravelerDeletingId] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
+      setTravelersLoading(true);
       try {
-        const { data } = await api.get("/config/upload-settings");
-        if (data?.success && data.config) {
-          setUploadSettings(data.config);
+        const { data: configData } = await api.get("/config/upload-settings");
+        if (configData?.success && configData.config) {
+          setUploadSettings(configData.config);
+        }
+        const shouldShowTravelerDetails = configData?.config?.showTravelerDetails !== false;
+        if (shouldShowTravelerDetails) {
+          const travelersRes = await api.get("/travelers");
+          setTravelers(Array.isArray(travelersRes?.data?.travelers) ? travelersRes.data.travelers : []);
+        } else {
+          setTravelers([]);
         }
         await fetchUserApplications();
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
         setLoading(false);
+        setTravelersLoading(false);
       }
     };
 
@@ -119,17 +154,83 @@ const UserDashboard = () => {
     navigate("/dashboard", { replace: true });
   }, [searchParams, navigate, showToast, fetchUserApplications]);
 
+  useEffect(() => {
+    const countryIdsToLoad = Array.from(
+      new Set(
+        (Array.isArray(bookings) ? bookings : [])
+          .filter((booking) => booking && typeof booking === "object")
+          .filter((booking) => !Array.isArray(booking.requiredDocuments) || !booking.requiredDocuments.length)
+          .map((booking) => String(booking.countryId || "").trim())
+          .filter(Boolean)
+      )
+    ).filter((countryId) => !requiredDocsByCountry[countryId]);
+
+    if (!countryIdsToLoad.length) return;
+
+    let cancelled = false;
+
+    const loadCountryRequirements = async () => {
+      const entries = await Promise.all(
+        countryIdsToLoad.map(async (countryId) => {
+          try {
+            const { data } = await api.get(`/countries/${countryId}`);
+            const docs = Array.isArray(data?.country?.requiredDocuments)
+              ? data.country.requiredDocuments.filter(Boolean)
+              : [];
+            return [countryId, docs];
+          } catch (error) {
+            console.error(`Failed to load required documents for ${countryId}:`, error);
+            return [countryId, []];
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      setRequiredDocsByCountry((prev) => {
+        const next = { ...prev };
+        entries.forEach(([countryId, docs]) => {
+          next[countryId] = docs;
+        });
+        return next;
+      });
+    };
+
+    loadCountryRequirements();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookings, requiredDocsByCountry]);
+
   const safeBookings = Array.isArray(bookings)
     ? bookings.filter((booking) => booking && typeof booking === "object")
     : [];
+
+  const getBookingRequiredDocuments = (booking) => {
+    if (Array.isArray(booking?.requiredDocuments) && booking.requiredDocuments.length) {
+      return booking.requiredDocuments;
+    }
+    const countryId = String(booking?.countryId || "").trim();
+    if (countryId && Array.isArray(requiredDocsByCountry[countryId]) && requiredDocsByCountry[countryId].length) {
+      return requiredDocsByCountry[countryId];
+    }
+    return undefined;
+  };
 
   const filteredBookings = safeBookings.filter((booking) => {
     const q = searchQuery.toLowerCase();
     const countryName = String(booking.countryName || "").toLowerCase();
     const professionalId = String(booking.applicationId || "").toLowerCase();
     const matchSearch = countryName.includes(q) || professionalId.includes(q);
-    const progress = getApplicationProgress(booking, uploadSettings);
-    const resolvedStatus = resolveApplicationStatus(booking, progress);
+    const uploadedDocSuccesses = getStoredUploadSuccesses(booking);
+    const derivedProgress = getDerivedApplicationProgress(
+      booking,
+      getBookingRequiredDocuments(booking),
+      uploadSettings,
+      uploadedDocSuccesses
+    );
+    const resolvedStatus = resolveApplicationStatus(booking, derivedProgress);
     const matchStatus = statusFilter === "all" || resolvedStatus === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -138,13 +239,127 @@ const UserDashboard = () => {
     total: safeBookings.length,
     approved: safeBookings.filter((b) => b.status === "approved").length,
     pending: safeBookings.filter((b) => {
-      const progress = getApplicationProgress(b, uploadSettings);
-      return resolveApplicationStatus(b, progress) === "pending" || resolveApplicationStatus(b, progress) === "doc_pending";
+      const uploadedDocSuccesses = getStoredUploadSuccesses(b);
+      const derivedProgress = getDerivedApplicationProgress(
+        b,
+        getBookingRequiredDocuments(b),
+        uploadSettings,
+        uploadedDocSuccesses
+      );
+      const resolvedStatus = resolveApplicationStatus(b, derivedProgress);
+      return resolvedStatus === "pending" || resolvedStatus === "doc_pending";
     }).length,
     review: safeBookings.filter((b) => {
-      const progress = getApplicationProgress(b, uploadSettings);
-      return resolveApplicationStatus(b, progress) === "review";
+      const uploadedDocSuccesses = getStoredUploadSuccesses(b);
+      const derivedProgress = getDerivedApplicationProgress(
+        b,
+        getBookingRequiredDocuments(b),
+        uploadSettings,
+        uploadedDocSuccesses
+      );
+      return resolveApplicationStatus(b, derivedProgress) === "review";
     }).length,
+  };
+
+  const openTravelerModal = (traveler = null) => {
+    setEditingTravelerId(traveler?._id || "");
+    setTravelerForm(
+      traveler
+        ? {
+            fullName: traveler.fullName || "",
+            dateOfBirth: traveler.dateOfBirth ? String(traveler.dateOfBirth).slice(0, 10) : "",
+            gender: traveler.gender || "",
+            passportNumber: traveler.passportNumber || "",
+            passportExpiryDate: traveler.passportExpiryDate ? String(traveler.passportExpiryDate).slice(0, 10) : "",
+            nationality: traveler.nationality || "",
+            mobileNumber: traveler.mobileNumber || "",
+            email: traveler.email || "",
+            relationship: traveler.relationship || "Self",
+            isDefault: traveler.isDefault === true,
+          }
+        : { ...travelerFormDefaults }
+    );
+    setTravelerModalOpen(true);
+  };
+
+  const closeTravelerModal = () => {
+    setTravelerModalOpen(false);
+    setEditingTravelerId("");
+    setTravelerForm({ ...travelerFormDefaults });
+    setTravelerSubmitting(false);
+  };
+
+  const refreshTravelers = async () => {
+    if (uploadSettings.showTravelerDetails === false) {
+      setTravelers([]);
+      return;
+    }
+    const { data } = await api.get("/travelers");
+    setTravelers(Array.isArray(data?.travelers) ? data.travelers : []);
+  };
+
+  const handleTravelerSubmit = async () => {
+    const requiredFields = [
+      ["fullName", "Traveler full name is required"],
+      ["dateOfBirth", "Traveler date of birth is required"],
+      ["gender", "Traveler gender is required"],
+      ["passportNumber", "Traveler passport number is required"],
+      ["passportExpiryDate", "Traveler passport expiry date is required"],
+      ["nationality", "Traveler nationality is required"],
+      ["mobileNumber", "Traveler mobile number is required"],
+      ["email", "Traveler email is required"],
+      ["relationship", "Traveler relationship is required"],
+    ];
+
+    for (const [key, message] of requiredFields) {
+      if (!String(travelerForm[key] || "").trim()) {
+        showToast(message, "error");
+        return;
+      }
+    }
+
+    setTravelerSubmitting(true);
+    try {
+      const payload = {
+        ...travelerForm,
+        passportNumber: String(travelerForm.passportNumber || "").toUpperCase(),
+      };
+      if (editingTravelerId) {
+        await api.put(`/travelers/${editingTravelerId}`, payload);
+        showToast("Traveler updated successfully.", "success");
+      } else {
+        await api.post("/travelers", payload);
+        showToast("Traveler saved successfully.", "success");
+      }
+      await refreshTravelers();
+      closeTravelerModal();
+    } catch (error) {
+      showToast(error.response?.data?.message || "Could not save traveler.", "error");
+      setTravelerSubmitting(false);
+    }
+  };
+
+  const handleDeleteTraveler = async (travelerId) => {
+    setTravelerDeletingId(travelerId);
+    try {
+      await api.delete(`/travelers/${travelerId}`);
+      await refreshTravelers();
+      showToast("Traveler removed successfully.", "success");
+    } catch (error) {
+      showToast(error.response?.data?.message || "Could not delete traveler.", "error");
+    } finally {
+      setTravelerDeletingId("");
+    }
+  };
+
+  const handleSetDefaultTraveler = async (travelerId) => {
+    try {
+      await api.patch(`/travelers/${travelerId}/default`);
+      await refreshTravelers();
+      showToast("Default traveler updated.", "success");
+    } catch (error) {
+      showToast(error.response?.data?.message || "Could not update default traveler.", "error");
+    }
   };
 
   if (loading) {
@@ -171,7 +386,7 @@ const UserDashboard = () => {
             className="mb-8"
           >
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/", { replace: true })}
               className="group flex items-center gap-2 text-sm text-text-muted hover:text-cyan transition-colors mb-5 w-fit"
               id="back-to-home-btn"
             >
@@ -197,7 +412,7 @@ const UserDashboard = () => {
                 <Button
                   variant="primary"
                   leftIcon={<PlusCircle size={16} />}
-                  onClick={() => navigate("/#destinations")}
+                  onClick={() => navigate("/", { replace: true })}
                   id="new-application-btn"
                 >
                   New Application
@@ -236,6 +451,107 @@ const UserDashboard = () => {
               </div>
             </div>
           </motion.div>
+
+          {uploadSettings.showTravelerDetails !== false && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              className="mb-8 rounded-3xl border border-border bg-surface p-5 sm:p-6"
+            >
+              <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-text-primary">My Travelers</h2>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Save traveler details once and reuse them in future visa applications.
+                  </p>
+                </div>
+                <Button variant="primary" leftIcon={<PlusCircle size={16} />} onClick={() => openTravelerModal()}>
+                  Add Traveler
+                </Button>
+              </div>
+
+              {travelersLoading ? (
+                <Card className="flex items-center justify-center gap-3 py-8 text-text-secondary">
+                  <div className="h-5 w-5 rounded-full border-2 border-cyan/20 border-t-cyan animate-spin" />
+                  Loading saved travelers...
+                </Card>
+              ) : travelers.length === 0 ? (
+                <Card className="border-dashed text-center py-10">
+                  <Users size={38} className="mx-auto mb-3 text-cyan" />
+                  <p className="text-base font-semibold text-text-primary">No traveler profiles saved yet</p>
+                  <p className="mt-2 text-sm text-text-secondary">
+                    Add yourself, family members, or friends here so future applications start faster.
+                  </p>
+                  <Button variant="secondary" className="mt-4" onClick={() => openTravelerModal()}>
+                    Create First Traveler
+                  </Button>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {travelers.map((traveler) => (
+                    <Card key={traveler._id} className="relative overflow-hidden">
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan via-blue-500 to-emerald-400" />
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold text-text-primary">{traveler.fullName}</h3>
+                            {traveler.isDefault && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
+                                <Star size={12} /> Default
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-text-secondary">{traveler.relationship}</p>
+                        </div>
+                        <span className="rounded-2xl bg-cyan/10 p-2 text-cyan">
+                          <ShieldCheck size={18} />
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-sm text-text-secondary">
+                        <p><span className="text-text-primary font-medium">Passport:</span> {traveler.passportNumber}</p>
+                        <p><span className="text-text-primary font-medium">Expiry:</span> {fmtDate(traveler.passportExpiryDate)}</p>
+                        <p><span className="text-text-primary font-medium">Nationality:</span> {traveler.nationality}</p>
+                        <p className="break-all"><span className="text-text-primary font-medium">Email:</span> {traveler.email}</p>
+                      </div>
+
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {!traveler.isDefault && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            leftIcon={<Star size={14} />}
+                            onClick={() => handleSetDefaultTraveler(traveler._id)}
+                          >
+                            Set Default
+                          </Button>
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          leftIcon={<Pencil size={14} />}
+                          onClick={() => openTravelerModal(traveler)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={<Trash2 size={14} />}
+                          onClick={() => handleDeleteTraveler(traveler._id)}
+                          disabled={travelerDeletingId === traveler._id}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          {travelerDeletingId === traveler._id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
@@ -355,7 +671,7 @@ const UserDashboard = () => {
                       variant="primary"
                       size="sm"
                       className="mt-4"
-                      onClick={() => navigate("/#destinations")}
+                      onClick={() => navigate("/", { replace: true })}
                     >
                       Start New Application
                     </Button>
@@ -363,7 +679,14 @@ const UserDashboard = () => {
                 ) : (
                   filteredBookings.map((booking, i) => {
                     const progress = getApplicationProgress(booking, uploadSettings);
-                    const resolvedStatus = resolveApplicationStatus(booking, progress);
+                    const uploadedDocSuccesses = getStoredUploadSuccesses(booking);
+                    const derivedProgress = getDerivedApplicationProgress(
+                      booking,
+                      getBookingRequiredDocuments(booking),
+                      uploadSettings,
+                      uploadedDocSuccesses
+                    );
+                    const resolvedStatus = resolveApplicationStatus(booking, derivedProgress);
                     const paymentLabel =
                       booking.paymentStatus === "completed"
                         ? "Paid"
@@ -473,6 +796,123 @@ const UserDashboard = () => {
         onClose={() => setDashContactOpen(false)}
         onCompleted={() => setDashContactOpen(false)}
       />
+
+      <Modal
+        isOpen={travelerModalOpen}
+        onClose={closeTravelerModal}
+        title={editingTravelerId ? "Edit Traveler" : "Add Traveler"}
+        size="lg"
+        footer={
+          <div className="flex flex-wrap justify-end gap-3">
+            <Button variant="ghost" onClick={closeTravelerModal}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleTravelerSubmit} disabled={travelerSubmitting}>
+              {travelerSubmitting ? "Saving..." : editingTravelerId ? "Save Changes" : "Save Traveler"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs text-text-muted">Full Name</label>
+            <input
+              type="text"
+              value={travelerForm.fullName}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, fullName: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Date of Birth</label>
+            <input
+              type="date"
+              value={travelerForm.dateOfBirth}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Gender</label>
+            <select
+              value={travelerForm.gender}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, gender: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            >
+              <option value="">Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Passport Number</label>
+            <input
+              type="text"
+              value={travelerForm.passportNumber}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, passportNumber: e.target.value.toUpperCase() }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Passport Expiry Date</label>
+            <input
+              type="date"
+              value={travelerForm.passportExpiryDate}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, passportExpiryDate: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Nationality</label>
+            <input
+              type="text"
+              value={travelerForm.nationality}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, nationality: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Relationship</label>
+            <select
+              value={travelerForm.relationship}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, relationship: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            >
+              <option value="Self">Self</option>
+              <option value="Family member">Family member</option>
+              <option value="Friend/Other">Friend/Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">Mobile Number</label>
+            <input
+              type="text"
+              value={travelerForm.mobileNumber}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, mobileNumber: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs text-text-muted">Email</label>
+            <input
+              type="email"
+              value={travelerForm.email}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, email: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+            />
+          </div>
+          <label className="sm:col-span-2 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={travelerForm.isDefault}
+              onChange={(e) => setTravelerForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
+              className="h-4 w-4 rounded border-border text-cyan focus:ring-cyan/40"
+            />
+            Set as my default traveler
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 };

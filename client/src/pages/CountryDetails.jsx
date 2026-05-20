@@ -31,6 +31,8 @@ import {
   HeartHandshake,
   FileEdit,
   Headphones,
+  Info,
+  Link2,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
@@ -213,27 +215,28 @@ const DOCUMENT_HIGHLIGHT_KEYS = new Set([
   "flightTicket",
 ]);
 
-const DOCUMENT_REQUIREMENT_BENEFITS = [
-  {
-    title: "Embassy Verified",
-    description: "All documents are checked as per embassy guidelines.",
-    Icon: ShieldCheck,
-  },
-  {
-    title: "Fast Processing",
-    description: "Quick verification to speed up your application.",
-    Icon: CalendarDays,
-  },
-  {
-    title: "Secure Uploads",
-    description: "Your data is encrypted and handled with care.",
-    Icon: BadgeCheck,
-  },
-];
-
 const createTravelerState = () => ({
   name: "",
+  passportFile: null,
 });
+
+const normalizeDriveLink = (value) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+};
+
+const isGoogleDriveLink = (value) => {
+  const normalized = normalizeDriveLink(value);
+  if (!normalized) return false;
+  try {
+    const url = new URL(normalized);
+    return /(^|\.)drive\.google\.com$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+};
 
 const CountryDetails = () => {
   const { countryId } = useParams();
@@ -278,6 +281,8 @@ const CountryDetails = () => {
   /** Open/closed state for the date-range calendar popup. */
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [travelers, setTravelers] = useState([createTravelerState()]);
+  const [sharedDriveLink, setSharedDriveLink] = useState("");
+  const [sharedDriveLinkVerified, setSharedDriveLinkVerified] = useState(false);
   const [paymentSummaryOpen, setPaymentSummaryOpen] = useState(false);
   const [visaTermsAccepted, setVisaTermsAccepted] = useState(false);
   const [razorpayReady, setRazorpayReady] = useState(false);
@@ -317,7 +322,6 @@ const CountryDetails = () => {
    */
   const postLoginHandlersRef = useRef({});
 
-  const SERVICE_FEE_PER_TRAVELLER = 1500;
   const travellerCount = travelers.length;
   const [gstEnabled, setGstEnabled] = useState(true);
   const [gstRate, setGstRate] = useState(18);
@@ -346,10 +350,11 @@ const CountryDetails = () => {
     : gstRate;
 
   const { serviceAmount, gstAmount, payableToUs } = useMemo(() => {
-    const service = SERVICE_FEE_PER_TRAVELLER * travellerCount;
+    const perTravelerFee = Number.isFinite(Number(country?.basePrice)) ? Number(country.basePrice) : 0;
+    const service = perTravelerFee * travellerCount;
     const gst = effectiveGstEnabled ? Math.round(service * (effectiveGstRate / 100)) : 0;
     return { serviceAmount: service, gstAmount: gst, payableToUs: service + gst };
-  }, [travellerCount, effectiveGstEnabled, effectiveGstRate]);
+  }, [country?.basePrice, travellerCount, effectiveGstEnabled, effectiveGstRate]);
 
   /**
    * Destination-page copy:
@@ -770,6 +775,11 @@ const CountryDetails = () => {
       setTravelDateTo(to);
     }
     if (draft.visaOption) setVisaOption(String(draft.visaOption));
+    if (draft.sharedDriveLink != null) {
+      const restoredLink = String(draft.sharedDriveLink || "").trim();
+      setSharedDriveLink(restoredLink);
+      setSharedDriveLinkVerified(isGoogleDriveLink(restoredLink));
+    }
     if (Array.isArray(draft.travelers) && draft.travelers.length > 0) {
       setTravelers(draft.travelers.map((t) => ({ name: String(t?.name || "") })));
     }
@@ -791,6 +801,11 @@ const CountryDetails = () => {
       if (restore.travelDateFrom) setTravelDateFrom(restore.travelDateFrom);
       if (restore.travelDateTo) setTravelDateTo(restore.travelDateTo);
       if (restore.visaOption) setVisaOption(restore.visaOption);
+      if (restore.sharedDriveLink != null) {
+        const restoredLink = String(restore.sharedDriveLink || "").trim();
+        setSharedDriveLink(restoredLink);
+        setSharedDriveLinkVerified(isGoogleDriveLink(restoredLink));
+      }
       if (Array.isArray(restore.travelers)) {
         setTravelers(restore.travelers.map((t) => ({ name: String(t.name || "") })));
       }
@@ -805,6 +820,20 @@ const CountryDetails = () => {
       }, 180);
     }
   }, [location.state]);
+
+  useEffect(() => {
+    const raw = (location.hash || "").replace(/^#/, "");
+    if (raw !== "travel-details") return;
+    setShowTravelDetails(true);
+    const timer = window.setTimeout(() => {
+      const node = document.getElementById("travel-details");
+      if (!node) return;
+      const stickyOffset = 150;
+      const targetTop = window.scrollY + node.getBoundingClientRect().top - stickyOffset;
+      window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [location.hash, location.pathname]);
 
   // Read `?postLoginAction=...` once on mount, then strip it from the URL so
   // a manual refresh doesn't keep re-triggering the resumed flow. The actual
@@ -881,6 +910,7 @@ const CountryDetails = () => {
         travelDateFrom,
         travelDateTo,
         visaOption,
+        sharedDriveLink,
         travelers: travelers.map((t) => ({ name: String(t.name || "") })),
         showTravelDetails: false,
       });
@@ -902,6 +932,29 @@ const CountryDetails = () => {
     setTravelers((prev) =>
       prev.map((t, i) => (i === index ? { ...t, name } : t))
     );
+  };
+
+  const updateTravelerPassportFile = (index, passportFile) => {
+    setTravelers((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, passportFile: passportFile || null } : t))
+    );
+  };
+
+  const handleVerifySharedDriveLink = () => {
+    const normalized = normalizeDriveLink(sharedDriveLink);
+    if (!normalized) {
+      showToast("Please enter your Google Drive folder link first.", "error");
+      setSharedDriveLinkVerified(false);
+      return;
+    }
+    if (!isGoogleDriveLink(normalized)) {
+      showToast("Please enter a valid Google Drive link.", "error");
+      setSharedDriveLinkVerified(false);
+      return;
+    }
+    setSharedDriveLink(normalized);
+    setSharedDriveLinkVerified(true);
+    showToast("Google Drive link verified.", "success");
   };
 
   const formatTravelRange = () => {
@@ -1089,6 +1142,7 @@ const CountryDetails = () => {
       travelDateFrom,
       travelDateTo,
       visaOption,
+      sharedDriveLink,
       travelers: travelers.map((t) => ({ name: String(t.name || "") })),
       showTravelDetails: true,
     });
@@ -1126,7 +1180,9 @@ const CountryDetails = () => {
           travelDateFrom,
           travelDateTo,
           visaOption,
+          sharedDriveLink,
         },
+        replace: true,
       });
     });
   };
@@ -1175,10 +1231,16 @@ const CountryDetails = () => {
             flagEmoji: country.flagEmoji || "🛂",
             visaType: visaOption || country.visaType || "e-Visa",
             travellerCount,
+            fee: payableToUs,
+            baseFee: serviceAmount,
+            gstAmount,
+            gstRate: effectiveGstRate,
+            gstEnabled: effectiveGstEnabled,
             travelerNames,
             docsUploaded: false,
             travelDateFrom: travelDateFrom || null,
             travelDateTo: travelDateTo || null,
+            sharedDriveLink: sharedDriveLink || "",
           },
           applicationPrev: {
             path: `/destination/${routeId}`,
@@ -1187,11 +1249,13 @@ const CountryDetails = () => {
                 travelDateFrom: travelDateFrom || null,
                 travelDateTo: travelDateTo || null,
                 visaOption: visaOption || country.visaType || "e-Visa",
+                sharedDriveLink: sharedDriveLink || "",
                 travelers: travelers.map((t) => ({ name: String(t.name || "") })),
               },
             },
           },
         },
+        replace: true,
       });
     });
   };
@@ -1337,15 +1401,14 @@ const CountryDetails = () => {
           await fetchUserApplications();
           closePaymentSummaryModal();
           showToast("Payment successful! Complete your application on the dashboard.", "success");
-          navigate(`/dashboard/application/${encodeURIComponent(currentApplicationId)}`);
+          navigate(`/dashboard/application/${encodeURIComponent(currentApplicationId)}`, { replace: true });
         },
         onDismiss: () => {
-          showToast("Payment was not completed. Your application draft is waiting in the dashboard.", "info");
-          navigate(`/dashboard?payment=cancelled&applicationId=${encodeURIComponent(currentApplicationId)}`);
+          showToast("Payment was not completed. Your application draft is still saved here.", "info");
         },
         onFailure: (message) => {
           showToast(message || "Payment could not be started. Check Razorpay keys in admin settings.", "error");
-          navigate(`/dashboard?payment=failed&applicationId=${encodeURIComponent(currentApplicationId)}`);
+          navigate(`/dashboard?payment=failed&applicationId=${encodeURIComponent(currentApplicationId)}`, { replace: true });
         },
       });
 
@@ -1565,21 +1628,6 @@ const CountryDetails = () => {
             )}
             </div>
 
-            <div className="relative mx-auto mt-8 max-w-6xl rounded-[1.75rem] border border-cyan/10 bg-white/80 px-5 py-5 shadow-[0_20px_50px_rgba(15,23,42,0.05)] sm:px-8">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6">
-                {DOCUMENT_REQUIREMENT_BENEFITS.map(({ title, description, Icon }) => (
-                  <div key={title} className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-cyan/8 text-cyan">
-                      <Icon size={26} strokeWidth={2} />
-                    </div>
-                    <div>
-                      <p className="text-xl font-semibold leading-tight text-text-primary">{title}</p>
-                      <p className="mt-1 text-base leading-7 text-text-secondary">{description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </motion.section>
       )}
@@ -2170,8 +2218,190 @@ const CountryDetails = () => {
                           <p className="text-xs text-red-400 mt-1.5">Traveler name is required.</p>
                         )}
                       </div>
+
+                      <div
+                        className={`rounded-xl border px-3 py-3 transition-colors ${
+                          traveler.passportFile
+                            ? "border-emerald-300 bg-emerald-50/60"
+                            : "border-border bg-background"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                              traveler.passportFile
+                                ? "bg-emerald-100 text-emerald-600"
+                                : "bg-cyan/10 text-cyan"
+                            }`}
+                          >
+                            <FileText size={15} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-text-primary">
+                              Passport Upload{" "}
+                              <span className="text-[10px] font-medium text-text-muted">
+                                (optional)
+                              </span>
+                              <span className="group relative ml-1 inline-flex align-middle">
+                                <span
+                                  className="inline-flex rounded-full p-0.5 text-text-muted transition-all duration-150 hover:bg-cyan/10 hover:text-cyan"
+                                  aria-label="Optional passport upload info"
+                                >
+                                  <Info size={12} />
+                                </span>
+                                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
+                                  You can continue to payment now and upload required documents later from your application dashboard.
+                                </span>
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-text-muted">
+                              {traveler.passportFile
+                                ? `${traveler.passportFile.name}`
+                                : "Upload passport copy for this traveler"}
+                            </p>
+                          </div>
+                          {traveler.passportFile && (
+                            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                              <CircleCheck size={12} />
+                              Uploaded
+                            </span>
+                          )}
+                          <label
+                            htmlFor={`traveler-passport-${index}`}
+                            className={`shrink-0 cursor-pointer rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${
+                              traveler.passportFile
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : "bg-cyan/15 text-cyan hover:bg-cyan/25"
+                            }`}
+                          >
+                            {traveler.passportFile ? "Replace" : "Upload"}
+                          </label>
+                          <input
+                            id={`traveler-passport-${index}`}
+                            type="file"
+                            accept=".pdf,image/jpeg,image/png,image/webp"
+                            className="sr-only"
+                            onChange={(e) => {
+                              updateTravelerPassportFile(index, e.target.files?.[0] || null);
+                              e.target.value = "";
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_-35px_rgba(15,23,42,0.45)]">
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-[#4285F4] shadow-inner">
+                      <Link2 size={22} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-lg font-semibold text-slate-950">
+                          Document Drive Link (for all travelers)
+                        </h4>
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                          Optional
+                        </span>
+                        <span className="group relative inline-flex align-middle">
+                          <span
+                            className="inline-flex rounded-full p-0.5 text-slate-400 transition-all duration-150 hover:bg-slate-100 hover:text-cyan"
+                            aria-label="Optional Google Drive link info"
+                          >
+                            <Info size={14} />
+                          </span>
+                          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-normal leading-relaxed text-slate-500 shadow-lg group-hover:block">
+                            You can continue to payment now and share the Google Drive link later from your application dashboard.
+                          </span>
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">
+                        Upload all documents to Google Drive and share the folder link here. This link will be applicable for all travelers.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <label className="text-sm font-medium text-slate-900">
+                        Google Drive Link
+                      </label>
+                      <div className="group relative inline-flex items-center">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-0.5 transition-colors focus:outline-none"
+                          aria-label="Google Drive sharing guide"
+                        >
+                          <Info size={15} />
+                        </button>
+                        <div className="pointer-events-none absolute left-0 bottom-full z-30 mb-2 hidden w-80 rounded-2xl border border-slate-200 bg-white p-4 text-xs font-normal leading-relaxed text-slate-600 shadow-xl group-hover:block transition-all duration-200">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-50 text-blue-600 font-semibold text-[10px]">GD</span>
+                              <h5 className="font-bold text-slate-800 text-sm">How to Share Folder Link</h5>
+                            </div>
+                            <ol className="list-decimal pl-4 space-y-2 text-slate-600">
+                              <li>Upload all required documents to your Google Drive folder.</li>
+                              <li>Right-click the folder and select <span className="font-semibold text-slate-800">Share &gt; Share</span>.</li>
+                              <li>Under <span className="font-semibold text-slate-800">General access</span>, change <span className="font-semibold text-slate-800">Restricted</span> to <span className="font-semibold text-slate-800">Anyone with the link</span>.</li>
+                              <li>Make sure the role is set to <span className="font-semibold text-slate-800">Viewer</span>.</li>
+                              <li>Click <span className="font-semibold text-slate-800">Copy link</span> and paste it in the field below.</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <div className="relative min-w-0 flex-1">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                          <Link2 size={18} />
+                        </span>
+                        <input
+                          type="url"
+                          autoComplete="off"
+                          value={sharedDriveLink}
+                          onChange={(e) => {
+                            setSharedDriveLink(e.target.value);
+                            setSharedDriveLinkVerified(false);
+                          }}
+                          placeholder="https://drive.google.com/your-folder-link"
+                          className={`w-full rounded-2xl border bg-white py-3 pl-12 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
+                            sharedDriveLinkVerified
+                              ? "border-emerald-300 focus:border-emerald-400"
+                              : "border-slate-200 focus:border-cyan"
+                          }`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleVerifySharedDriveLink}
+                        className={`inline-flex min-h-[52px] shrink-0 items-center justify-center rounded-2xl border px-5 text-sm font-semibold transition-colors sm:min-w-[148px] ${
+                          sharedDriveLinkVerified
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            : "border-blue-200 bg-white text-blue-600 hover:bg-blue-50"
+                        }`}
+                      >
+                        {sharedDriveLinkVerified ? "Verified" : "Verify Link"}
+                      </button>
+                    </div>
+
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm">
+                        <ShieldCheck size={18} />
+                      </span>
+                      <div>
+                        <p className="text-base font-semibold text-emerald-900">Secure &amp; Private</p>
+                        <p className="mt-0.5 text-sm text-emerald-800/80">
+                          Your documents are safe. We only access what&apos;s necessary to process your application.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <Button
@@ -2184,9 +2414,6 @@ const CountryDetails = () => {
                 >
                   Proceed to Summary
                 </Button>
-                <p className="text-xs text-text-muted">
-                  You can continue to payment now and upload required documents later from your application dashboard.
-                </p>
               </motion.section>
             ) : null}
 
@@ -2221,10 +2448,12 @@ const CountryDetails = () => {
                       <p className="mt-3 text-5xl font-extrabold tracking-tight text-slate-950">₹{payableToUs.toLocaleString("en-IN")}</p>
                     </div>
                     <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({gstEnabled ? `${gstRate}%` : "0%"})</span>
-                        <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
-                      </div>
+                      {effectiveGstEnabled && (
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({effectiveGstRate}%)</span>
+                          <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
                       <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
                         <span className="text-xs uppercase tracking-[0.24em] text-slate-500">Total Amount</span>
                         <span className="text-lg font-semibold text-slate-900">₹{payableToUs.toLocaleString("en-IN")}</span>
@@ -2255,10 +2484,12 @@ const CountryDetails = () => {
                     </div>
 
                     <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({gstEnabled ? `${gstRate}%` : "0%"})</span>
-                        <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
-                      </div>
+                      {effectiveGstEnabled && (
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({effectiveGstRate}%)</span>
+                          <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
                       <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
                         <span className="text-xs uppercase tracking-[0.24em] text-slate-500">Total Amount</span>
                         <span className="text-lg font-semibold text-slate-900">₹{payableToUs.toLocaleString("en-IN")}</span>
@@ -2359,17 +2590,21 @@ const CountryDetails = () => {
               </div>
               <div className="border-t border-border pt-3 mt-2 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-text-muted">Service ({travellerCount} x ₹{SERVICE_FEE_PER_TRAVELLER})</span>
+                  <span className="text-text-muted">
+                    Service Fee {travellerCount > 1 ? `(${travellerCount} x ₹${Number(country?.basePrice || 0).toLocaleString("en-IN")})` : ""}
+                  </span>
                   <span className="font-medium text-text-primary">
                     ₹{serviceAmount.toLocaleString("en-IN")}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-muted">GST ({gstEnabled ? `${gstRate}%` : "0%"})</span>
-                  <span className="font-medium text-text-primary">
-                    ₹{gstAmount.toLocaleString("en-IN")}
-                  </span>
-                </div>
+                {effectiveGstEnabled && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-muted">GST ({effectiveGstRate}%)</span>
+                    <span className="font-medium text-text-primary">
+                      ₹{gstAmount.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
                   <span className="font-semibold text-text-primary">Payable to us</span>
                   <span className="font-bold text-cyan">₹{payableToUs.toLocaleString("en-IN")}</span>

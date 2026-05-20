@@ -95,6 +95,25 @@ const DESTINATION_FAQS_FALLBACK = [
   },
 ];
 
+const LANDING_HERO_HIGHLIGHTS_FALLBACK = [
+  {
+    title: 'Fast Processing',
+    body: 'Quick application flow and updates',
+  },
+  {
+    title: 'Trusted Guidance',
+    body: 'Accurate help for every step',
+  },
+  {
+    title: 'All-in-One Platform',
+    body: 'Search, apply, track, and upload',
+  },
+  {
+    title: 'Secure & Private',
+    body: 'Your documents stay protected',
+  },
+];
+
 /**
  * Admin saves one settings card at a time. The client always sends keys for that card;
  * password inputs often arrive as "" even though Mongo already has the secret (browser
@@ -132,6 +151,17 @@ const sanitizeIncludedItemsList = (arr) =>
         })
         .filter((item) => item.title)
     : [];
+
+const sanitizeLandingHeroHighlights = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((item) => ({
+      title: String(item?.title ?? '').trim(),
+      body: String(item?.body ?? '').trim(),
+    }))
+    .filter((item) => item.title || item.body)
+    .slice(0, 4);
+};
 
 const normalizeSettingsUpdatePayload = (body = {}) => ({
   ...body,
@@ -183,6 +213,10 @@ const normalizeSettingsUpdatePayload = (body = {}) => ({
       : Array.isArray(body.destinationVisaRequirements)
         ? body.destinationVisaRequirements.map((item) => String(item ?? '').trim()).filter(Boolean)
         : [],
+  landingHeroHighlights:
+    body.landingHeroHighlights === undefined
+      ? undefined
+      : sanitizeLandingHeroHighlights(body.landingHeroHighlights),
 });
 
 /**
@@ -228,6 +262,15 @@ const updateSettings = async (req, res) => {
       smtpEmailService,
       enableGDriveUpload,
       enableFileUpload,
+      showTravelerDetails,
+      customerChatEnabled,
+      customerChatMode,
+      customerChatLink,
+      customerChatTitle,
+      customerChatDescription,
+      customerChatHeaderTitle,
+      customerChatHeaderSubtitle,
+      whatsappTemplate,
       unsplashAccessKey,
       unsplashSecretKey,
       unsplashApplicationId,
@@ -240,6 +283,7 @@ const updateSettings = async (req, res) => {
       destinationFaqs,
       destinationHowItWorks,
       destinationVisaRequirements,
+      landingHeroHighlights,
     } = safePayload;
     console.log('Admin updating settings:', {
       razorpayKeyId,
@@ -281,6 +325,15 @@ const updateSettings = async (req, res) => {
     }
     if (enableGDriveUpload !== undefined) settings.enableGDriveUpload = Boolean(enableGDriveUpload);
     if (enableFileUpload !== undefined) settings.enableFileUpload = Boolean(enableFileUpload);
+    if (showTravelerDetails !== undefined) settings.showTravelerDetails = Boolean(showTravelerDetails);
+    if (customerChatEnabled !== undefined) settings.customerChatEnabled = Boolean(customerChatEnabled);
+    if (customerChatMode !== undefined) settings.customerChatMode = String(customerChatMode || '').trim() || 'external_link';
+    if (customerChatLink !== undefined) settings.customerChatLink = String(customerChatLink || '').trim();
+    if (customerChatTitle !== undefined) settings.customerChatTitle = String(customerChatTitle || '').trim();
+    if (customerChatDescription !== undefined) settings.customerChatDescription = String(customerChatDescription || '').trim();
+    if (customerChatHeaderTitle !== undefined) settings.customerChatHeaderTitle = String(customerChatHeaderTitle || '').trim();
+    if (customerChatHeaderSubtitle !== undefined) settings.customerChatHeaderSubtitle = String(customerChatHeaderSubtitle || '').trim();
+    if (whatsappTemplate !== undefined) settings.whatsappTemplate = String(whatsappTemplate || '').trim();
     if (showRequiredDocuments !== undefined) settings.showRequiredDocuments = Boolean(showRequiredDocuments);
     if (showVisaRequirements !== undefined) settings.showVisaRequirements = Boolean(showVisaRequirements);
     assignSecretUnlessEmpty(settings, 'unsplashAccessKey', unsplashAccessKey);
@@ -324,6 +377,9 @@ const updateSettings = async (req, res) => {
       settings.destinationVisaRequirements = Array.isArray(destinationVisaRequirements)
         ? destinationVisaRequirements.map((s) => String(s ?? '').trim()).filter(Boolean)
         : [];
+    }
+    if (landingHeroHighlights !== undefined) {
+      settings.landingHeroHighlights = sanitizeLandingHeroHighlights(landingHeroHighlights);
     }
 
     await settings.save();
@@ -417,6 +473,7 @@ const getUploadSettings = async (req, res) => {
     const config = {
       enableGDriveUpload: settings?.enableGDriveUpload !== false,
       enableFileUpload: settings?.enableFileUpload !== false,
+      showTravelerDetails: settings?.showTravelerDetails !== false,
     };
     res.json({ success: true, config });
   } catch (error) {
@@ -469,14 +526,74 @@ const getDestinationPageContent = async (req, res) => {
       Array.isArray(rawVisaReq) && rawVisaReq.length
         ? rawVisaReq.map((s) => String(s ?? '').trim()).filter(Boolean)
         : DESTINATION_VISA_REQUIREMENTS_FALLBACK;
+    const rawLandingHighlights = settings?.landingHeroHighlights;
+    const landingHeroHighlights =
+      Array.isArray(rawLandingHighlights) && rawLandingHighlights.length
+        ? sanitizeLandingHeroHighlights(rawLandingHighlights)
+        : LANDING_HERO_HIGHLIGHTS_FALLBACK;
     const showVisaRequirements = settings?.showVisaRequirements !== false;
 
     res.json({
       success: true,
-      config: { whyBookNow, included, faqs, howItWorks, visaRequirements, showVisaRequirements },
+      config: {
+        whyBookNow,
+        included,
+        faqs,
+        howItWorks,
+        visaRequirements,
+        showVisaRequirements,
+        landingHeroHighlights,
+      },
     });
   } catch (error) {
     console.error('Error fetching destination page content:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+const getCustomerChatConfig = async (req, res) => {
+  try {
+    const settings = await loadSettingsDocument();
+    res.json({
+      success: true,
+      config: {
+        enabled: settings?.customerChatEnabled !== false,
+        mode: String(settings?.customerChatMode || 'external_link').trim() || 'external_link',
+        link: String(settings?.customerChatLink || '').trim(),
+        title: String(settings?.customerChatTitle || '').trim() || 'Continue with Chat',
+        description:
+          String(settings?.customerChatDescription || '').trim() ||
+          'Get instant support from our visa team',
+        headerTitle: String(settings?.customerChatHeaderTitle || '').trim() || 'Chat with us',
+        headerSubtitle:
+          String(settings?.customerChatHeaderSubtitle || '').trim() ||
+          'We typically reply in a few minutes',
+        whatsappTemplate: String(settings?.whatsappTemplate || '').trim() ||
+          'Hello Visa & Voyage Team,\nI need help with my visa application.\n\nName: {{userName}}\nCountry: {{country}}\nVisa Type: {{visaType}}\nTravel Date: {{travelDate}}\nApplication ID: {{applicationId}}\n\nPlease guide me.',
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching customer chat config:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @route   GET /api/config/site-state
+ * @desc    Public runtime site flags for the client app shell
+ * @access  Public
+ */
+const getSiteState = async (req, res) => {
+  try {
+    const settings = await loadSettingsDocument();
+    res.json({
+      success: true,
+      config: {
+        maintenanceModeEnabled: settings?.maintenanceModeEnabled === true,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching site state:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -489,4 +606,6 @@ module.exports = {
   getFirebaseConfig,
   getUploadSettings,
   getDestinationPageContent,
+  getSiteState,
+  getCustomerChatConfig,
 };

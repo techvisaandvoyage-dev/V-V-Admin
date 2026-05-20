@@ -139,7 +139,7 @@ const RegisterPage = () => {
       const { success } = await loginWithFirebaseFacebook(idToken);
       if (success) {
         showToast("Account ready. Logged in with Facebook.");
-        navigate("/");
+        navigate("/", { replace: true });
       }
     } catch (err) {
       showToast(err.message || "Facebook signup failed", "error");
@@ -217,7 +217,7 @@ const RegisterPage = () => {
     const { success } = await verifyOtp(identifier, otp);
     if (success) {
       showToast("Account created! Welcome 🎉");
-      navigate("/");
+      navigate("/", { replace: true });
     }
   };
 
@@ -246,6 +246,7 @@ const RegisterPage = () => {
               <div className="mb-8 text-center relative">
                 <Link
                   to="/login"
+                  replace
                   className="absolute -left-2 top-0 p-2 text-text-muted hover:text-text-primary transition-colors"
                 >
                   <ArrowLeft size={20} />
@@ -423,7 +424,7 @@ const RegisterPage = () => {
               <div className="mt-8 text-center text-[14px]">
                 <p className="text-text-primary font-medium">
                   Already have an account?{" "}
-                  <Link to="/login" className="text-[#3b82f6] hover:text-[#2563eb] transition-colors">
+                  <Link to="/login" replace className="text-[#3b82f6] hover:text-[#2563eb] transition-colors">
                     Log in
                   </Link>
                 </p>

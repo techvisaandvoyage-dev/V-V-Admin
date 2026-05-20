@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { travelerSnapshotSchemaDefinition } = require('../utils/travelerProfile');
 
 const applicationSchema = new mongoose.Schema({
   user: {
@@ -61,6 +62,21 @@ const applicationSchema = new mongoose.Schema({
   ],
 
   travelerNames: [{ type: String, default: "" }],
+
+  travelerSelections: [
+    {
+      travelerNo: { type: Number, required: true },
+      travelerProfileId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TravelerProfile',
+        default: null,
+      },
+      travelerSnapshot: {
+        type: new mongoose.Schema(travelerSnapshotSchemaDefinition, { _id: false }),
+        default: null,
+      },
+    },
+  ],
 
   /** Headcount from checkout (service fee multiplier) */
   travellerCount: { type: Number, default: 1 },

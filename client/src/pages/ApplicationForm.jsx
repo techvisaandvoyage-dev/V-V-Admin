@@ -26,6 +26,8 @@ import {
   MapPin,
   ScrollText,
   HeartHandshake,
+  BookmarkCheck,
+  UserRoundPlus,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
@@ -98,14 +100,16 @@ const DOCUMENT_META = {
 const buildDocFields = (documentKeys = ["passport"]) => {
   const keys = Array.isArray(documentKeys) && documentKeys.length ? documentKeys : ["passport"];
   const seen = new Set();
+  const normalizedKeys = ["passport", ...keys.filter((key) => key !== "passport")];
 
-  const fields = keys.reduce((acc, key) => {
+  const fields = normalizedKeys.reduce((acc, key, index) => {
     if (!key || seen.has(key)) return acc;
     seen.add(key);
     acc.push({
       key,
       label: DOCUMENT_META[key]?.label || `${key.replace(/([A-Z])/g, " $1")} Upload`,
       Icon: DOCUMENT_META[key]?.Icon || FileText,
+      required: index === 0,
     });
     return acc;
   }, []);
@@ -116,6 +120,7 @@ const buildDocFields = (documentKeys = ["passport"]) => {
       key: "passport",
       label: DOCUMENT_META.passport.label,
       Icon: DOCUMENT_META.passport.Icon,
+      required: true,
     }];
 };
 
@@ -125,14 +130,40 @@ const formatFileSize = (size = 0) => {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const RELATIONSHIP_OPTIONS = ["Self", "Family member", "Friend/Other"];
+const GENDER_OPTIONS = ["Male", "Female", "Other"];
+
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+};
+
+const buildTravelerFormState = (traveler = {}) => ({
+  savedTravelerId: traveler.savedTravelerId || traveler.travelerProfileId || "",
+  savedTravelerLabel: traveler.savedTravelerLabel || "",
+  name: traveler.name || traveler.fullName || "",
+  fullName: traveler.fullName || traveler.name || "",
+  dateOfBirth: toDateInputValue(traveler.dateOfBirth),
+  gender: traveler.gender || "",
+  passportNumber: traveler.passportNumber || "",
+  passportExpiryDate: toDateInputValue(traveler.passportExpiryDate),
+  nationality: traveler.nationality || "",
+  mobileNumber: traveler.mobileNumber || "",
+  email: traveler.email || "",
+  relationship: traveler.relationship || "Self",
+  updateSavedTraveler: false,
+  documents: traveler.documents || {},
+  otherDocuments: traveler.otherDocuments || [],
+  gdriveLink: traveler.gdriveLink || "",
+  gdriveFurtherInfoLink: traveler.gdriveFurtherInfoLink || "",
+  gdriveLinkSaved: Boolean(traveler.gdriveLinkSaved),
+  gdriveFurtherInfoLinkSaved: Boolean(traveler.gdriveFurtherInfoLinkSaved),
+});
+
 const createTraveler = () => ({
-  name: "",
-  documents: {},
-  otherDocuments: [],
-  gdriveLink: "",
-  gdriveFurtherInfoLink: "",
-  gdriveLinkSaved: false,
-  gdriveFurtherInfoLinkSaved: false,
+  ...buildTravelerFormState({}),
 });
 
 const ApplicationForm = () => {
@@ -152,7 +183,17 @@ const ApplicationForm = () => {
     () => buildDocFields(country?.requiredDocuments),
     [country?.requiredDocuments]
   );
+  const passportDocField = useMemo(
+    () => docFields.find((field) => field.key === "passport") || null,
+    [docFields]
+  );
+  const optionalDocFields = useMemo(
+    () => docFields.filter((field) => field.key !== "passport"),
+    [docFields]
+  );
   const [travelers, setTravelers] = useState([createTraveler()]);
+  const [savedTravelers, setSavedTravelers] = useState([]);
+  const [savedTravelersLoading, setSavedTravelersLoading] = useState(false);
   const [draggingKey, setDraggingKey] = useState("");
   const [docErrors, setDocErrors] = useState({});
   const [uploadSettings, setUploadSettings] = useState({
@@ -198,6 +239,33 @@ const ApplicationForm = () => {
   }, []);
 
   useEffect(() => {
+    let alive = true;
+
+    const loadSavedTravelers = async () => {
+      if (!isAuthenticated) return;
+      setSavedTravelersLoading(true);
+      try {
+        const { data } = await api.get("/travelers");
+        if (alive) {
+          setSavedTravelers(Array.isArray(data?.travelers) ? data.travelers : []);
+        }
+      } catch (error) {
+        if (alive) {
+          console.error("Failed to load saved travelers:", error);
+          setSavedTravelers([]);
+        }
+      } finally {
+        if (alive) setSavedTravelersLoading(false);
+      }
+    };
+
+    loadSavedTravelers();
+    return () => {
+      alive = false;
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (prefillApplied.current) return;
     const st = location.state;
     if (!st?.travelerNames || !Array.isArray(st.travelerNames)) return;
@@ -205,11 +273,8 @@ const ApplicationForm = () => {
     const n = Math.max(1, Number(st.travellerCount) || st.travelerNames.length);
     setTravelers(
       Array.from({ length: n }, (_, i) => ({
-        name: String(st.travelerNames[i] || "").trim(),
-        documents: {},
-        otherDocuments: [],
-        gdriveLink: "",
-        gdriveFurtherInfoLink: "",
+        ...createTraveler(),
+        ...buildTravelerFormState(st.travelers?.[i] || { name: String(st.travelerNames[i] || "").trim() }),
       }))
     );
   }, [location.state]);
@@ -226,7 +291,10 @@ const ApplicationForm = () => {
         travelDateFrom: flowDateFrom ?? "",
         travelDateTo: flowDateTo ?? "",
         visaOption: flowVisaOption ?? country?.visaType ?? "e-Visa",
-        travelers: travelers.map((t) => ({ name: String(t.name || "") })),
+        travelers: travelers.map((traveler) => ({
+          ...traveler,
+          name: String(traveler.name || traveler.fullName || ""),
+        })),
         showTravelDetails: true,
       });
     }, 280);
@@ -293,7 +361,52 @@ const ApplicationForm = () => {
   const removeTraveler = () => setTravelers((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
 
   const updateTravelerName = (index, value) => {
-    setTravelers((prev) => prev.map((t, i) => (i === index ? { ...t, name: value } : t)));
+    setTravelers((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, name: value, fullName: value } : t))
+    );
+  };
+
+  const updateTravelerField = (index, field, value) => {
+    setTravelers((prev) =>
+      prev.map((traveler, i) => {
+        if (i !== index) return traveler;
+        if (field === "fullName") {
+          return { ...traveler, fullName: value, name: value };
+        }
+        if (field === "savedTravelerId") {
+          return { ...traveler, savedTravelerId: value };
+        }
+        return { ...traveler, [field]: value };
+      })
+    );
+  };
+
+  const applySavedTraveler = (index, travelerId) => {
+    const match = savedTravelers.find((traveler) => String(traveler._id) === String(travelerId));
+    if (!match) return;
+
+    setTravelers((prev) =>
+      prev.map((traveler, i) =>
+        i === index
+          ? {
+              ...traveler,
+              ...buildTravelerFormState({
+                ...traveler,
+                ...match,
+                savedTravelerId: match._id,
+                savedTravelerLabel: match.fullName,
+                documents: traveler.documents,
+                otherDocuments: traveler.otherDocuments,
+                gdriveLink: traveler.gdriveLink,
+                gdriveFurtherInfoLink: traveler.gdriveFurtherInfoLink,
+                gdriveLinkSaved: traveler.gdriveLinkSaved,
+                gdriveFurtherInfoLinkSaved: traveler.gdriveFurtherInfoLinkSaved,
+              }),
+            }
+          : traveler
+      )
+    );
+    showToast("Saved traveler applied to this application.", "success");
   };
 
   const updateTravelerGdrive = (index, value) => {
@@ -424,18 +537,17 @@ const ApplicationForm = () => {
     (traveler) => {
       if (!String(traveler.name || "").trim()) return false;
       const { enableFileUpload: fileOn, enableGDriveUpload: gdOn } = uploadSettings;
-      
-      const hasAllFiles = fileOn && docFields.every((f) => traveler.documents[f.key] instanceof File);
+      const hasPassportFile = fileOn && traveler.documents?.passport instanceof File;
       const hasDriveLink = gdOn && String(traveler.gdriveLink || "").trim();
 
-      // If both are enabled, we require files for the "Complete" status (no warning).
-      // If they only have a Drive link, we consider it pending so they get the warning.
+      // Passport upload is always the mandatory file field for each traveler.
+      // Any additional country-specific document rows remain optional.
       if (fileOn && gdOn) {
-        return hasAllFiles;
+        return hasPassportFile;
       }
 
       // If only one is enabled, that one is enough.
-      if (fileOn) return hasAllFiles;
+      if (fileOn) return hasPassportFile;
       if (gdOn) return hasDriveLink;
 
       return false;
@@ -498,6 +610,26 @@ const ApplicationForm = () => {
     }
   };
 
+  const syncSavedTravelerUpdates = async () => {
+    const queuedTravelers = travelers.filter(
+      (traveler) => traveler.updateSavedTraveler && String(traveler.savedTravelerId || "").trim()
+    );
+
+    for (const traveler of queuedTravelers) {
+      await api.put(`/travelers/${traveler.savedTravelerId}`, {
+        fullName: traveler.fullName || traveler.name,
+        dateOfBirth: traveler.dateOfBirth,
+        gender: traveler.gender,
+        passportNumber: traveler.passportNumber,
+        passportExpiryDate: traveler.passportExpiryDate,
+        nationality: traveler.nationality,
+        mobileNumber: traveler.mobileNumber,
+        email: traveler.email,
+        relationship: traveler.relationship || "Self",
+      });
+    }
+  };
+
   /**
    * Submit the application draft and jump to the payment summary.
    *
@@ -511,6 +643,19 @@ const ApplicationForm = () => {
     const skipped = Boolean(opts.skipped);
     const travelerNames = travelers.map((t, i) => String(t.name || "").trim() || `Traveler ${i + 1}`);
     const travelerGdriveLinks = travelers.map((t) => String(t.gdriveLink || "").trim());
+    const travelerPayload = travelers.map((traveler, index) => ({
+      travelerNo: index + 1,
+      travelerProfileId: traveler.savedTravelerId || null,
+      fullName: traveler.fullName || traveler.name || `Traveler ${index + 1}`,
+      dateOfBirth: traveler.dateOfBirth || null,
+      gender: traveler.gender || "",
+      passportNumber: traveler.passportNumber || "",
+      passportExpiryDate: traveler.passportExpiryDate || null,
+      nationality: traveler.nationality || "",
+      mobileNumber: traveler.mobileNumber || "",
+      email: traveler.email || "",
+      relationship: traveler.relationship || "Self",
+    }));
     const flow = location.state;
     const visaForSummary = flow?.visaOption || country.visaType || "e-Visa";
     const travelDateFrom = flow?.travelDateFrom ?? null;
@@ -527,6 +672,7 @@ const ApplicationForm = () => {
         travelDateTo,
         travellerCount: travelers.length,
         travelerNames,
+        travelers: travelerPayload,
         processingDays: normalizeProcessingDays(country.processingDays),
       });
 
@@ -536,6 +682,7 @@ const ApplicationForm = () => {
       }
 
       const appId = data.application._id;
+      await syncSavedTravelerUpdates();
       // Persist whatever travelers already uploaded — when skipped, this may
       // be partial / empty; that's fine. The summary tile and the dashboard
       // missing-docs indicator will reflect reality from the application
@@ -552,6 +699,7 @@ const ApplicationForm = () => {
       );
       const applyFlowState = {
         travelerNames,
+        travelers: travelerPayload,
         travellerCount: travelers.length,
         travelDateFrom,
         travelDateTo,
@@ -581,7 +729,12 @@ const ApplicationForm = () => {
             flagEmoji: country.flagEmoji || "🛂",
             visaType: visaForSummary,
             travellerCount: travelers.length,
+            fee: Number(data.application?.fee || 0),
+            baseFee: Number(country?.basePrice || 0) * travelers.length,
+            gstEnabled: country?.gstEnabled !== false,
+            gstRate: Number.isFinite(Number(country?.gstRate)) ? Number(country.gstRate) : 18,
             travelerNames,
+            travelers: travelerPayload,
             travelerGdriveLinks,
             travelDateFrom,
             travelDateTo,
@@ -592,6 +745,7 @@ const ApplicationForm = () => {
             state: applyFlowState,
           },
         },
+        replace: true,
       });
     } catch (err) {
       const serverMessage =
@@ -668,7 +822,10 @@ const ApplicationForm = () => {
               travelDateFrom: flow.travelDateFrom ?? "",
               travelDateTo: flow.travelDateTo ?? "",
               visaOption: flow.visaOption ?? country?.visaType ?? "e-Visa",
-              travelers: travelers.map((t) => ({ name: String(t.name || "") })),
+              travelers: travelers.map((traveler) => ({
+                ...traveler,
+                name: String(traveler.name || traveler.fullName || ""),
+              })),
               showTravelDetails: true,
             });
             // Replace so history is not […, destination, apply, destination]; Back on country won't return to apply.
@@ -740,17 +897,175 @@ const ApplicationForm = () => {
                 )}
               </div>
 
+              <div className="rounded-2xl border border-cyan/15 bg-cyan/5 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-cyan">
+                    <BookmarkCheck size={12} /> Use saved traveler
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
+                    <UserRoundPlus size={12} /> Add new traveler
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  <select
+                    value={traveler.savedTravelerId || ""}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      if (!nextId) {
+                        updateTravelerField(index, "savedTravelerId", "");
+                        return;
+                      }
+                      applySavedTraveler(index, nextId);
+                    }}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  >
+                    <option value="">
+                      {savedTravelersLoading ? "Loading saved travelers..." : "Select a saved traveler profile"}
+                    </option>
+                    {savedTravelers.map((savedTraveler) => (
+                      <option key={savedTraveler._id} value={savedTraveler._id}>
+                        {savedTraveler.fullName} · {savedTraveler.relationship}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] leading-relaxed text-text-muted">
+                    Choose a saved profile to auto-fill this traveler, or type fresh details below for this application only.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-text-muted block mb-1.5">Full Name</label>
+                  <input
+                    ref={(el) => {
+                      travelerNameInputRefs.current[index] = el;
+                    }}
+                    type="text"
+                    autoComplete="off"
+                    value={traveler.fullName || traveler.name}
+                    onChange={(e) => updateTravelerName(index, e.target.value)}
+                    placeholder="Enter full name"
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={traveler.dateOfBirth || ""}
+                    onChange={(e) => updateTravelerField(index, "dateOfBirth", e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Gender</label>
+                  <select
+                    value={traveler.gender || ""}
+                    onChange={(e) => updateTravelerField(index, "gender", e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  >
+                    <option value="">Select gender</option>
+                    {GENDER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Passport Number</label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    value={traveler.passportNumber || ""}
+                    onChange={(e) => updateTravelerField(index, "passportNumber", e.target.value.toUpperCase())}
+                    placeholder="Enter passport number"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Passport Expiry</label>
+                  <input
+                    type="date"
+                    value={traveler.passportExpiryDate || ""}
+                    onChange={(e) => updateTravelerField(index, "passportExpiryDate", e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Nationality</label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    value={traveler.nationality || ""}
+                    onChange={(e) => updateTravelerField(index, "nationality", e.target.value)}
+                    placeholder="Enter nationality"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Relationship</label>
+                  <select
+                    value={traveler.relationship || "Self"}
+                    onChange={(e) => updateTravelerField(index, "relationship", e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  >
+                    {RELATIONSHIP_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-text-muted block mb-1.5">Mobile Number</label>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    value={traveler.mobileNumber || ""}
+                    onChange={(e) => updateTravelerField(index, "mobileNumber", e.target.value)}
+                    placeholder="Enter mobile number"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-text-muted block mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    autoComplete="off"
+                    value={traveler.email || ""}
+                    onChange={(e) => updateTravelerField(index, "email", e.target.value)}
+                    placeholder="Enter traveler email"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
+                  />
+                </div>
+              </div>
+
+              {traveler.savedTravelerId && (
+                <label className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs text-text-secondary">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(traveler.updateSavedTraveler)}
+                    onChange={(e) => updateTravelerField(index, "updateSavedTraveler", e.target.checked)}
+                    className="h-4 w-4 rounded border-border text-cyan focus:ring-cyan/40"
+                  />
+                  Update this saved traveler profile with the edits above when I continue
+                </label>
+              )}
+
               <div>
                 <label className="text-xs text-text-muted block mb-1.5">Traveler Name</label>
                 <input
-                  ref={(el) => {
-                    travelerNameInputRefs.current[index] = el;
-                  }}
                   type="text"
                   autoComplete="off"
                   value={traveler.name}
                   onChange={(e) => updateTravelerName(index, e.target.value)}
-                  placeholder="Enter full name"
+                  placeholder="Used in document labels"
                   className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
                 />
               </div>
@@ -765,17 +1080,30 @@ const ApplicationForm = () => {
                         ? " (optional if you upload every file below)"
                         : " (required)"}
                     </span>
-                    <span className="group relative inline-flex">
-                      <span
-                        className="inline-flex rounded-full p-0.5 text-text-muted transition-all duration-150 hover:bg-cyan/10 hover:text-cyan"
-                        aria-label="How to share your folder guide"
+                    <div className="group relative inline-flex items-center">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-full text-text-muted hover:text-cyan hover:bg-cyan/10 p-0.5 transition-colors focus:outline-none"
+                        aria-label="Google Drive sharing guide"
                       >
-                        <Info size={12} />
-                      </span>
-                      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
-                        How to share your folder guide: open your Google Drive folder, click Share, change access to Anyone with the link, and paste that folder link here.
-                      </span>
-                    </span>
+                        <Info size={13} />
+                      </button>
+                      <div className="pointer-events-none absolute left-0 bottom-full z-30 mb-2 hidden w-80 rounded-2xl border border-border bg-surface p-4 text-xs font-normal leading-relaxed text-text-secondary shadow-xl group-hover:block transition-all duration-200">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 border-b border-border pb-2">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-cyan/10 text-cyan font-semibold text-[10px]">GD</span>
+                            <h5 className="font-bold text-text-primary text-sm">How to Share Folder Link</h5>
+                          </div>
+                          <ol className="list-decimal pl-4 space-y-2 text-text-secondary">
+                            <li>Upload all required documents to your Google Drive folder.</li>
+                            <li>Right-click the folder and select <span className="font-semibold text-text-primary">Share &gt; Share</span>.</li>
+                            <li>Under <span className="font-semibold text-text-primary">General access</span>, change <span className="font-semibold text-text-primary">Restricted</span> to <span className="font-semibold text-text-primary">Anyone with the link</span>.</li>
+                            <li>Make sure the role is set to <span className="font-semibold text-text-primary">Viewer</span>.</li>
+                            <li>Click <span className="font-semibold text-text-primary">Copy link</span> and paste it in the field below.</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
                   </label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                     <input
@@ -830,9 +1158,12 @@ const ApplicationForm = () => {
               </>
               )}
 
-              {uploadSettings.enableFileUpload && (
-              <div className="flex w-full flex-col gap-2">
-                {docFields.map((field) => {
+              {uploadSettings.enableFileUpload && passportDocField && (
+              <div className="w-full space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan">
+                  Passport Upload
+                </p>
+                {[passportDocField].map((field) => {
                   const file = traveler.documents[field.key];
                   const zoneKey = `${index}-${field.key}`;
                   const isDragging = draggingKey === zoneKey;
@@ -865,11 +1196,94 @@ const ApplicationForm = () => {
                           <Icon size={14} strokeWidth={2} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-text-primary">{field.label}</p>
+                          <p className="truncate text-xs font-medium text-text-primary">
+                            {field.label}{" "}
+                            <span className="text-[10px] font-medium text-text-muted">
+                              {field.required ? "(required)" : "(optional)"}
+                            </span>
+                          </p>
                           <p className="truncate text-[10px] text-text-muted">
                             {file
                               ? `${file.name} · ${formatFileSize(file.size)}`
                               : "PDF, JPG, PNG · max 500 KB"}
+                          </p>
+                        </div>
+                        <label
+                          htmlFor={`traveler-${index}-${field.key}`}
+                          className="shrink-0 cursor-pointer rounded-md bg-cyan/15 px-2.5 py-1.5 text-[11px] font-semibold text-cyan hover:bg-cyan/25"
+                        >
+                          {file ? "Replace" : "Upload"}
+                        </label>
+                        <input
+                          id={`traveler-${index}-${field.key}`}
+                          type="file"
+                          accept=".pdf,image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={(e) => {
+                            updateTravelerDoc(index, field.key, e.target.files?.[0] || null);
+                            e.target.value = "";
+                          }}
+                        />
+                      </div>
+                      {docErrors[zoneKey] && (
+                        <p className="flex items-center gap-1 px-0.5 text-xs font-medium text-red-500">
+                          <AlertCircle size={12} /> {docErrors[zoneKey]}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              )}
+
+              {uploadSettings.enableFileUpload && optionalDocFields.length > 0 && (
+              <div className="flex w-full flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
+                  Other Documents
+                </p>
+                {optionalDocFields.map((field) => {
+                  const file = traveler.documents[field.key];
+                  const zoneKey = `${index}-${field.key}`;
+                  const isDragging = draggingKey === zoneKey;
+                  const Icon = field.Icon;
+                  return (
+                    <div key={`${index}-${field.key}`} className="w-full space-y-1">
+                      <div
+                        role="presentation"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDraggingKey(zoneKey);
+                        }}
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          setDraggingKey(zoneKey);
+                        }}
+                        onDragLeave={() => {
+                          setDraggingKey((prev) => (prev === zoneKey ? "" : prev));
+                        }}
+                        onDrop={(e) => handleDrop(e, index, field.key)}
+                        className={`flex w-full min-w-0 items-center gap-2 rounded-xl border bg-background px-2.5 py-2 transition-colors ${
+                          docErrors[zoneKey]
+                            ? "border-red-500/45"
+                            : isDragging
+                              ? "border-cyan bg-cyan/5 ring-1 ring-cyan/30"
+                              : "border-border"
+                        }`}
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan/10 text-cyan">
+                          <Icon size={14} strokeWidth={2} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium text-text-primary">
+                            {field.label}{" "}
+                            <span className="text-[10px] font-medium text-text-muted">
+                              (optional)
+                            </span>
+                          </p>
+                          <p className="truncate text-[10px] text-text-muted">
+                            {file
+                              ? `${file.name} Â· ${formatFileSize(file.size)}`
+                              : "PDF, JPG, PNG Â· max 500 KB"}
                           </p>
                         </div>
                         <label

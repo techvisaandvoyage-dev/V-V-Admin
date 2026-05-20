@@ -733,7 +733,7 @@ const LoginPage = () => {
               <div className="mt-8 text-center text-[14px]">
                 <p className="text-text-primary font-medium">
                   Don't have an account?{" "}
-                  <Link to="/register" className="text-[#3b82f6] hover:text-[#2563eb] transition-colors">
+                  <Link to="/register" replace className="text-[#3b82f6] hover:text-[#2563eb] transition-colors">
                     Sign up
                   </Link>
                 </p>

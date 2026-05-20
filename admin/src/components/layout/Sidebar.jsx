@@ -4,14 +4,15 @@
 //  Icons + labels. Collapses to icon-only on toggle.
 //  On mobile: slide-in drawer from left.
 // ============================================================
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate, Link } from "react-router-dom";
 import {
   LayoutDashboard, FileText, PlusCircle, Globe, Settings,
   LogOut, ChevronLeft, ChevronRight, Shield, BarChart2,
-  MapPin, Plane, CreditCard, BookOpen, Sliders,
+  MapPin, Plane, CreditCard, BookOpen, Sliders, MessageSquare,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuthStore } from "../../store/authStore";
+import { useAuthStore, api } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 
 // ── Nav item groups per role ───────────────────────────────
@@ -30,6 +31,7 @@ const ADMIN_NAV = [
   { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
   { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
   { label: "Country Manager",  icon: MapPin,            to: "/countries",   id: "nav-admin-countries" },
+  { label: "Support Chat",     icon: MessageSquare,     to: "/support-chat", id: "nav-admin-support-chat" },
   { label: "Controls",         icon: Sliders,           to: "/controls",    id: "nav-admin-controls" },
   { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
 ];
@@ -38,6 +40,26 @@ const Sidebar = () => {
   const { user, logout } = useAuthStore();
   const { sidebarOpen, toggleSidebar, setSidebarOpen } = useUIStore();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    const fetchUnread = async () => {
+      try {
+        const { data } = await api.get("/support/conversations");
+        if (data?.success && data?.conversations) {
+          const total = data.conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
+          setUnreadCount(total);
+        }
+      } catch (err) {
+        console.error("Failed to load live unread count:", err);
+      }
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 3000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Choose nav items based on user role
   const navItems = user?.role === "admin" ? ADMIN_NAV : USER_NAV;
@@ -125,36 +147,50 @@ const Sidebar = () => {
         {/* Navigation items */}
         <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden" aria-label="Sidebar navigation">
           <ul className="space-y-1 px-2">
-            {navItems.map(({ label, icon: Icon, to, id }) => (
-              <li key={id}>
-                <NavLink
-                  id={id}
-                  to={to}
-                  end={to === "/dashboard" || to === "/admin"}
-                  className={({ isActive }) => `
-                    flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
-                    transition-all duration-200 group relative
-                    ${isActive
-                      ? "bg-cyan/10 text-cyan border border-cyan/20"
-                      : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
-                    }
-                  `}
-                >
-                  <Icon size={18} className="flex-shrink-0" />
+            {navItems.map(({ label, icon: Icon, to, id }) => {
+              const badge = id === "nav-admin-support-chat" && unreadCount > 0 ? unreadCount : null;
+              return (
+                <li key={id}>
+                  <NavLink
+                    id={id}
+                    to={to}
+                    end={to === "/dashboard" || to === "/admin" || to === "/"}
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
+                      transition-all duration-200 group relative
+                      ${isActive
+                        ? "bg-cyan/10 text-cyan border border-cyan/20"
+                        : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
+                      }
+                    `}
+                  >
+                    <div className="relative">
+                      <Icon size={18} className="flex-shrink-0" />
+                      {!sidebarOpen && badge && (
+                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      )}
+                    </div>
 
-                  {/* Label only when expanded */}
-                  <AnimatePresence>
-                    {sidebarOpen && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: "auto" }}
-                        exit={{ opacity: 0, width: 0 }}
-                        className="whitespace-nowrap overflow-hidden font-medium"
-                      >
-                        {label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                    {/* Label only when expanded */}
+                    <AnimatePresence>
+                      {sidebarOpen && (
+                        <div className="flex-1 flex items-center justify-between min-w-0">
+                          <motion.span
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: "auto" }}
+                            exit={{ opacity: 0, width: 0 }}
+                            className="whitespace-nowrap overflow-hidden font-medium truncate"
+                          >
+                            {label}
+                          </motion.span>
+                          {badge && (
+                            <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm flex-shrink-0 animate-pulse">
+                              {badge}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </AnimatePresence>
 
                   {/* Tooltip on collapsed state */}
                   {!sidebarOpen && (
@@ -167,9 +203,10 @@ const Sidebar = () => {
                       {label}
                     </span>
                   )}
-                </NavLink>
-              </li>
-            ))}
+                  </NavLink>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 

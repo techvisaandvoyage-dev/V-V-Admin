@@ -88,6 +88,42 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  showTravelerDetails: {
+    type: Boolean,
+    default: true
+  },
+  customerChatEnabled: {
+    type: Boolean,
+    default: true
+  },
+  customerChatMode: {
+    type: String,
+    default: 'external_link'
+  },
+  customerChatLink: {
+    type: String,
+    default: ''
+  },
+  customerChatTitle: {
+    type: String,
+    default: 'Continue with Chat'
+  },
+  customerChatDescription: {
+    type: String,
+    default: 'Get instant support from our visa team'
+  },
+  customerChatHeaderTitle: {
+    type: String,
+    default: 'Chat with us'
+  },
+  customerChatHeaderSubtitle: {
+    type: String,
+    default: 'We typically reply in a few minutes'
+  },
+  whatsappTemplate: {
+    type: String,
+    default: 'Hello Visa & Voyage Team,\nI need help with my visa application.\n\nName: {{userName}}\nCountry: {{country}}\nVisa Type: {{visaType}}\nTravel Date: {{travelDate}}\nApplication ID: {{applicationId}}\n\nPlease guide me.'
+  },
   /** Unsplash — used by `node fetchCountryImages.js` (Access Key required; secret/app id optional / reference). */
   unsplashAccessKey: {
     type: String,
@@ -137,6 +173,14 @@ const settingsSchema = new mongoose.Schema({
     type: [{ type: String, trim: true }],
     default: []
   },
+  /** Shown on the landing page under the hero search bar as four editable highlight cards. */
+  landingHeroHighlights: {
+    type: [{
+      title: { type: String, trim: true, default: '' },
+      body: { type: String, trim: true, default: '' },
+    }],
+    default: []
+  },
 
   /**
    * Universal "Visa Type" applied to every country whose `useGlobalVisaType` flag is
@@ -152,6 +196,7 @@ const settingsSchema = new mongoose.Schema({
   globalEntryType: { type: String, default: '', trim: true },
   /** Universal "Processing Days" (free text e.g. "5-10", "2-3 weeks") applied the same way. */
   globalProcessingDays: { type: String, default: '', trim: true },
+  globalBasePrice: { type: Number, default: null },
 
   /**
    * Universal "Required Documents" — applied to every country whose
@@ -206,6 +251,7 @@ const settingsSchema = new mongoose.Schema({
   showProcessingDays: { type: Boolean, default: true },
   showRequiredDocuments: { type: Boolean, default: true },
   showVisaRequirements: { type: Boolean, default: true },
+  maintenanceModeEnabled: { type: Boolean, default: false },
 
   /** Global GST toggles applied to every user payment calculation. */
   gstEnabled: { type: Boolean, default: true },

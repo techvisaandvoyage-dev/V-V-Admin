@@ -12,7 +12,7 @@ const buildPendingContext = (pathname) => {
   if (applyMatch) {
     return {
       type: "apply",
-      targetPath: pathname,
+      targetPath: `${pathname}#travel-details`,
       updatedAt: Date.now(),
     };
   }
@@ -30,7 +30,7 @@ const buildPendingContext = (pathname) => {
   if (destinationMatch) {
     return {
       type: "destination-apply",
-      targetPath: pathname,
+      targetPath: `${pathname}#travel-details`,
       updatedAt: Date.now(),
     };
   }
@@ -75,7 +75,6 @@ const ExitIntentBanner = () => {
   const [visible, setVisible] = useState(false);
   const pendingVisibilityTriggerRef = useRef(false);
   const revisitTimeoutRef = useRef(null);
-  const allowGuardedBackRef = useRef(false);
 
   const alreadyShown = useMemo(() => {
     if (typeof window === "undefined") return true;
@@ -84,15 +83,9 @@ const ExitIntentBanner = () => {
 
   useEffect(() => {
     const context = buildPendingContext(location.pathname);
-    if (!context) {
-      try {
-        localStorage.removeItem(EXIT_INTENT_PENDING_KEY);
-      } catch {
-        /* ignore */
-      }
-      return;
+    if (context) {
+      writePendingContext(context);
     }
-    writePendingContext(context);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -111,37 +104,6 @@ const ExitIntentBanner = () => {
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const currentFlowContext = buildPendingContext(location.pathname);
-    if (!currentFlowContext) return;
-
-    window.history.pushState({ exitIntentGuard: true }, "", window.location.href);
-
-    const handlePopState = () => {
-      if (allowGuardedBackRef.current) {
-        allowGuardedBackRef.current = false;
-        return;
-      }
-
-      const shouldLeave = window.confirm(getLeaveWarningMessage());
-      if (!shouldLeave) {
-        window.history.pushState({ exitIntentGuard: true }, "", window.location.href);
-        return;
-      }
-
-      allowGuardedBackRef.current = true;
-      window.history.back();
-    };
-
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
     };
   }, [location.pathname]);
 

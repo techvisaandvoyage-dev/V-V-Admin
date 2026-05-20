@@ -21,6 +21,7 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
     cancelled: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
     pending_payment: "bg-orange-500/15 text-orange-400 border-orange-500/30",
     doc_pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    completed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
 
     // Difficulty levels
     easy:      "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -43,6 +44,7 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
     cancelled: "bg-zinc-400",
     pending_payment: "bg-orange-400",
     doc_pending: "bg-amber-400",
+    completed: "bg-emerald-400",
     easy:      "bg-emerald-400",
     moderate:  "bg-amber-400",
     hard:      "bg-red-400",
@@ -89,19 +91,22 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
 // ── Convenience exports for specific statuses ──────────────
 export const StatusBadge = ({ status, ...props }) => {
   const labels = {
-    pending:   "Pending",
+    pending:   "Pending Upload Doc",
     approved:  "Approved",
     review:    "Under Review",
     rejected:  "Rejected",
     submitted: "Submitted",
     cancelled: "Cancelled",
     pending_payment: "Pending Payment",
-    doc_pending: "Doc Pending",
+    doc_pending: "Pending Upload Doc",
+    completed: "Completed",
   };
   const tooltips = {
-    pending: "Upload required documents",
-    doc_pending: "Upload required documents",
+    pending: "We are waiting for your documents",
+    doc_pending: "We are waiting for your documents",
     review: "Our team is checking your documents and details. We will update the status after review.",
+    completed: "Payment successfully",
+    cancelled: "Payment cancel",
   };
   return (
     <Badge variant={status} dot tooltip={tooltips[status] || ""} {...props}>

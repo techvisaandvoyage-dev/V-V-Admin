@@ -20,6 +20,7 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
     submitted: "bg-purple-500/15 text-purple-400 border-purple-500/30",
     cancelled: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
     pending_payment: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+    doc_pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
 
     // Difficulty levels
     easy:      "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -41,6 +42,7 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
     submitted: "bg-purple-400",
     cancelled: "bg-zinc-400",
     pending_payment: "bg-orange-400",
+    doc_pending: "bg-amber-400",
     easy:      "bg-emerald-400",
     moderate:  "bg-amber-400",
     hard:      "bg-red-400",
@@ -80,13 +82,14 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
 // ── Convenience exports for specific statuses ──────────────
 export const StatusBadge = ({ status, ...props }) => {
   const labels = {
-    pending:   "Pending",
+    pending:   "Pending Upload Doc",
     approved:  "Approved",
     review:    "Under Review",
     rejected:  "Rejected",
     submitted: "Submitted",
     cancelled: "Cancelled",
     pending_payment: "Pending Payment",
+    doc_pending: "Pending Upload Doc",
   };
   return (
     <Badge variant={status} dot {...props}>

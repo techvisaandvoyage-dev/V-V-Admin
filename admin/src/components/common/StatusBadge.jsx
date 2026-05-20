@@ -69,14 +69,14 @@ export const Badge = ({ children, variant = "pending", dot = false, size = "md",
 
 export const StatusBadge = ({ status, ...props }) => {
   const labels = {
-    pending:   "Pending",
+    pending:   "Pending Upload Doc",
     approved:  "Approved",
     review:    "Under Review",
     rejected:  "Rejected",
     submitted: "Submitted",
     cancelled: "Cancelled",
     pending_payment: "Pending Payment",
-    doc_pending: "Doc Pending",
+    doc_pending: "Pending Upload Doc",
   };
   return (
     <Badge variant={status} dot {...props}>

@@ -1,9 +1,10 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ProtectedRoute from "./ProtectedRoute";
 import { Loader2 } from "lucide-react";
 import { getAdminAppUrl } from "../utils/adminAppUrl";
+import { api } from "../store/authStore";
 
 const routeMotionEase = [0.16, 1, 0.3, 1];
 
@@ -21,6 +22,8 @@ const AllDestinationsPage = lazy(() => import("../pages/AllDestinationsPage"));
 const StaticPage          = lazy(() => import("../pages/StaticPage"));
 const BlogListingPage     = lazy(() => import("../pages/BlogListingPage"));
 const BlogDetailsPage     = lazy(() => import("../pages/BlogDetailsPage"));
+const MaintenancePage     = lazy(() => import("../pages/MaintenancePage"));
+import SupportChatWidget from "../components/common/SupportChatWidget";
 
 // ── Fallback Loader ────────────────────────────────────────
 const PageLoader = () => (
@@ -63,6 +66,46 @@ const NotFound = () => (
 const AppRoutes = () => {
   const location = useLocation();
   const reduceMotion = useReducedMotion();
+  const isHomepage = location.pathname === "/";
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
+  const [siteStateLoading, setSiteStateLoading] = useState(true);
+  const [maintenanceModeEnabled, setMaintenanceModeEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSiteState = async () => {
+      try {
+        const { data } = await api.get("/config/site-state");
+        if (cancelled) return;
+        setMaintenanceModeEnabled(data?.config?.maintenanceModeEnabled === true);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load site state:", error);
+          setMaintenanceModeEnabled(false);
+        }
+      } finally {
+        if (!cancelled) setSiteStateLoading(false);
+      }
+    };
+
+    loadSiteState();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (siteStateLoading) {
+    return <PageLoader />;
+  }
+
+  if (maintenanceModeEnabled && !location.pathname.startsWith("/admin")) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <MaintenancePage />
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<PageLoader />}>
@@ -179,6 +222,7 @@ const AppRoutes = () => {
           </Routes>
         </motion.div>
       </AnimatePresence>
+      {!isHomepage && !isAuthPage && <SupportChatWidget />}
     </Suspense>
   );
 };

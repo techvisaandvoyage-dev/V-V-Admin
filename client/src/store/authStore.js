@@ -60,6 +60,8 @@ const mapProfileUserToAuthState = (u) => ({
   age: u.age,
   gender: u.gender,
   passportNumber: u.passportNumber,
+  hasPassword: u.hasPassword,
+  createdAt: u.createdAt,
 });
 
 /** When /users/profile fails, use login/verify API user payload */
@@ -76,6 +78,8 @@ const mapApiUserToAuthState = (raw) => {
     age: raw.age,
     gender: raw.gender,
     passportNumber: raw.passportNumber,
+    hasPassword: raw.hasPassword,
+    createdAt: raw.createdAt,
   };
 };
 
@@ -440,7 +444,10 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const { data } = await api.put("/users/change-password", { currentPassword, newPassword });
-          set({ isLoading: false });
+          set({
+            isLoading: false,
+            user: get().user ? { ...get().user, hasPassword: true } : get().user,
+          });
           return { success: true, message: data.message };
         } catch (error) {
           const message = error.response?.data?.message || "Password change failed";

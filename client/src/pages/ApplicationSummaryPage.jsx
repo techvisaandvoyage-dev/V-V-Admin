@@ -9,6 +9,7 @@ import { useUIStore } from "../store/uiStore";
 import { openRazorpayForApplication, validateRazorpayCheckoutReadiness } from "../utils/razorpayCheckout";
 import { slugifyCountryRoute } from "../utils/countryRouting";
 import { getLocalDateYmd } from "../utils/dateInput";
+import { useCountries, useMergedCountry } from "../hooks/useCountries";
 
 const normalizeProcessingDays = (value) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -17,11 +18,15 @@ const normalizeProcessingDays = (value) => {
   return Number(matches[matches.length - 1]);
 };
 
-const SERVICE_FEE_PER_TRAVELLER = 1500;
-const GST_RATE = 0.18;
-
 /** Same slug as `/terms` and the CMS seed — public GET `/api/pages/:slug`. */
 const TERMS_CMS_SLUG = "terms-and-conditions";
+
+const formatTravelerDateForInput = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+};
 
 const ApplicationSummaryPage = () => {
   const { id: paramId } = useParams();
@@ -38,6 +43,8 @@ const ApplicationSummaryPage = () => {
        })();
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
+  const docsSkipped = Boolean(location.state?.docsSkipped);
+  const summaryData = location.state?.summaryData || null;
 
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,9 +56,10 @@ const ApplicationSummaryPage = () => {
   const [paying, setPaying] = useState(false);
   const [razorpayReady, setRazorpayReady] = useState(false);
   const [razorpayMessage, setRazorpayMessage] = useState("");
-
-  const docsSkipped = Boolean(location.state?.docsSkipped);
-  const summaryData = location.state?.summaryData || null;
+  const countryIdForPricing = summaryData?.countryId || application?.countryId || "";
+  const { countries: allCountries } = useCountries();
+  const listCountry = allCountries.find((c) => c.id === countryIdForPricing);
+  const country = useMergedCountry(countryIdForPricing, listCountry);
 
   useEffect(() => {
     if (!id) {
@@ -129,15 +137,40 @@ const ApplicationSummaryPage = () => {
     return Array.from({ length: travelerCount }).map((_, i) => names[i] || `Traveler ${i + 1}`);
   }, [application?.travelerNames, travelerCount]);
 
+  const effectiveGstEnabled =
+    typeof summaryData?.gstEnabled === "boolean"
+      ? summaryData.gstEnabled
+      : country?.gstEnabled !== false;
+  const effectiveGstRate = Number.isFinite(Number(summaryData?.gstRate))
+    ? Number(summaryData.gstRate)
+    : Number.isFinite(Number(country?.gstRate))
+      ? Number(country.gstRate)
+      : 18;
+
   const { serviceFee, taxes, totalAmount } = useMemo(() => {
-    const service = SERVICE_FEE_PER_TRAVELLER * travelerCount;
-    const gst = Math.round(service * GST_RATE);
+    const service = Number.isFinite(Number(summaryData?.baseFee))
+      ? Number(summaryData.baseFee)
+      : Number.isFinite(Number(country?.basePrice))
+        ? Number(country.basePrice) * travelerCount
+        : 0;
+    const gst = Number.isFinite(Number(summaryData?.gstAmount))
+      ? Number(summaryData.gstAmount)
+      : effectiveGstEnabled
+        ? Math.round(service * (effectiveGstRate / 100))
+        : 0;
+    const fromServer = Number(application?.fee);
+    const fromState = Number(summaryData?.fee);
     return {
       serviceFee: service,
       taxes: gst,
-      totalAmount: Number(application?.fee) || service + gst,
+      totalAmount:
+        Number.isFinite(fromServer) && fromServer > 0
+          ? fromServer
+          : Number.isFinite(fromState) && fromState > 0
+            ? fromState
+            : service + gst,
     };
-  }, [application?.fee, travelerCount]);
+  }, [application?.fee, summaryData?.fee, summaryData?.baseFee, summaryData?.gstAmount, country?.basePrice, travelerCount, effectiveGstEnabled, effectiveGstRate]);
 
   /**
    * Compute the "documents uploaded" status for the status tile + step pill.
@@ -177,6 +210,32 @@ const ApplicationSummaryPage = () => {
     return entries.slice(0, travelerCount).every(entryHasUpload);
   }, [docsSkipped, summaryData, application?.travellerDocuments, travelerCount]);
 
+  const handleGoToUploadForm = () => {
+    const previousFlowPath = location.state?.applicationPrev?.path;
+    const previousFlowState = location.state?.applicationPrev?.state;
+    if (previousFlowPath) {
+      navigate(previousFlowPath, {
+        state: previousFlowState || undefined,
+        replace: true,
+      });
+      return;
+    }
+
+    if (countryIdForPricing) {
+      navigate(`/apply/${encodeURIComponent(countryIdForPricing)}`, {
+        state: {
+          travelDateFrom: summaryData?.travelDateFrom ?? null,
+          travelDateTo: summaryData?.travelDateTo ?? null,
+          visaOption: summaryData?.visaType || application?.visaType || "e-Visa",
+          travelers: Array.isArray(summaryData?.travelers) ? summaryData.travelers : [],
+        },
+      });
+      return;
+    }
+
+    showToast("Upload page is not available for this application yet.", "error");
+  };
+
   const handleBack = () => {
     const formatDateToYmd = (val) => {
       if (!val) return null;
@@ -189,9 +248,29 @@ const ApplicationSummaryPage = () => {
       travelDateFrom: formatDateToYmd(summaryData?.travelDateFrom ?? application?.travelDate),
       travelDateTo: formatDateToYmd(summaryData?.travelDateTo ?? application?.returnDate),
       visaOption: summaryData?.visaType || application?.visaType,
-      travelers: (summaryData?.travelerNames || application?.travelerNames || []).map((name) => ({
-        name: String(name || ""),
-      })),
+      travelers: Array.isArray(summaryData?.travelers) && summaryData.travelers.length
+        ? summaryData.travelers.map((traveler) => ({
+            ...traveler,
+            name: traveler?.name ?? traveler?.fullName ?? "",
+          }))
+        : (Array.isArray(application?.travelerSelections) && application.travelerSelections.length
+            ? application.travelerSelections.map((entry, index) => ({
+                travelerProfileId: entry?.travelerProfileId || entry?.travelerSnapshot?.travelerProfileId || "",
+                fullName: entry?.travelerSnapshot?.fullName || application?.travelerNames?.[index] || "",
+                name: entry?.travelerSnapshot?.fullName || application?.travelerNames?.[index] || "",
+                dateOfBirth: formatTravelerDateForInput(entry?.travelerSnapshot?.dateOfBirth),
+                gender: entry?.travelerSnapshot?.gender || "",
+                passportNumber: entry?.travelerSnapshot?.passportNumber || "",
+                passportExpiryDate: formatTravelerDateForInput(entry?.travelerSnapshot?.passportExpiryDate),
+                nationality: entry?.travelerSnapshot?.nationality || "",
+                mobileNumber: entry?.travelerSnapshot?.mobileNumber || "",
+                email: entry?.travelerSnapshot?.email || "",
+                relationship: entry?.travelerSnapshot?.relationship || "Self",
+              }))
+            : (summaryData?.travelerNames || application?.travelerNames || []).map((name) => ({
+                name: String(name || ""),
+                fullName: String(name || ""),
+              }))),
     };
 
     const savedCountryId = localStorage.getItem("lastActiveCountryId");
@@ -255,7 +334,7 @@ const ApplicationSummaryPage = () => {
 
       navigate(exactBackPath || `/destination/${encodeURIComponent(countryRoute)}`, {
         state: { restoreTravelDetails },
-        replace: false,
+        replace: true,
       });
       return;
     }
@@ -302,21 +381,21 @@ const ApplicationSummaryPage = () => {
 
       navigate(`/destination/${encodeURIComponent(countryId)}`, {
         state: { restoreTravelDetails },
-        replace: false,
+        replace: true,
       });
       return;
     }
 
     // Default ultimate fallback - home page instead of dashboard
-    navigate("/", { replace: false });
+    navigate("/", { replace: true });
   };
 
   const resolvePayAmountRupees = (appDoc) => {
-    const count = Math.max(1, Number(appDoc?.travellerCount || 1));
-    const service = SERVICE_FEE_PER_TRAVELLER * count;
-    const gst = Math.round(service * GST_RATE);
     const fromServer = Number(appDoc?.fee);
-    return Number.isFinite(fromServer) && fromServer > 0 ? fromServer : service + gst;
+    if (Number.isFinite(fromServer) && fromServer > 0) return fromServer;
+    const fromState = Number(summaryData?.fee);
+    if (Number.isFinite(fromState) && fromState > 0) return fromState;
+    return totalAmount;
   };
 
   const handlePay = async () => {
@@ -344,6 +423,7 @@ const ApplicationSummaryPage = () => {
           travelDateTo: summaryData.travelDateTo ?? null,
           travellerCount: summaryData.travellerCount || 1,
           travelerNames: Array.isArray(summaryData.travelerNames) ? summaryData.travelerNames : [],
+          travelers: Array.isArray(summaryData.travelers) ? summaryData.travelers : [],
           processingDays: normalizeProcessingDays(summaryData.processingDays),
         });
         if (!data?.success || !data.application?._id) {
@@ -369,16 +449,18 @@ const ApplicationSummaryPage = () => {
         applicantName: user?.name || "Applicant",
         applicantEmail: user?.email || "",
         onSuccess: () => {
+          try {
+            localStorage.removeItem("exitIntentPendingContext");
+          } catch {}
           showToast("Payment successful!", "success");
-          navigate(`/dashboard/application/${encodeURIComponent(appId)}`);
+          navigate(`/dashboard/application/${encodeURIComponent(appId)}`, { replace: true });
         },
         onDismiss: () => {
-          showToast("Payment was not completed. Your application is saved in the dashboard.", "info");
-          navigate(`/dashboard?payment=cancelled&applicationId=${encodeURIComponent(appId)}`);
+          showToast("Payment was not completed. You can continue from this summary page anytime.", "info");
         },
         onFailure: (m) => {
           showToast(m || "Payment could not be started.", "error");
-          navigate(`/dashboard?payment=failed&applicationId=${encodeURIComponent(appId)}`);
+          navigate(`/dashboard?payment=failed&applicationId=${encodeURIComponent(appId)}`, { replace: true });
         },
       });
     } catch (err) {
@@ -413,7 +495,7 @@ const ApplicationSummaryPage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
       <Navbar />
-      <main className="flex-1 max-w-lg w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="flex-1 px-4 sm:px-6 py-8">
 
         {/* Back */}
         <button
@@ -425,6 +507,7 @@ const ApplicationSummaryPage = () => {
           Back
         </button>
 
+        <div className="max-w-lg w-full mx-auto space-y-6">
         {/* Header */}
         <div>
           <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-1">
@@ -448,6 +531,17 @@ const ApplicationSummaryPage = () => {
           ))}
         </div>
 
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            onClick={handleGoToUploadForm}
+          >
+            Upload your documents now
+          </Button>
+        </div>
+
         {(!docsUploaded || docsSkipped) && (
           <div className="rounded-2xl border border-cyan/30 bg-cyan/5 p-4">
             <div className="flex items-start gap-3">
@@ -469,13 +563,17 @@ const ApplicationSummaryPage = () => {
           <h3 className="text-sm font-semibold text-text-primary mb-1">Billing</h3>
 
           <div className="flex justify-between text-sm">
-            <span className="text-text-secondary">Service Fee ({travelerCount} × ₹{SERVICE_FEE_PER_TRAVELLER.toLocaleString("en-IN")})</span>
+            <span className="text-text-secondary">
+              Service Fee {travelerCount > 1 ? `(${travelerCount} x ₹${Number(country?.basePrice || 0).toLocaleString("en-IN")})` : ""}
+            </span>
             <span className="text-text-primary">₹{serviceFee.toLocaleString("en-IN")}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-text-secondary">GST (18%)</span>
-            <span className="text-text-primary">₹{taxes.toLocaleString("en-IN")}</span>
-          </div>
+          {effectiveGstEnabled && (
+            <div className="flex justify-between text-sm">
+              <span className="text-text-secondary">GST ({effectiveGstRate}%)</span>
+              <span className="text-text-primary">₹{taxes.toLocaleString("en-IN")}</span>
+            </div>
+          )}
           <div className="border-t border-border pt-3 flex justify-between text-base font-semibold">
             <span className="text-text-primary">Total</span>
             <span className="text-cyan">₹{totalAmount.toLocaleString("en-IN")}</span>
@@ -533,6 +631,7 @@ const ApplicationSummaryPage = () => {
           <p className="text-xs text-text-muted text-center">
             Secured by Razorpay · Your payment info is never stored
           </p>
+        </div>
         </div>
 
       </main>

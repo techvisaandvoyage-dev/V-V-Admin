@@ -1,8 +1,23 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+  import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
-  User, Mail, Camera, Shield, KeyRound,
-  Save, X, Edit3, ArrowLeft, Loader2, Phone, Search, ChevronDown,
+  User,
+  Mail,
+  Camera,
+  Shield,
+  KeyRound,
+  Save,
+  X,
+  Edit3,
+  ArrowLeft,
+  Loader2,
+  Phone,
+  Search,
+  ChevronDown,
+  BadgeCheck,
+  CalendarDays,
+  ChevronRight,
+  Settings2,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useUIStore } from "../store/uiStore";
@@ -13,14 +28,14 @@ import Input, { Select } from "../components/ui/Input";
 import { useNavigate } from "react-router-dom";
 
 const PHONE_COUNTRY_OPTIONS = [
-  { value: "+91", label: "🇮🇳 India (+91)" },
-  { value: "+1", label: "🇺🇸 United States (+1)" },
-  { value: "+44", label: "🇬🇧 United Kingdom (+44)" },
-  { value: "+61", label: "🇦🇺 Australia (+61)" },
-  { value: "+971", label: "🇦🇪 UAE (+971)" },
-  { value: "+966", label: "🇸🇦 Saudi Arabia (+966)" },
-  { value: "+65", label: "🇸🇬 Singapore (+65)" },
-  { value: "+60", label: "🇲🇾 Malaysia (+60)" },
+  { value: "+91", label: "India (+91)" },
+  { value: "+1", label: "United States (+1)" },
+  { value: "+44", label: "United Kingdom (+44)" },
+  { value: "+61", label: "Australia (+61)" },
+  { value: "+971", label: "UAE (+971)" },
+  { value: "+966", label: "Saudi Arabia (+966)" },
+  { value: "+65", label: "Singapore (+65)" },
+  { value: "+60", label: "Malaysia (+60)" },
 ];
 
 const DEFAULT_PHONE_COUNTRY_CODE = "+91";
@@ -33,26 +48,81 @@ const parseProfilePhone = (value) => {
   };
 };
 
-const ProfilePage = () => {
-  const navigate = useNavigate();
+const formatMemberSince = (value) => {
+  if (!value) return "Recently joined";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Recently joined";
+  return parsed.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
-  const handleBack = () => {
-    navigate("/dashboard");
+const StatusPill = ({ children, tone = "green" }) => {
+  const tones = {
+    green: "bg-emerald-500/12 text-emerald-700 border border-emerald-200/70",
+    blue: "bg-blue-500/12 text-blue-700 border border-blue-200/70",
+    amber: "bg-amber-500/12 text-amber-700 border border-amber-200/70",
+    zinc: "bg-slate-500/12 text-slate-700 border border-slate-200/80",
   };
 
+  return (
+    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+};
+
+const OverviewRow = ({ icon: Icon, label, value, valueTone = "green" }) => (
+  <div className="flex items-center justify-between gap-4 py-3">
+    <div className="flex items-center gap-3 text-sm text-slate-600">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+        <Icon size={16} />
+      </span>
+      <span>{label}</span>
+    </div>
+    {typeof value === "string" && ["green", "blue", "amber", "zinc"].includes(valueTone) ? (
+      <StatusPill tone={valueTone}>{value}</StatusPill>
+    ) : (
+      <span className="text-sm font-semibold text-slate-900">{value}</span>
+    )}
+  </div>
+);
+
+const SectionShell = ({ icon: Icon, title, children, className = "" }) => (
+  <Card
+    className={`overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl ${className}`}
+  >
+    <div className="flex items-center gap-3 border-b border-slate-100 px-7 py-6">
+      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#EEF4FF_0%,#F5F9FF_100%)] text-[#235BFF] shadow-[0_10px_28px_rgba(37,99,235,0.12)]">
+        <Icon size={19} />
+      </span>
+      <h2 className="text-[1.35rem] font-bold tracking-tight text-slate-900">{title}</h2>
+    </div>
+    <div className="px-7 py-7">{children}</div>
+  </Card>
+);
+
+const ProfilePage = () => {
+  const navigate = useNavigate();
   const {
-    user, updateProfile, uploadProfileImage,
-    changeUserPassword, isLoading, sessionAuthMethod,
+    user,
+    updateProfile,
+    uploadProfileImage,
+    changeUserPassword,
+    isLoading,
+    sessionAuthMethod,
   } = useAuthStore();
   const { showToast } = useUIStore();
 
   const fileInputRef = useRef(null);
   const countryCodeDropdownRef = useRef(null);
-
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [countryCodeOpen, setCountryCodeOpen] = useState(false);
   const [countryCodeSearch, setCountryCodeSearch] = useState("");
+  const [showSecurityForm, setShowSecurityForm] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -62,9 +132,19 @@ const ProfilePage = () => {
     phone: "",
     phoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
   });
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
-  const [passwordErrors, setPasswordErrors] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordErrors, setPasswordErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const isGooglePasswordSetup = sessionAuthMethod === "google" && !user?.hasPassword;
 
   const validatePasswordChange = ({ currentPassword, newPassword, confirmPassword }) => {
     const errors = {
@@ -73,7 +153,7 @@ const ProfilePage = () => {
       confirmPassword: "",
     };
 
-    if (!currentPassword.trim()) {
+    if (!isGooglePasswordSetup && !currentPassword.trim()) {
       errors.currentPassword = "Current password is required.";
     }
 
@@ -124,6 +204,10 @@ const ProfilePage = () => {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
+
+  const handleBack = () => {
+    navigate("/dashboard", { replace: true });
+  };
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -194,17 +278,20 @@ const ProfilePage = () => {
     if (errors.currentPassword || errors.newPassword || errors.confirmPassword) {
       setPasswordErrors(errors);
       const firstError = errors.currentPassword || errors.newPassword || errors.confirmPassword;
-      return showToast(firstError, "error");
+      showToast(firstError, "error");
+      return;
     }
 
     setPasswordErrors({ currentPassword: "", newPassword: "", confirmPassword: "" });
     setIsChangingPassword(true);
-    const { success, message } = await changeUserPassword(passwordForm.currentPassword, passwordForm.newPassword);
+    const currentPasswordValue = isGooglePasswordSetup ? "" : passwordForm.currentPassword;
+    const { success, message } = await changeUserPassword(currentPasswordValue, passwordForm.newPassword);
     setIsChangingPassword(false);
 
     if (success) {
-      showToast("Password updated successfully!", "success");
+      showToast(isGooglePasswordSetup ? "Password created successfully!" : "Password updated successfully!", "success");
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setShowSecurityForm(false);
     } else {
       showToast(message || "Failed to update password", "error");
     }
@@ -212,7 +299,12 @@ const ProfilePage = () => {
 
   if (!user) return null;
 
-  const displayPhone = String(user.phone || formData.phone).replace(/\D/g, "");
+  const displayPhoneDigits = String(user.phone || formData.phone || "").replace(/\D/g, "");
+  const displayPhone =
+    displayPhoneDigits.length === 10
+      ? `+91 ${displayPhoneDigits.slice(0, 5)} ${displayPhoneDigits.slice(5)}`
+      : (user.phone || formData.phone || "Not added");
+
   const filteredCountryOptions = PHONE_COUNTRY_OPTIONS.filter((option) =>
     option.label.toLowerCase().includes(countryCodeSearch.trim().toLowerCase())
   );
@@ -220,302 +312,376 @@ const ProfilePage = () => {
     PHONE_COUNTRY_OPTIONS.find((option) => option.value === formData.phoneCountryCode) ||
     PHONE_COUNTRY_OPTIONS[0];
 
+  const memberSince = formatMemberSince(user.createdAt);
+
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#EAF3FF_0%,#F6F9FF_26%,#FBFCFF_52%,#F7F9FD_100%)] pb-16">
       <Navbar />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors"
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
-
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8">
-          <div className="relative group cursor-pointer" onClick={handleImageClick}>
-            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-surface shadow-xl bg-surface-2 flex items-center justify-center relative">
-              {isUploading ? (
-                <Loader2 className="animate-spin text-cyan" size={32} />
-              ) : user.profileImage ? (
-                <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <User size={48} className="text-text-muted" />
-              )}
-
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera size={24} className="text-white" />
-              </div>
-            </div>
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/png, image/jpeg, image/jpg"
-              onChange={handleFileChange}
-            />
-          </div>
-
-          <div className="text-center sm:text-left pt-2 sm:pt-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-1">
-              {user.name}
-            </h1>
-            <p className="text-text-secondary flex items-center justify-center sm:justify-start gap-2">
-              <Mail size={14} /> {user.email}
-            </p>
-            {(user.phone || formData.phone) && (
-              <p className="text-text-secondary flex items-center justify-center sm:justify-start gap-2 mt-1 text-sm">
-                <Phone size={14} className="shrink-0" />
-                <span>
-                  {displayPhone.length === 10
-                    ? `+91 ${displayPhone.slice(0, 5)} ${displayPhone.slice(5)}`
-                    : user.phone || formData.phone}
-                </span>
-              </p>
-            )}
-          </div>
-
-          <div className="sm:ml-auto pt-2 sm:pt-4">
-            {!isEditing && (
-              <Button
-                variant="primary"
-                leftIcon={<Edit3 size={16} />}
-                onClick={() => setIsEditing(true)}
-              >
-                Edit Profile
-              </Button>
-            )}
-          </div>
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-7 px-4 py-7 sm:px-6 lg:px-10">
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 text-sm font-medium text-[#235BFF] transition-colors hover:text-[#1746D8]"
+          >
+            <ArrowLeft size={16} />
+            Back to Dashboard
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            <Card>
-              <h2 className="text-lg font-semibold text-text-primary border-b border-border pb-4 mb-6 flex items-center gap-2">
-                <User size={18} className="text-cyan" />
-                Personal Information
-              </h2>
+        <Card className="relative overflow-hidden rounded-[2.4rem] border border-white/70 bg-white/85 p-0 shadow-[0_28px_80px_rgba(15,23,42,0.1)] backdrop-blur-xl">
+          <div className="absolute inset-y-0 right-0 w-[48%] bg-[radial-gradient(circle_at_top_right,rgba(83,125,255,0.18),transparent_40%),linear-gradient(140deg,rgba(244,247,255,0)_0%,rgba(224,234,255,0.52)_45%,rgba(213,226,255,0.8)_100%)]" />
+          <div className="absolute -right-12 top-0 h-[110%] w-[42%] rounded-l-[8rem] bg-white/25 blur-[1px]" />
+          <div className="absolute right-[12%] top-0 h-full w-px bg-white/35" />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <Input
-                  label="Full Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
-                />
+          <div className="relative z-10 flex flex-col gap-8 px-8 py-8 sm:px-10 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={handleImageClick}
+                  className="group relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border-[7px] border-white bg-slate-100 shadow-[0_22px_50px_rgba(15,23,42,0.14)]"
+                >
+                  {isUploading ? (
+                    <Loader2 className="animate-spin text-[#235BFF]" size={34} />
+                  ) : user.profileImage ? (
+                    <img src={user.profileImage} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <User size={62} className="text-slate-400" />
+                  )}
+                  <span className="absolute inset-0 bg-slate-900/0 transition-colors group-hover:bg-slate-900/20" />
+                </button>
 
-                <Input
-                  label="Email Address"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled
-                  className="opacity-50 bg-surface-3 cursor-not-allowed"
-                  helper="Email cannot be changed"
-                />
+                <button
+                  type="button"
+                  onClick={handleImageClick}
+                  className="absolute bottom-3 right-1 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-white text-[#235BFF] shadow-[0_16px_40px_rgba(15,23,42,0.12)] transition-transform hover:scale-105"
+                >
+                  <Camera size={22} />
+                </button>
 
-                <div className="sm:col-span-2 flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-text-secondary">
-                    Mobile number
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-[200px_minmax(0,1fr)] gap-3">
-                    <div ref={countryCodeDropdownRef} className="relative">
-                      <button
-                        type="button"
-                        disabled={!isEditing}
-                        onClick={() => {
-                          if (!isEditing) return;
-                          setCountryCodeOpen((prev) => !prev);
-                          setCountryCodeSearch("");
-                        }}
-                        className={`w-full flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-sm text-text-primary transition-all duration-200 ${
-                          !isEditing ? "opacity-70 cursor-default" : "hover:border-cyan/40 focus:outline-none focus:ring-2 focus:ring-cyan/20"
-                        }`}
-                      >
-                        <span className="truncate text-left">{selectedCountryOption.label}</span>
-                        <ChevronDown size={16} className={`shrink-0 transition-transform ${countryCodeOpen ? "rotate-180" : ""}`} />
-                      </button>
-
-                      {countryCodeOpen && isEditing && (
-                        <div className="absolute z-20 mt-2 w-full rounded-2xl border border-border bg-surface shadow-xl overflow-hidden">
-                          <div className="relative border-b border-border p-3">
-                            <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted" />
-                            <input
-                              type="text"
-                              value={countryCodeSearch}
-                              onChange={(e) => setCountryCodeSearch(e.target.value)}
-                              placeholder="Search country"
-                              autoFocus
-                              className="w-full rounded-xl border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan"
-                            />
-                          </div>
-                          <div className="max-h-64 overflow-y-auto py-2">
-                            {filteredCountryOptions.length ? (
-                              filteredCountryOptions.map((option) => (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setFormData((prev) => ({ ...prev, phoneCountryCode: option.value }));
-                                    setCountryCodeOpen(false);
-                                    setCountryCodeSearch("");
-                                  }}
-                                  className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                                    formData.phoneCountryCode === option.value
-                                      ? "bg-cyan/10 text-cyan"
-                                      : "text-text-primary hover:bg-surface-2"
-                                  }`}
-                                >
-                                  {option.label}
-                                </button>
-                              ))
-                            ) : (
-                              <p className="px-4 py-3 text-sm text-text-muted">No countries found.</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <Input
-                      name="phone"
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel"
-                      placeholder="Enter phone number"
-                      value={formData.phone}
-                      onChange={(e) => {
-                        const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
-                        setFormData((prev) => ({ ...prev, phone: digitsOnly }));
-                      }}
-                      disabled={!isEditing}
-                      className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
-                    />
-                  </div>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    {isEditing
-                      ? "Choose a country code and enter a 10-digit mobile number."
-                      : "Add or edit in Edit Profile. Filled automatically after phone OTP log-in."}
-                  </p>
-                </div>
-
-                <Input
-                  label="Age"
-                  name="age"
-                  type="number"
-                  min="0"
-                  value={formData.age}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
-                />
-
-                <Select
-                  label="Gender"
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                  options={[
-                    { value: "Male", label: "Male" },
-                    { value: "Female", label: "Female" },
-                    { value: "Other", label: "Other" },
-                  ]}
-                  className={!isEditing ? "opacity-70 bg-surface-2 cursor-default" : ""}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/png, image/jpeg, image/jpg"
+                  onChange={handleFileChange}
                 />
               </div>
 
-              <AnimatePresence>
-                {isEditing && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex justify-end gap-3 mt-6 pt-6 border-t border-border overflow-hidden"
+              <div className="space-y-4 text-left">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-4xl font-bold tracking-tight text-slate-950">{user.name}</h1>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#235BFF] text-white shadow-[0_10px_24px_rgba(37,99,235,0.28)]">
+                    <BadgeCheck size={18} />
+                  </span>
+                </div>
+
+                <StatusPill tone="green">{user.isVerified ? "Verified Account" : "Profile Active"}</StatusPill>
+
+                <div className="space-y-3 text-[1.02rem] text-slate-600">
+                  <div className="flex items-center gap-3">
+                    <Mail size={18} className="text-slate-500" />
+                    <span>{user.email || "No email added"}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Phone size={18} className="text-slate-500" />
+                    <span>{displayPhone}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 lg:self-start">
+              {!isEditing ? (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  leftIcon={<Edit3 size={18} />}
+                  onClick={() => setIsEditing(true)}
+                  className="rounded-2xl bg-[linear-gradient(135deg,#235BFF_0%,#2F6BFF_100%)] px-7 py-4 text-white shadow-[0_20px_45px_rgba(37,99,235,0.26)] hover:bg-[linear-gradient(135deg,#235BFF_0%,#2F6BFF_100%)]"
+                >
+                  Edit Profile
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    leftIcon={<X size={18} />}
+                    onClick={handleCancel}
+                    className="rounded-2xl border border-slate-200 bg-white/85 px-6 py-4 text-slate-700 hover:bg-slate-50"
                   >
-                    <Button
-                      variant="ghost"
-                      leftIcon={<X size={16} />}
-                      onClick={handleCancel}
-                      disabled={isLoading}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="primary"
-                      leftIcon={<Save size={16} />}
-                      onClick={handleSave}
-                      loading={isLoading}
-                    >
-                      Save Changes
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Card>
-          </div>
-
-          {sessionAuthMethod !== "google" && (
-            <div className="space-y-6">
-              <Card>
-                <h3 className="font-semibold text-text-primary mb-4 border-b border-border pb-3 flex items-center gap-2">
-                  <Shield size={18} className="text-amber-400" />
-                  Security
-                </h3>
-
-                <div className="space-y-4">
-                  <p className="text-xs text-text-secondary leading-relaxed">
-                    To update your password, please provide your current password and choose a strong new one.
-                  </p>
-
-                  <Input
-                    label="Current Password"
-                    type="password"
-                    name="currentPassword"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
-                    placeholder="........"
-                    error={passwordErrors.currentPassword}
-                  />
-
-                  <Input
-                    label="New Password"
-                    type="password"
-                    name="newPassword"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
-                    placeholder="........"
-                    helper="Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char"
-                    error={passwordErrors.newPassword}
-                  />
-
-                  <Input
-                    label="Confirm New Password"
-                    type="password"
-                    name="confirmPassword"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
-                    placeholder="........"
-                    error={passwordErrors.confirmPassword}
-                  />
-
+                    Cancel
+                  </Button>
                   <Button
                     variant="primary"
-                    fullWidth
-                    leftIcon={<KeyRound size={16} />}
-                    onClick={handleChangePassword}
-                    loading={isChangingPassword}
+                    size="lg"
+                    leftIcon={<Save size={18} />}
+                    onClick={handleSave}
+                    loading={isLoading}
+                    className="rounded-2xl bg-[linear-gradient(135deg,#235BFF_0%,#2F6BFF_100%)] px-7 py-4 text-white shadow-[0_20px_45px_rgba(37,99,235,0.26)] hover:bg-[linear-gradient(135deg,#235BFF_0%,#2F6BFF_100%)]"
                   >
-                    Update Password
+                    Save Changes
                   </Button>
-                </div>
-              </Card>
+                </>
+              )}
             </div>
-          )}
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-7 xl:grid-cols-[minmax(0,1.85fr)_360px]">
+          <SectionShell icon={User} title="Personal Information">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <Input
+                label="Full Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                disabled={!isEditing}
+                className={`rounded-2xl border-slate-200 bg-white px-5 py-4 text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] ${!isEditing ? "cursor-default bg-slate-50 text-slate-700 opacity-80" : ""}`}
+              />
+
+              <Input
+                label="Email Address"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled
+                helper="Email cannot be changed"
+                className="rounded-2xl border-slate-200 bg-slate-100 px-5 py-4 text-base opacity-80"
+              />
+
+              <div className="sm:col-span-2 flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-text-secondary">Mobile Number</label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[230px_minmax(0,1fr)]">
+                  <div ref={countryCodeDropdownRef} className="relative">
+                    <button
+                      type="button"
+                      disabled={!isEditing}
+                      onClick={() => {
+                        if (!isEditing) return;
+                        setCountryCodeOpen((prev) => !prev);
+                        setCountryCodeSearch("");
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-900 shadow-sm transition-all ${
+                        !isEditing ? "cursor-default bg-slate-50 opacity-80" : "hover:border-[#235BFF]/40 focus:outline-none focus:ring-2 focus:ring-[#235BFF]/20"
+                      }`}
+                    >
+                      <span className="truncate text-left">{selectedCountryOption.label}</span>
+                      <ChevronDown size={18} className={`shrink-0 transition-transform ${countryCodeOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {countryCodeOpen && isEditing && (
+                      <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.14)]">
+                        <div className="relative border-b border-slate-100 p-3">
+                          <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={countryCodeSearch}
+                            onChange={(e) => setCountryCodeSearch(e.target.value)}
+                            placeholder="Search country"
+                            autoFocus
+                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#235BFF] focus:outline-none focus:ring-2 focus:ring-[#235BFF]/15"
+                          />
+                        </div>
+                        <div className="max-h-64 overflow-y-auto py-2">
+                          {filteredCountryOptions.length ? (
+                            filteredCountryOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setFormData((prev) => ({ ...prev, phoneCountryCode: option.value }));
+                                  setCountryCodeOpen(false);
+                                  setCountryCodeSearch("");
+                                }}
+                                className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                                  formData.phoneCountryCode === option.value
+                                    ? "bg-[#235BFF]/8 text-[#235BFF]"
+                                    : "text-slate-800 hover:bg-slate-50"
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            ))
+                          ) : (
+                            <p className="px-4 py-3 text-sm text-slate-500">No countries found.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Input
+                    name="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder="Enter phone number"
+                    value={formData.phone}
+                    onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setFormData((prev) => ({ ...prev, phone: digitsOnly }));
+                    }}
+                    disabled={!isEditing}
+                    className={`rounded-2xl border-slate-200 bg-white px-5 py-4 text-base ${!isEditing ? "cursor-default bg-slate-50 opacity-80" : ""}`}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {isEditing
+                    ? "Choose a country code and enter a 10-digit mobile number."
+                    : "Add or edit in Edit Profile. Filled automatically after phone OTP log-in."}
+                </p>
+              </div>
+
+              <Input
+                label="Age"
+                name="age"
+                type="number"
+                min="0"
+                placeholder="Enter your age"
+                value={formData.age}
+                onChange={handleChange}
+                disabled={!isEditing}
+                className={`rounded-2xl border-slate-200 bg-white px-5 py-4 text-base ${!isEditing ? "cursor-default bg-slate-50 opacity-80" : ""}`}
+              />
+
+              <Select
+                label="Gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                disabled={!isEditing}
+                options={[
+                  { value: "Male", label: "Male" },
+                  { value: "Female", label: "Female" },
+                  { value: "Other", label: "Other" },
+                ]}
+                className={`rounded-2xl border-slate-200 bg-white px-5 py-4 text-base ${!isEditing ? "cursor-default bg-slate-50 opacity-80" : ""}`}
+              />
+            </div>
+          </SectionShell>
+
+          <div className="space-y-7">
+            <SectionShell icon={BadgeCheck} title="Account Overview" className="px-0 py-0">
+              <div className="divide-y divide-slate-100">
+                <OverviewRow icon={CalendarDays} label="Member Since" value={memberSince} valueTone="zinc" />
+                <OverviewRow icon={Mail} label="Verified Email" value={user.isVerified ? "Verified" : "Pending"} valueTone={user.isVerified ? "green" : "amber"} />
+                <OverviewRow icon={Phone} label="Phone Number" value={displayPhoneDigits ? "Verified" : "Add phone"} valueTone={displayPhoneDigits ? "green" : "amber"} />
+                <OverviewRow icon={Shield} label="Account Status" value="Active" valueTone="green" />
+              </div>
+            </SectionShell>
+
+            <SectionShell icon={Shield} title="Security" className="px-0 py-0">
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-600">
+                    {isGooglePasswordSetup
+                      ? "Create a password so this Google account can also sign in with email and password."
+                      : "Keep your account secure with a strong password."}
+                  </p>
+                </div>
+
+                {!showSecurityForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowSecurityForm(true)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-[#235BFF]/20 bg-[#235BFF]/5 px-5 py-4 text-sm font-semibold text-[#235BFF] transition-colors hover:bg-[#235BFF]/10"
+                  >
+                    <KeyRound size={16} />
+                    {isGooglePasswordSetup ? "Create Password" : "Change Password"}
+                  </button>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-4"
+                  >
+                    {!isGooglePasswordSetup && (
+                      <Input
+                        label="Current Password"
+                        type="password"
+                        name="currentPassword"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder="........"
+                        error={passwordErrors.currentPassword}
+                        className="rounded-2xl border-slate-200 bg-white px-5 py-4"
+                      />
+                    )}
+
+                    <Input
+                      label={isGooglePasswordSetup ? "Create Password" : "New Password"}
+                      type="password"
+                      name="newPassword"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                      placeholder="........"
+                      helper="Min 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char"
+                      error={passwordErrors.newPassword}
+                      className="rounded-2xl border-slate-200 bg-white px-5 py-4"
+                    />
+
+                    <Input
+                      label={isGooglePasswordSetup ? "Re-enter Password" : "Confirm New Password"}
+                      type="password"
+                      name="confirmPassword"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder="........"
+                      error={passwordErrors.confirmPassword}
+                      className="rounded-2xl border-slate-200 bg-white px-5 py-4"
+                    />
+
+                    <div className="flex gap-3">
+                      <Button
+                        variant="ghost"
+                        fullWidth
+                        onClick={() => {
+                          setShowSecurityForm(false);
+                          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                          setPasswordErrors({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                        }}
+                        className="rounded-2xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="primary"
+                        fullWidth
+                        leftIcon={<KeyRound size={16} />}
+                        onClick={handleChangePassword}
+                        loading={isChangingPassword}
+                        className="rounded-2xl bg-[linear-gradient(135deg,#235BFF_0%,#2F6BFF_100%)] text-white hover:bg-[linear-gradient(135deg,#235BFF_0%,#2F6BFF_100%)]"
+                      >
+                        {isGooglePasswordSetup ? "Create Password" : "Update Password"}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            </SectionShell>
+
+            <Card className="rounded-[2rem] border border-white/70 bg-white/90 p-7 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#EEF4FF_0%,#F5F9FF_100%)] text-[#235BFF] shadow-[0_10px_28px_rgba(37,99,235,0.12)]">
+                    <Settings2 size={19} />
+                  </span>
+                  <div>
+                    <h3 className="text-[1.35rem] font-bold tracking-tight text-slate-900">Preferences</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                      Manage your notification and communication preferences.
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={22} className="mt-1 text-slate-400" />
+              </div>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
