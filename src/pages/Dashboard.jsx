@@ -8,10 +8,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  BarChart2, TrendingUp, DollarSign, Clock, CheckCircle,
+  BarChart2, TrendingUp, DollarSign, Clock, CheckCircle, CheckCheck, Smile, Send, MoreVertical,
   Search, Filter, ChevronDown, Plus, Edit3,
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle, BookOpen,
-  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays,
+  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays, MessageSquare,
   Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2,
 } from "lucide-react";
 import {
@@ -35,7 +35,7 @@ import { useDataStore } from "../store/dataStore";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
 import { ANALYTICS, MONTHLY_REVENUE } from "../data/bookings";
 import { getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
-import { getApplicationProgress } from "../utils/applicationProgress";
+import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 
 /**
  * Icon mapping for every built-in document key (mirrors `DOCUMENT_META` on the
@@ -123,6 +123,12 @@ const fmtDate = (iso) => {
   if (!iso) return "N/A";
   const d = new Date(iso);
   return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatPriceINR = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "Not set yet";
+  return `₹${amount.toLocaleString("en-IN")}`;
 };
 
 /** Resolve `Country.imageUrl` for `<img src>` (https vs relative upload path). */
@@ -535,6 +541,25 @@ const DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS = [
   "Bank statements showing sufficient funds for the trip",
 ];
 
+const LANDING_HERO_HIGHLIGHTS_DEFAULT = [
+  {
+    title: "Fast Processing",
+    body: "Quick application flow and updates",
+  },
+  {
+    title: "Trusted Guidance",
+    body: "Accurate help for every step",
+  },
+  {
+    title: "All-in-One Platform",
+    body: "Search, apply, track, and upload",
+  },
+  {
+    title: "Secure & Private",
+    body: "Your documents stay protected",
+  },
+];
+
 const mapDestinationWhyBookNowFromApi = (s) => {
   const a = s?.destinationWhyBookNow;
   return Array.isArray(a) && a.length
@@ -594,6 +619,23 @@ const mapDestinationVisaRequirementsFromApi = (s) => {
     : [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS];
 };
 
+const mapLandingHeroHighlightsFromApi = (s) => {
+  const a = s?.landingHeroHighlights;
+  const sanitized = Array.isArray(a)
+    ? a
+        .map((item) => ({
+          title: String(item?.title ?? "").trim(),
+          body: String(item?.body ?? "").trim(),
+        }))
+        .filter((item) => item.title || item.body)
+    : [];
+
+  return LANDING_HERO_HIGHLIGHTS_DEFAULT.map((fallback, index) => ({
+    title: sanitized[index]?.title || fallback.title,
+    body: sanitized[index]?.body || fallback.body,
+  }));
+};
+
 /** Lowercase trim key for matching global destination bullets / FAQ questions. */
 const normDestKey = (s) => String(s ?? "").trim().toLowerCase();
 
@@ -621,6 +663,7 @@ const mapApiSettingsToFormState = (s) => ({
   smtpEmailService: s.smtpEmailService?.trim() || "gmail",
   enableGDriveUpload: s.enableGDriveUpload !== false,
   enableFileUpload: s.enableFileUpload !== false,
+  showTravelerDetails: s.showTravelerDetails !== false,
   unsplashApplicationId: s.unsplashApplicationId || "",
   unsplashAccessKey: s.unsplashAccessKey || "",
   unsplashSecretKey: s.unsplashSecretKey || "",
@@ -629,6 +672,15 @@ const mapApiSettingsToFormState = (s) => ({
   destinationFaqs: mapDestinationFaqsFromApi(s),
   destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
   destinationVisaRequirements: mapDestinationVisaRequirementsFromApi(s),
+  landingHeroHighlights: mapLandingHeroHighlightsFromApi(s),
+  customerChatEnabled: s.customerChatEnabled !== false,
+  customerChatMode: s.customerChatMode || "external_link",
+  customerChatLink: s.customerChatLink || "",
+  customerChatTitle: s.customerChatTitle || "Continue with Chat",
+  customerChatDescription: s.customerChatDescription || "Get instant support from our visa team",
+  customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
+  customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
+  whatsappTemplate: s.whatsappTemplate || "",
 });
 
 const integrationFlagsFromSettings = (s) => {
@@ -684,6 +736,596 @@ const DisplayToggle = ({ active, busy, onClick, labelOn = "Visible on client", l
 
 // ─────────────────────────────────────────────────────────────
 //  COMPONENT
+// ── Live Support Chat Mock Conversations & Workspace ────────
+const INITIAL_CONVERSATIONS = [
+  {
+    id: "1",
+    name: "Rohit Sharma",
+    email: "rohit.sharma@email.com",
+    phone: "+91 98765 43210",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces",
+    active: true,
+    unread: 2,
+    messages: [
+      { id: "m1", sender: "user", text: "Hi, I need help with my Dubai visa application.", time: "10:30 AM" },
+      { id: "m2", sender: "user", text: "What documents are required for a tourist visa?", time: "10:31 AM" },
+      { id: "m3", sender: "admin", text: "Hello Rohit! 👋\n\nI'll be happy to help you with your Dubai visa.", time: "10:32 AM" },
+      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\n• Passport (valid 6+ months)\n• Passport size photo\n• Confirmed return ticket\n• Hotel booking\n• Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
+      { id: "m5", sender: "user", text: "Thank you! How long does it take to process?", time: "10:34 AM" },
+      { id: "m6", sender: "admin", text: "It usually takes 3-4 working days. Let me know if you have any other questions.", time: "10:35 AM" }
+    ]
+  },
+  {
+    id: "2",
+    name: "Priya Patel",
+    email: "priya.patel@email.com",
+    phone: "+91 87654 32109",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces",
+    active: true,
+    unread: 1,
+    messages: [
+      { id: "m2_1", sender: "user", text: "Can you tell me the document list for Singapore tourist eVisa?", time: "10:15 AM" }
+    ]
+  },
+  {
+    id: "3",
+    name: "Amit Verma",
+    email: "amit.verma@email.com",
+    phone: "+91 76543 21098",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces",
+    active: true,
+    unread: 0,
+    messages: [
+      { id: "m3_1", sender: "user", text: "What is the processing time for Thailand eVisa on arrival?", time: "09:58 AM" }
+    ]
+  },
+  {
+    id: "4",
+    name: "Neha Singh",
+    email: "neha.singh@email.com",
+    phone: "+91 65432 10987",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces",
+    active: true,
+    unread: 3,
+    messages: [
+      { id: "m4_1", sender: "user", text: "My payment is failed, but amount got deducted from my UPI. Can you check my status?", time: "09:40 AM" }
+    ]
+  },
+  {
+    id: "5",
+    name: "Vikram Joshi",
+    email: "vikram.joshi@email.com",
+    phone: "+91 54321 09876",
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&h=100&fit=crop&crop=faces",
+    active: false,
+    unread: 0,
+    messages: [
+      { id: "m5_1", sender: "user", text: "Do you provide insurance also for Europe Schengen visas?", time: "Yesterday" }
+    ]
+  },
+  {
+    id: "6",
+    name: "Anjali Mehta",
+    email: "anjali.mehta@email.com",
+    phone: "+91 43210 98765",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces",
+    active: false,
+    unread: 0,
+    messages: [
+      { id: "m6_1", sender: "user", text: "How can I track my application? I applied 2 days ago.", time: "Yesterday" }
+    ]
+  },
+  {
+    id: "7",
+    name: "Sandeep Yadav",
+    email: "sandeep.yadav@email.com",
+    phone: "+91 32109 87654",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&crop=faces",
+    active: false,
+    unread: 0,
+    messages: [
+      { id: "m7_1", sender: "user", text: "I want to change my travel date from June 10 to June 15.", time: "2 Days Ago" }
+    ]
+  },
+  {
+    id: "8",
+    name: "Kavita Kumari",
+    email: "kavita.kumari@email.com",
+    phone: "+91 21098 76543",
+    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&h=100&fit=crop&crop=faces",
+    active: false,
+    unread: 0,
+    messages: [
+      { id: "m8_1", sender: "user", text: "Please help me with invitation letter guidelines for tourist visa.", time: "2 Days Ago" }
+    ]
+  }
+];
+
+const renderAvatar = (name, sizeClass = "w-10 h-10 text-xs") => {
+  const initials = (name || "U")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const colors = [
+    "bg-[linear-gradient(135deg,#FF6B6B_0%,#FF8E53_100%)]",
+    "bg-[linear-gradient(135deg,#4E65FF_0%,#92EFFD_100%)]",
+    "bg-[linear-gradient(135deg,#00C6FF_0%,#0072FF_100%)]",
+    "bg-[linear-gradient(135deg,#7F00FF_0%,#E100FF_100%)]",
+    "bg-[linear-gradient(135deg,#11998e_0%,#38ef7d_100%)]",
+    "bg-[linear-gradient(135deg,#f857a6_0%,#ff5858_100%)]",
+  ];
+  const colorIndex = initials.charCodeAt(0) % colors.length;
+  const gradient = colors[colorIndex];
+
+  return (
+    <div className={`${sizeClass} rounded-full flex items-center justify-center text-white font-bold uppercase tracking-wider ${gradient} border border-white/10 shadow-sm flex-shrink-0 select-none`}>
+      {initials}
+    </div>
+  );
+};
+
+const SupportChatWorkspace = () => {
+  const chatEmojis = ["😀", "😊", "😍", "👍", "🙏", "🎉", "❤️", "😄", "🤝", "✨"];
+  const [conversations, setConversations] = useState([]);
+  const [selectedId, setSelectedId] = useState("1");
+  const [activeTab, setActiveTab] = useState("all"); // "all" | "unread" | "resolved"
+  const [search, setSearch] = useState("");
+  const [inputText, setInputText] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const typingTimeoutRef = useRef(null);
+
+  const activeConversation = conversations.find(c => c.id === selectedId);
+
+  // Fetch active conversations and sync every 3 seconds
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const { data } = await api.get("/admin/chat/conversations");
+        if (data?.success && data?.conversations) {
+          setConversations(data.conversations);
+          
+          // Select the first conversation automatically only if no valid conversation is selected yet
+          if (data.conversations.length > 0) {
+            setSelectedId(prev => {
+              if (prev === "1" || !data.conversations.some(c => c.id === prev)) {
+                return data.conversations[0].id;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load live conversations:", err);
+      }
+    };
+
+    fetchConversations();
+    const interval = setInterval(fetchConversations, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-clear unread count when clicking conversation
+  useEffect(() => {
+    if (activeConversation && activeConversation.unread > 0) {
+      api.post(`/support/conversations/${activeConversation.id}`, { unread: 0 })
+        .then(({ data }) => {
+          if (data?.success && data?.conversation) {
+            setConversations(prev => prev.map(c => c.id === activeConversation.id ? data.conversation : c));
+          }
+        })
+        .catch(err => console.error("Failed to reset unread count:", err));
+    }
+  }, [selectedId, activeConversation?.id]);
+
+  const filteredConversations = useMemo(() => {
+    return conversations.filter(c => {
+      // Filter by tab
+      if (activeTab === "unread" && c.unread === 0) return false;
+      if (activeTab === "resolved" && c.active) return false;
+      if (activeTab === "all" && !c.active) return false; // resolved are inactive
+
+      // Filter by search
+      if (search.trim()) {
+        const query = search.toLowerCase();
+        return c.name.toLowerCase().includes(query) || c.email.toLowerCase().includes(query) || c.phone.includes(query);
+      }
+      return true;
+    });
+  }, [conversations, activeTab, search]);
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !activeConversation) return;
+
+    const textToSend = inputText;
+    setInputText("");
+    setShowEmojiPicker(false);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    try {
+      await api.post(`/admin/chat/conversations/${activeConversation.id}/typing`, {
+        isTyping: false
+      });
+      const { data } = await api.post(`/admin/chat/conversations/${activeConversation.id}/reply`, {
+        text: textToSend
+      });
+      
+      if (data?.success && data?.conversation) {
+        setConversations(prev => prev.map(c => c.id === activeConversation.id ? data.conversation : c));
+      }
+
+      // Simulate reply if this is one of our default mock accounts ending in @email.com
+      if (activeConversation.email && activeConversation.email.endsWith("@email.com")) {
+        setIsTyping(true);
+        setTimeout(async () => {
+          setIsTyping(false);
+          const customerReplies = [
+            "Thank you for the quick update! Highly appreciate it.",
+            "Awesome, I will review these documents and upload them right away.",
+            "Got it. Is there any extra fee for fast-track processing?",
+            "Perfect, thanks! I'll complete this tonight.",
+            "Okay, please let me know when it goes to the embassy.",
+          ];
+          const randomReply = customerReplies[Math.floor(Math.random() * customerReplies.length)];
+          
+          try {
+            await api.post(`/support/conversations/${activeConversation.id}/messages`, {
+              sender: "user",
+              text: randomReply
+            });
+          } catch (simErr) {
+            console.error("Simulation reply failed:", simErr);
+          }
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("Failed to send live support reply:", err);
+    }
+  };
+
+  const handleMarkResolved = async () => {
+    if (!activeConversation) return;
+    try {
+      const newActive = !activeConversation.active;
+      const { data } = await api.post(`/support/conversations/${activeConversation.id}`, {
+        active: newActive
+      });
+      if (data?.success && data?.conversation) {
+        setConversations(prev => prev.map(c => c.id === activeConversation.id ? data.conversation : c));
+      }
+    } catch (err) {
+      console.error("Failed to update resolved status:", err);
+    }
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setInputText((prev) => `${prev}${emoji}`);
+    setShowEmojiPicker(false);
+  };
+
+  const handleComposerChange = async (value) => {
+    setInputText(value);
+
+    if (!activeConversation) return;
+
+    try {
+      await api.post(`/admin/chat/conversations/${activeConversation.id}/typing`, {
+        isTyping: value.trim().length > 0
+      });
+    } catch (err) {
+      console.error("Failed to update admin typing state:", err);
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(async () => {
+      try {
+        await api.post(`/admin/chat/conversations/${activeConversation.id}/typing`, {
+          isTyping: false
+        });
+      } catch (err) {
+        console.error("Failed to clear admin typing state:", err);
+      }
+    }, 6000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="flex bg-surface rounded-3xl border border-border overflow-hidden h-[calc(100vh-220px)] min-h-[600px] shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
+      {/* LEFT COLUMN - CONVERSATION LIST */}
+      <div className="w-[380px] border-r border-border flex flex-col bg-surface flex-shrink-0">
+        <div className="p-5 border-b border-border space-y-4">
+          <div>
+            <h1 className="text-xl font-bold text-text-primary">Support Chat</h1>
+            <p className="text-xs text-text-muted mt-0.5">Manage customer conversations</p>
+          </div>
+
+          {/* Top category tabs */}
+          <div className="flex gap-4 border-b border-border pb-1">
+            <button
+              onClick={() => setActiveTab("all")}
+              className={`pb-2 px-1 text-xs font-semibold relative transition-all ${activeTab === "all" ? "text-cyan" : "text-text-muted hover:text-text-secondary"}`}
+            >
+              All Conversations
+              {conversations.filter(c => c.active).length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-cyan/10 text-cyan text-[10px] font-bold">
+                  {conversations.filter(c => c.active).length}
+                </span>
+              )}
+              {activeTab === "all" && <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan rounded-full" />}
+            </button>
+            <button
+              onClick={() => setActiveTab("unread")}
+              className={`pb-2 px-1 text-xs font-semibold relative transition-all ${activeTab === "unread" ? "text-cyan" : "text-text-muted hover:text-text-secondary"}`}
+            >
+              Unread
+              {conversations.reduce((sum, c) => sum + c.unread, 0) > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse">
+                  {conversations.reduce((sum, c) => sum + c.unread, 0)}
+                </span>
+              )}
+              {activeTab === "unread" && <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan rounded-full" />}
+            </button>
+            <button
+              onClick={() => setActiveTab("resolved")}
+              className={`pb-2 px-1 text-xs font-semibold relative transition-all ${activeTab === "resolved" ? "text-cyan" : "text-text-muted hover:text-text-secondary"}`}
+            >
+              Resolved
+              {activeTab === "resolved" && <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan rounded-full" />}
+            </button>
+          </div>
+
+          {/* Search bar */}
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 h-4 w-4 text-text-muted" />
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-surface-2 border border-border rounded-xl py-2 pl-10 pr-10 text-xs focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/15 text-text-primary placeholder-text-muted"
+            />
+            <button className="absolute right-3 p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-3 transition-colors">
+              <Filter className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Conversation list viewport */}
+        <div className="flex-1 overflow-y-auto divide-y divide-border/40">
+          {filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center text-text-muted h-64">
+              <MessageSquare className="h-8 w-8 text-border mb-2" />
+              <p className="text-xs">No conversations found</p>
+            </div>
+          ) : (
+            filteredConversations.map((c) => {
+              const isActive = c.id === selectedId;
+              const lastMsg = c.messages[c.messages.length - 1];
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedId(c.id)}
+                  className={`w-full p-4 flex gap-3 text-left transition-all relative ${isActive ? "bg-cyan/5 border-l-[3.5px] border-cyan" : "hover:bg-surface-2 border-l-[3.5px] border-transparent"}`}
+                >
+                  <div className="relative flex-shrink-0">
+                    {renderAvatar(c.name, "w-10 h-10 text-xs")}
+                    {c.active && (
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-[1.5px] border-surface" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex justify-between items-baseline mb-1">
+                      <h4 className="text-xs font-bold text-text-primary truncate">{c.name}</h4>
+                      <span className="text-[10px] text-text-muted shrink-0">{lastMsg?.time || "10:00 AM"}</span>
+                    </div>
+                    <p className="text-xs text-text-secondary truncate pr-4">
+                      {lastMsg ? lastMsg.text : "No messages yet"}
+                    </p>
+                  </div>
+                  {c.unread > 0 && (
+                    <span className="absolute right-4 bottom-4 flex h-4.5 min-w-[18px] px-1 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shrink-0">
+                      {c.unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer pagination */}
+        <div className="p-4 border-t border-border flex items-center justify-between text-[11px] text-text-muted select-none">
+          <span>Showing 1 to {filteredConversations.length} of {conversations.length}</span>
+          <div className="flex gap-1.5 items-center">
+            <button className="px-1.5 py-0.5 rounded border border-border bg-white text-text-muted hover:text-text-primary disabled:opacity-50" disabled>&lt;</button>
+            <button className="px-2 py-0.5 rounded bg-cyan text-white font-bold">1</button>
+            <button className="px-2 py-0.5 rounded border border-border bg-white text-text-muted hover:text-text-primary disabled:opacity-50" disabled>&gt;</button>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN - CHAT VIEWPORT */}
+      <div className="flex-1 flex flex-col bg-surface">
+        {!activeConversation ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-text-muted bg-surface-2/10">
+            <div className="h-16 w-16 rounded-full bg-cyan/5 flex items-center justify-center text-cyan mb-4 animate-bounce">
+              <MessageSquare className="h-8 w-8" />
+            </div>
+            <h3 className="text-sm font-bold text-text-primary mb-1">No Active Chats</h3>
+            <p className="text-xs text-text-muted max-w-[280px]">
+              Active customer support chats will appear here automatically in real-time as users connect.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Top Active Chat Header */}
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-surface-2/45 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  {renderAvatar(activeConversation.name, "w-11 h-11 text-sm")}
+                  {activeConversation.active && (
+                    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-surface" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                    {activeConversation.name}
+                    {activeConversation.active && <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Online</span>}
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
+                    <span className="truncate max-w-[150px] sm:max-w-[200px]">{activeConversation.email}</span>
+                    <span className="text-border/60">•</span>
+                    <span>{activeConversation.phone}</span>
+                    <span className="text-border/60">•</span>
+                    <a href="#profile" className="text-cyan font-bold hover:underline">View Profile</a>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleMarkResolved}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${activeConversation.active ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10" : "border-border bg-surface-2 text-text-secondary hover:bg-surface-3"}`}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  {activeConversation.active ? "Mark as Resolved" : "Reopen Conversation"}
+                </button>
+                <button className="p-1.5 rounded-lg border border-border hover:bg-surface-2 text-text-secondary transition-colors">
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Message Thread viewport */}
+            <div className="flex-1 p-6 overflow-y-auto bg-surface-2/20 space-y-4">
+              <div className="flex items-center my-4">
+                <div className="flex-1 border-t border-border/40" />
+                <span className="px-3 text-[10px] text-text-muted font-bold tracking-wider uppercase bg-surface py-0.5 border border-border/30 rounded-full shadow-sm">Today</span>
+                <div className="flex-1 border-t border-border/40" />
+              </div>
+
+              {activeConversation.messages && activeConversation.messages.map((m) => {
+                const isAdmin = m.sender === "admin";
+
+                return (
+                  <div key={m.id} className={`flex w-full ${isAdmin ? "justify-end" : "justify-start"}`}>
+                    <div className={`flex gap-3 max-w-[70%] ${isAdmin ? "flex-row-reverse" : "flex-row"}`}>
+                      {!isAdmin && (
+                        renderAvatar(activeConversation.name, "w-7 h-7 text-[10px] mt-0.5")
+                      )}
+                      <div>
+                        <div
+                          className={`rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-sm ${
+                            isAdmin
+                              ? "bg-blue-600 text-white rounded-tr-none font-medium"
+                              : "bg-surface-3 text-text-primary rounded-tl-none border border-border/30"
+                          }`}
+                          style={{ whiteSpace: "pre-line" }}
+                        >
+                          {m.text}
+                        </div>
+                        <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-text-muted ${isAdmin ? "justify-end" : "justify-start"}`}>
+                          <span>{m.time}</span>
+                          {isAdmin && <CheckCheck className="h-3.5 w-3.5 text-blue-500" />}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Simulated Typing Indicator */}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="flex gap-3 max-w-[70%]">
+                    {renderAvatar(activeConversation.name, "w-7 h-7 text-[10px] mt-0.5 animate-pulse")}
+                    <div className="bg-surface-3 border border-border/30 rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-1.5 shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Input Composer area */}
+            <div className="p-4 border-t border-border flex-shrink-0 bg-surface">
+              <div className="relative">
+                <textarea
+                  rows={3}
+                  value={inputText}
+                  onChange={e => handleComposerChange(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder="Type your message..."
+                  className="w-full border border-border bg-surface-2 focus:border-cyan focus:ring-cyan/10 text-text-primary rounded-2xl p-4 text-xs focus:outline-none focus:ring-2 pr-16 resize-none leading-relaxed transition-all"
+                />
+                <div className="absolute bottom-3 left-4 flex gap-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker((prev) => !prev)}
+                      aria-label="Open emoji picker"
+                      className="p-1.5 rounded-full text-text-muted hover:text-text-primary hover:bg-surface-3 transition-colors"
+                    >
+                    <Smile className="h-4 w-4" />
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-11 left-0 z-20 flex w-max max-w-[320px] gap-2 overflow-x-auto whitespace-nowrap rounded-2xl border border-border bg-white p-3 shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
+                        {chatEmojis.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => handleEmojiSelect(emoji)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-lg transition-colors hover:bg-surface-3"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="absolute bottom-3 right-4">
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!inputText.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md bg-cyan hover:bg-cyan/90 disabled:opacity-50"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Send
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { showToast, countryModalOpen, selectedCountry, openCountryModal, closeCountryModal } = useUIStore();
@@ -725,6 +1367,7 @@ const Dashboard = () => {
     smtpEmailService: "gmail",
     enableGDriveUpload: true,
     enableFileUpload: true,
+    showTravelerDetails: true,
     unsplashApplicationId: "",
     unsplashAccessKey: "",
     unsplashSecretKey: "",
@@ -733,6 +1376,15 @@ const Dashboard = () => {
     destinationFaqs: DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f })),
     destinationHowItWorks: DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x })),
     destinationVisaRequirements: [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS],
+    landingHeroHighlights: LANDING_HERO_HIGHLIGHTS_DEFAULT.map((item) => ({ ...item })),
+    customerChatEnabled: true,
+    customerChatMode: "external_link",
+    customerChatLink: "",
+    customerChatTitle: "Continue with Chat",
+    customerChatDescription: "Get instant support from our visa team",
+    customerChatHeaderTitle: "Chat with us",
+    customerChatHeaderSubtitle: "We typically reply in a few minutes",
+    whatsappTemplate: "",
   });
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
@@ -743,6 +1395,7 @@ const Dashboard = () => {
    * `*Picker`/`*Custom` pair drives the dropdown + free-text controls.
    */
   const [globalDefaults, setGlobalDefaults] = useState({
+    globalBasePrice: null,
     globalVisaType: "",
     globalValidity: "",
     globalLengthOfStay: "",
@@ -752,12 +1405,14 @@ const Dashboard = () => {
   });
   const [globalDefaultStats, setGlobalDefaultStats] = useState({
     totalCountries: 0,
+    usingGlobalBasePrice: 0,
     usingGlobalVisaType: 0,
     usingGlobalValidity: 0,
     usingGlobalLengthOfStay: 0,
     usingGlobalEntryType: 0,
     usingGlobalProcessingDays: 0,
     usingGlobalRequiredDocuments: 0,
+    overridingBasePrice: 0,
     overridingVisaType: 0,
     overridingValidity: 0,
     overridingLengthOfStay: 0,
@@ -774,8 +1429,10 @@ const Dashboard = () => {
     showProcessingDays: true,
     showRequiredDocuments: true,
     showVisaRequirements: true,
+    maintenanceModeEnabled: false,
   });
   const [visaTypePicker, setVisaTypePicker] = useState("");
+  const [basePriceCustom, setBasePriceCustom] = useState("");
   const [visaTypeCustom, setVisaTypeCustom] = useState("");
   const [validityPicker, setValidityPicker] = useState("");
   const [validityCustom, setValidityCustom] = useState("");
@@ -934,11 +1591,21 @@ const Dashboard = () => {
               ...p,
               enableGDriveUpload: s.enableGDriveUpload !== false,
               enableFileUpload: s.enableFileUpload !== false,
+              showTravelerDetails: s.showTravelerDetails !== false,
               destinationWhyBookNow: mapDestinationWhyBookNowFromApi(s),
               destinationIncludedItems: mapDestinationIncludedFromApi(s),
               destinationFaqs: mapDestinationFaqsFromApi(s),
               destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
               destinationVisaRequirements: mapDestinationVisaRequirementsFromApi(s),
+              landingHeroHighlights: mapLandingHeroHighlightsFromApi(s),
+              customerChatEnabled: s.customerChatEnabled !== false,
+              customerChatMode: s.customerChatMode || "external_link",
+              customerChatLink: s.customerChatLink || "",
+              customerChatTitle: s.customerChatTitle || "Continue with Chat",
+              customerChatDescription: s.customerChatDescription || "Get instant support from our visa team",
+              customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
+              customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
+              whatsappTemplate: s.whatsappTemplate || "",
             }));
           }
           await loadGlobalCountryDefaults();
@@ -1054,12 +1721,7 @@ const Dashboard = () => {
       idStr.includes(q) ||
       txnStr.includes(q);
     const progress = getApplicationProgress(b, settingsForm);
-    const resolvedStatus =
-      b.status === 'approved' || b.status === 'rejected' || b.status === 'cancelled'
-        ? b.status
-        : b.paymentStatus === 'completed'
-          ? (progress.allDocumentsUploaded ? 'review' : 'doc_pending')
-          : 'pending';
+    const resolvedStatus = resolveApplicationStatus(b, progress);
     const matchStatus = statusFilter === "all" || resolvedStatus === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -1479,6 +2141,10 @@ const Dashboard = () => {
       const { data } = await api.get("/admin/control/country-defaults");
       if (data?.success) {
         const next = {
+          globalBasePrice:
+            Number.isFinite(Number(data.defaults?.globalBasePrice)) && Number(data.defaults?.globalBasePrice) >= 0
+              ? Number(data.defaults.globalBasePrice)
+              : null,
           globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
           globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
           globalLengthOfStay: String(data.defaults?.globalLengthOfStay ?? "").trim(),
@@ -1493,12 +2159,14 @@ const Dashboard = () => {
         setGlobalDefaults(next);
         setGlobalDefaultStats({
           totalCountries: data.stats?.totalCountries ?? 0,
+          usingGlobalBasePrice: data.stats?.usingGlobalBasePrice ?? 0,
           usingGlobalVisaType: data.stats?.usingGlobalVisaType ?? 0,
           usingGlobalValidity: data.stats?.usingGlobalValidity ?? 0,
           usingGlobalLengthOfStay: data.stats?.usingGlobalLengthOfStay ?? 0,
           usingGlobalEntryType: data.stats?.usingGlobalEntryType ?? 0,
           usingGlobalProcessingDays: data.stats?.usingGlobalProcessingDays ?? 0,
           usingGlobalRequiredDocuments: data.stats?.usingGlobalRequiredDocuments ?? 0,
+          overridingBasePrice: data.stats?.overridingBasePrice ?? 0,
           overridingVisaType: data.stats?.overridingVisaType ?? 0,
           overridingValidity: data.stats?.overridingValidity ?? 0,
           overridingLengthOfStay: data.stats?.overridingLengthOfStay ?? 0,
@@ -1515,6 +2183,7 @@ const Dashboard = () => {
             showProcessingDays: data.display.showProcessingDays !== false,
             showRequiredDocuments: data.display.showRequiredDocuments !== false,
             showVisaRequirements: data.display.showVisaRequirements !== false,
+            maintenanceModeEnabled: data.display.maintenanceModeEnabled === true,
           });
         }
         if (Array.isArray(data.documentCatalog)) {
@@ -1536,6 +2205,7 @@ const Dashboard = () => {
         setRequiredDocsDraft(
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
+        setBasePriceCustom(next.globalBasePrice ?? "");
         // Pre-fill the dropdowns with whatever the global currently is so admins can
         // see at a glance what's live without first clicking around.
         if (next.globalVisaType && VISA_TYPE_SUGGESTIONS.includes(next.globalVisaType)) {
@@ -1787,6 +2457,42 @@ const Dashboard = () => {
     }
   };
 
+  const runUpdateGlobalBasePrice = async () => {
+    const parsedBasePrice = Number(basePriceCustom);
+    if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
+      showToast("Enter a valid global fee.", "error");
+      return;
+    }
+    setSavingControlKey("base-price");
+    try {
+      const { data } = await api.post("/admin/control/base-price", { basePrice: parsedBasePrice });
+      if (data?.success) {
+        showToast(data.message || `Fee set to ${formatPriceINR(parsedBasePrice)}.`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+      } else {
+        showToast(data?.message || "Failed to update global fee.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global fee.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/base-price is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Update global fee failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
   /**
    * Apply the current Required Documents draft as the new universal default.
    * On success the server flips `useGlobalRequiredDocuments=true` on every
@@ -1983,6 +2689,7 @@ const Dashboard = () => {
           showProcessingDays: live.showProcessingDays !== false,
           showRequiredDocuments: live.showRequiredDocuments !== false,
           showVisaRequirements: live.showVisaRequirements !== false,
+          maintenanceModeEnabled: live.maintenanceModeEnabled === true,
         });
         const labels = {
           showVisaType: "Visa Type",
@@ -1992,6 +2699,7 @@ const Dashboard = () => {
           showProcessingDays: "Processing Days",
           showRequiredDocuments: "Required Documents",
           showVisaRequirements: "Visa Requirements",
+          maintenanceModeEnabled: "Maintenance Mode",
         };
         showToast(`${labels[key]} ${next ? "shown" : "hidden"} on the public site.`, "success");
         // Bump country fetch so admin tables re-pull resolved values right away.
@@ -2122,7 +2830,11 @@ const Dashboard = () => {
   const liveAnalytics = {
     total:    bookings.length,
     revenue:  bookings.reduce((s, b) => s + b.fee, 0),
-    pending:  bookings.filter((b) => b.status === "pending" || b.status === "review" || b.status === "doc_pending").length,
+    pending:  bookings.filter((b) => {
+      const progress = getApplicationProgress(b, settingsForm);
+      const resolvedStatus = resolveApplicationStatus(b, progress);
+      return resolvedStatus === "pending";
+    }).length,
     approvalRate: Math.round((bookings.filter((b) => b.status === "approved").length / bookings.length) * 100),
   };
 
@@ -2220,7 +2932,7 @@ const Dashboard = () => {
                 {[
                   { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
                   { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
-                  { label: "Pending Review",  value: liveAnalytics.pending,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
+                  { label: "Pending Payment", value: liveAnalytics.pending,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
                   { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
                 ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
                   <motion.div
@@ -2321,14 +3033,17 @@ const Dashboard = () => {
                   { label: "Approved",    count: bookings.filter(b=>b.status==="approved").length,  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
                   { label: "Under Review",count: bookings.filter(b=>{
                       const progress = getApplicationProgress(b, settingsForm);
-                      return b.status !== "approved" && b.status !== "rejected" && b.status !== "cancelled" && b.paymentStatus === "completed" && progress.allDocumentsUploaded;
+                      return resolveApplicationStatus(b, progress) === "review";
                     }).length, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
                   { label: "Doc Pending", count: bookings.filter(b=>{
                       const progress = getApplicationProgress(b, settingsForm);
-                      return b.status !== "approved" && b.status !== "rejected" && b.status !== "cancelled" && b.paymentStatus === "completed" && !progress.allDocumentsUploaded;
+                      return resolveApplicationStatus(b, progress) === "doc_pending";
                     }).length, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
                   { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
-                  { label: "Pending Payment", count: bookings.filter(b=>b.status!=="approved" && b.status!=="rejected" && b.status!=="cancelled" && b.paymentStatus!=="completed").length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
+                  { label: "Pending Payment", count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      return resolveApplicationStatus(b, progress) === "pending";
+                    }).length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
                 ].map(({ label, count, color, bg, border }) => (
                   <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
                     <div className={`text-3xl font-bold ${color}`}>{count}</div>
@@ -2471,13 +3186,7 @@ const Dashboard = () => {
                             })()}
                           </td>
                           <td className="py-3 pr-6">
-                            <StatusBadge status={
-                              b.status === 'approved' || b.status === 'rejected' || b.status === 'cancelled'
-                                ? b.status
-                                : b.paymentStatus === 'completed'
-                                  ? (progress.allDocumentsUploaded ? 'review' : 'doc_pending')
-                                  : 'pending'
-                            } />
+                            <StatusBadge status={resolveApplicationStatus(b, progress)} />
                           </td>
                           <td className="py-3 pr-2">
                             <button
@@ -2628,6 +3337,11 @@ const Dashboard = () => {
           )}
 
           {/* ══════════════════════════════════════
+              TAB: SUPPORT CHAT
+              ══════════════════════════════════════ */}
+          {activeTab === "support-chat" && <SupportChatWorkspace />}
+
+          {/* ══════════════════════════════════════
               TAB 4: CONTROLS
               ══════════════════════════════════════ */}
           {activeTab === "controls" && (
@@ -2649,12 +3363,13 @@ const Dashboard = () => {
                         {
                           enableGDriveUpload: settingsForm.enableGDriveUpload,
                           enableFileUpload: settingsForm.enableFileUpload,
+                          showTravelerDetails: settingsForm.showTravelerDetails,
                         },
-                        "Document upload options saved.",
+                        "Document upload and traveler visibility options saved.",
                       )
                     }
                   >
-                    Save upload options
+                    Save controls
                   </Button>
                 </div>
                 
@@ -2700,6 +3415,22 @@ const Dashboard = () => {
                           <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settingsForm.enableGDriveUpload ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
                       </label>
+
+                      <label className="flex items-center justify-between bg-background p-4 rounded-xl border border-border cursor-pointer hover:border-cyan/30 transition-colors">
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">Traveler Details Section</p>
+                          <p className="text-xs text-text-muted mt-0.5">Show or hide the My Travelers section in the user dashboard</p>
+                        </div>
+                        <div className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 ${settingsForm.showTravelerDetails ? 'bg-emerald-500' : 'bg-surface-3 border border-border'}`}>
+                          <input 
+                            type="checkbox" 
+                            className="sr-only" 
+                            checked={settingsForm.showTravelerDetails}
+                            onChange={(e) => setSettingsForm((p) => ({ ...p, showTravelerDetails: e.target.checked }))}
+                          />
+                          <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settingsForm.showTravelerDetails ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </div>
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -2713,6 +3444,126 @@ const Dashboard = () => {
                   public card / details page when switched off.
                   ══════════════════════════════════════════════════════════ */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              <ExpandableAdminControlCard>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <FileText size={18} className="text-cyan" />
+                        Landing Highlights
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Update the four text cards shown right below the landing page search bar. The icon order stays the same on the client, while these
+                      <span className="text-text-primary font-medium"> titles</span> and
+                      <span className="text-text-primary font-medium"> descriptions</span> can be changed anytime from here.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingSettingsKey === "landing-highlights"}
+                    onClick={() => {
+                      const landingHeroHighlights = (settingsForm.landingHeroHighlights || []).map((item, index) => ({
+                        title: String(item?.title ?? LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title ?? "").trim(),
+                        body: String(item?.body ?? LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body ?? "").trim(),
+                      }));
+                      saveSettingsSection("landing-highlights", { landingHeroHighlights }, "Landing highlights updated");
+                    }}
+                  >
+                    Save Landing Highlights
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {(settingsForm.landingHeroHighlights || []).map((item, index) => (
+                    <div key={`landing-highlight-${index}`} className="rounded-2xl border border-border bg-surface-2/60 p-4 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                        Card {index + 1}
+                      </p>
+                      <Input
+                        label="Title"
+                        value={item?.title ?? ""}
+                        onChange={(e) =>
+                          setSettingsForm((p) => {
+                            const next = [...(p.landingHeroHighlights || [])];
+                            next[index] = { ...(next[index] || {}), title: e.target.value };
+                            return { ...p, landingHeroHighlights: next };
+                          })
+                        }
+                        placeholder={LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title || "Enter card title"}
+                      />
+                      <Textarea
+                        label="Description"
+                        rows={3}
+                        value={item?.body ?? ""}
+                        onChange={(e) =>
+                          setSettingsForm((p) => {
+                            const next = [...(p.landingHeroHighlights || [])];
+                            next[index] = { ...(next[index] || {}), body: e.target.value };
+                            return { ...p, landingHeroHighlights: next };
+                          })
+                        }
+                        placeholder={LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body || "Enter card description"}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </ExpandableAdminControlCard>
+
+              <ExpandableAdminControlCard>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <IndianRupee size={18} className="text-cyan" />
+                        Update Fee (universal)
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Sets one global <span className="text-text-primary font-medium">Fee</span> for every country.
+                      Per-country fees in <span className="text-text-primary font-medium">Country Manager</span> can still
+                      override it manually, and typing the same amount again switches that country back to the global fee.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {formatPriceINR(globalDefaults.globalBasePrice)}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}· {globalDefaultStats.usingGlobalBasePrice}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingBasePrice}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "base-price"}
+                    disabled={!String(basePriceCustom).trim()}
+                    onClick={runUpdateGlobalBasePrice}
+                  >
+                    Update All Fees
+                  </Button>
+                </div>
+
+                <Input
+                  label="Global Fee (₹)"
+                  type="number"
+                  value={basePriceCustom}
+                  onChange={(e) => setBasePriceCustom(e.target.value)}
+                  placeholder="e.g. 4999"
+                  id="control-base-price"
+                  helper="Saving this updates every country to use the global fee until a country is manually given a different amount."
+                />
+              </ExpandableAdminControlCard>
+
               <ExpandableAdminControlCard expandMode="fullscreen">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3383,6 +4234,161 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
 
               </div>
+
+              <Card>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <Settings size={18} className="text-cyan" />
+                        Site maintenance mode
+                      </h2>
+                      <DisplayToggle
+                        active={displayToggles.maintenanceModeEnabled}
+                        busy={togglingDisplayKey === "maintenanceModeEnabled"}
+                        onClick={() => runToggleDisplay("maintenanceModeEnabled")}
+                        labelOn="Enabled on client"
+                        labelOff="Disabled on client"
+                      />
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Turn this on to temporarily replace the entire public client app with a maintenance screen.
+                      The separate admin app stays available so you can switch the site back on after fixes.
+                    </p>
+                  </div>
+                  <div className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
+                    displayToggles.maintenanceModeEnabled
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  }`}>
+                    {displayToggles.maintenanceModeEnabled
+                      ? "Public site currently shows the maintenance page."
+                      : "Public site is live right now."}
+                  </div>
+                </div>
+              </Card>
+
+              <SettingsSectionCard
+                title="Customer Support Widget"
+                description="Redesign and manage the floating support widget. Set custom header titles, descriptions, and link the card directly to your active WhatsApp or custom helpdesk."
+                saveLabel="Save Widget Settings"
+                saveButtonId="save-customer-chat"
+                isSaving={savingSettingsKey === "customer-chat"}
+                onSave={() =>
+                  saveSettingsPartial(
+                    "customer-chat",
+                    {
+                      customerChatEnabled: settingsForm.customerChatEnabled,
+                      customerChatMode: "external_link",
+                      customerChatLink: settingsForm.customerChatLink,
+                      customerChatTitle: settingsForm.customerChatTitle,
+                      customerChatDescription: settingsForm.customerChatDescription,
+                      customerChatHeaderTitle: settingsForm.customerChatHeaderTitle,
+                      customerChatHeaderSubtitle: settingsForm.customerChatHeaderSubtitle,
+                      whatsappTemplate: settingsForm.whatsappTemplate,
+                    },
+                    "Customer chat settings saved.",
+                  )
+                }
+                statusSlot={(
+                  <DisplayToggle
+                    active={settingsForm.customerChatEnabled}
+                    busy={savingSettingsKey === "customer-chat"}
+                    onClick={() =>
+                      setSettingsForm((prev) => ({
+                        ...prev,
+                        customerChatEnabled: !prev.customerChatEnabled,
+                      }))
+                    }
+                    labelOn="Widget active on client"
+                    labelOff="Widget hidden on client"
+                  />
+                )}
+              >
+                <div className="space-y-6">
+                  {/* Premium Link Input section */}
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md">
+                        <MessageSquare className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <h4 className="text-sm font-bold text-text-primary">WhatsApp & Support Connection</h4>
+                        <p className="text-xs text-text-muted">Users clicking the WhatsApp support button will be redirected to this link.</p>
+                      </div>
+                    </div>
+                    <Input
+                      id="customer-chat-link"
+                      label="Paste WhatsApp Link Here"
+                      placeholder="Paste your WhatsApp link (e.g. https://wa.me/91XXXXXXXXXX) or Support URL here..."
+                      value={settingsForm.customerChatLink}
+                      onChange={(e) => setSettingsForm((prev) => ({ ...prev, customerChatLink: e.target.value }))}
+                      className="w-full focus:border-emerald-500 focus:ring-emerald-500/20"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <Input
+                      id="customer-chat-header-title"
+                      label="Widget Header Title"
+                      placeholder="Chat with us"
+                      value={settingsForm.customerChatHeaderTitle}
+                      onChange={(e) => setSettingsForm((prev) => ({ ...prev, customerChatHeaderTitle: e.target.value }))}
+                    />
+                    <Input
+                      id="customer-chat-header-subtitle"
+                      label="Widget Header Subtitle"
+                      placeholder="We typically reply in a few minutes"
+                      value={settingsForm.customerChatHeaderSubtitle}
+                      onChange={(e) => setSettingsForm((prev) => ({ ...prev, customerChatHeaderSubtitle: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <Input
+                      id="customer-chat-title"
+                      label="Default Button Title"
+                      placeholder="Continue with Chat"
+                      value={settingsForm.customerChatTitle}
+                      onChange={(e) => setSettingsForm((prev) => ({ ...prev, customerChatTitle: e.target.value }))}
+                    />
+                    <Input
+                      id="customer-chat-description"
+                      label="CTA Description"
+                      placeholder="Get instant support from our visa team"
+                      value={settingsForm.customerChatDescription}
+                      onChange={(e) => setSettingsForm((prev) => ({ ...prev, customerChatDescription: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="w-full">
+                    <Textarea
+                      id="customer-chat-whatsapp-template"
+                      label="WhatsApp Pre-filled Message Template"
+                      placeholder="Hello Visa & Voyage..."
+                      value={settingsForm.whatsappTemplate}
+                      onChange={(e) => setSettingsForm((prev) => ({ ...prev, whatsappTemplate: e.target.value }))}
+                      rows={6}
+                      className="w-full font-mono text-sm leading-relaxed"
+                    />
+                    <div className="text-xs text-text-muted mt-2 space-y-1">
+                      <p>You can use the following dynamic variables which will be replaced automatically based on the user's active context:</p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <code className="px-1.5 py-0.5 rounded bg-surface-3 border border-border text-emerald-400 font-mono text-[10px] font-semibold">{"{{userName}}"}</code>
+                        <code className="px-1.5 py-0.5 rounded bg-surface-3 border border-border text-emerald-400 font-mono text-[10px] font-semibold">{"{{country}}"}</code>
+                        <code className="px-1.5 py-0.5 rounded bg-surface-3 border border-border text-emerald-400 font-mono text-[10px] font-semibold">{"{{visaType}}"}</code>
+                        <code className="px-1.5 py-0.5 rounded bg-surface-3 border border-border text-emerald-400 font-mono text-[10px] font-semibold">{"{{travelDate}}"}</code>
+                        <code className="px-1.5 py-0.5 rounded bg-surface-3 border border-border text-emerald-400 font-mono text-[10px] font-semibold">{"{{applicationId}}"}</code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-surface-2/60 px-4 py-3 text-xs text-text-muted leading-relaxed">
+                  <span className="text-text-primary font-semibold">Support Center Tip: </span>
+                  Connecting your active WhatsApp link enables instantaneous customer service with real-time feedback. You can customize the widget labels above at any time.
+                </div>
+              </SettingsSectionCard>
 
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -4674,14 +5680,33 @@ const Dashboard = () => {
 
           {/* Base price + Processing days + Difficulty */}
           <div className="grid grid-cols-3 gap-3">
-            <Input
-              label="Base Price (₹)"
-              type="number"
-              value={countryForm.basePrice}
-              onChange={(e) => setCountryForm((p) => ({ ...p, basePrice: e.target.value }))}
-              id="country-price"
-              placeholder="150"
-            />
+            <div>
+              <Input
+                label="Base Price (₹)"
+                type="number"
+                value={countryForm.basePrice}
+                onChange={(e) => setCountryForm((p) => ({ ...p, basePrice: e.target.value }))}
+                id="country-price"
+                placeholder="150"
+              />
+              {!selectedCountry ? null : selectedCountry?.useGlobalBasePrice === true ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value
+                  {Number.isFinite(Number(globalDefaults.globalBasePrice))
+                    ? ` (${formatPriceINR(globalDefaults.globalBasePrice)})`
+                    : ""}. Type a different amount to override.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override - match the global
+                  {Number.isFinite(Number(globalDefaults.globalBasePrice))
+                    ? ` (${formatPriceINR(globalDefaults.globalBasePrice)})`
+                    : " price"} to use global again.
+                </p>
+              )}
+            </div>
             <div>
               <Input
                 label="Processing Days"
@@ -5963,10 +6988,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-
-
-
-
-
-

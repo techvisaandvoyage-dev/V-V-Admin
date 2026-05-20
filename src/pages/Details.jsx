@@ -9,7 +9,7 @@ import Button from "../components/ui/Button";
 import { Select } from "../components/ui/Input";
 import { StatusBadge } from "../components/ui/Badge";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
-import { getApplicationProgress } from "../utils/applicationProgress";
+import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 
 const getTravelerNoFromDocumentPath = (path) => {
   const fileName = String(path || "").split("/").pop() || "";
@@ -449,13 +449,7 @@ const Details = () => {
             </button>
             <h1 className="text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-3">
               Application Details
-              <StatusBadge status={
-                application.status === 'approved' || application.status === 'rejected' || application.status === 'cancelled'
-                  ? application.status
-                  : application.paymentStatus === 'completed'
-                    ? (progress.allDocumentsUploaded ? 'review' : 'doc_pending')
-                    : 'pending'
-              } />
+              <StatusBadge status={resolveApplicationStatus(application, progress)} />
             </h1>
             <p className="text-text-secondary text-sm mt-1">
               Application ID: {application.applicationId || application._id} • Submitted on {new Date(application.createdAt).toLocaleDateString()}
