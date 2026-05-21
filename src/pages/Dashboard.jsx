@@ -36,6 +36,7 @@ import { useAuthStore, api, SERVER_URL } from "../store/authStore";
 import { ANALYTICS, MONTHLY_REVENUE } from "../data/bookings";
 import { getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
 import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
+import { fmtDate } from "../utils/formatDate";
 
 /**
  * Icon mapping for every built-in document key (mirrors `DOCUMENT_META` on the
@@ -116,13 +117,6 @@ const CustomTooltip = ({ active, payload, label }) => {
       ))}
     </div>
   );
-};
-
-// ── Format date ────────────────────────────────────────────
-const fmtDate = (iso) => {
-  if (!iso) return "N/A";
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const formatPriceINR = (value) => {
@@ -2883,7 +2877,7 @@ const Dashboard = () => {
                         transactions.map((tx) => (
                           <tr key={tx._id} className="border-b border-border/30 hover:bg-surface-2 transition-colors">
                             <td className="py-3 px-4 text-text-secondary">
-                              {new Date(tx.createdAt).toLocaleDateString()}
+                              {fmtDate(tx.createdAt)}
                             </td>
                             <td className="py-3 px-4 text-text-primary font-medium">
                               {tx.user?.name || 'Unknown'}

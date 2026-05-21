@@ -46,13 +46,28 @@ const getDocumentKeyFromPath = (path) => {
   return match ? String(match[1] || "").trim() : "";
 };
 
+const resolveVisibleRequiredDocuments = (rawRequiredDocuments = [], settings = {}) => {
+  const incoming = Array.isArray(rawRequiredDocuments) && rawRequiredDocuments.length
+    ? rawRequiredDocuments
+    : ["passport"];
+  const normalized = incoming.map((key) => String(key || "").trim()).filter(Boolean);
+  const unique = Array.from(new Set(normalized));
+  const optionalKeys = settings?.enableFileUpload === false
+    ? []
+    : unique.filter((key) => key !== "passport");
+  return ["passport", ...optionalKeys];
+};
+
 export const getApplicationProgress = (application, settings = { enableFileUpload: true, enableGDriveUpload: true }) => {
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
-  const requiredDocuments = Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
-    ? settings.customRequiredDocs
-    : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
-    ? application.requiredDocuments
-    : ["passport"];
+  const requiredDocuments = resolveVisibleRequiredDocuments(
+    Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
+      ? settings.customRequiredDocs
+      : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
+        ? application.requiredDocuments
+        : ["passport"],
+    settings
+  );
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
   const rootDocuments = Array.isArray(application?.documents) ? application.documents.filter(Boolean) : [];
   const rootGdrive = String(application?.gdriveLink || "").trim();
@@ -86,23 +101,12 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     const missingKeys = requiredDocuments.filter((key) => !getDoc(key) && !rootDocKeys.includes(key));
     const hasAllFiles = missingKeys.length === 0;
 
-    // Logic: If both are enabled, we require files for "complete" status.
-    // If only GDrive is enabled, Drive link is enough.
-    // If only File Upload is enabled, Files are required.
-    // Already-uploaded required files should always count as complete, even if
-    // the admin later turns off file uploads globally. The toggles control what
-    // users can submit next, not whether existing uploads remain valid.
-    let complete = hasAllFiles;
-    if (!complete && !fileOn && gdOn) {
-      complete = hasDriveLink;
-    }
-
     return {
       travelerNo,
       travelerName,
       missingKeys,
       missingLabels: missingKeys.map((key) => DOCUMENT_LABELS[key] || key),
-      complete,
+      complete: hasAllFiles,
     };
   });
 

@@ -6,11 +6,15 @@
 export const fmtDate = (iso) => {
   if (!iso) return "N/A";
   const d = new Date(iso);
-  return isNaN(d.getTime()) 
-    ? "N/A" 
-    : d.toLocaleDateString("en-US", { 
-        month: "short", 
-        day: "numeric", 
-        year: "numeric" 
-      });
+  if (isNaN(d.getTime())) return "N/A";
+
+  const day = d.getDate();
+  const getOrdinalNum = (n) => {
+    return n + (n > 0 ? ['th', 'st', 'nd', 'rd'][(n > 3 && n < 21) || n % 10 > 3 ? 0 : n % 10] : '');
+  };
+
+  const month = d.toLocaleString('default', { month: 'short' }); 
+  const year = d.getFullYear();
+  
+  return `${getOrdinalNum(day)} ${month} ${year}`;
 };
