@@ -50,6 +50,18 @@ const getStoredDocumentValue = (docs, key) => {
   return "";
 };
 
+const resolveVisibleRequiredDocuments = (rawRequiredDocuments = [], settings = {}) => {
+  const incoming = Array.isArray(rawRequiredDocuments) && rawRequiredDocuments.length
+    ? rawRequiredDocuments
+    : ["passport"];
+  const normalized = incoming.map((key) => String(key || "").trim()).filter(Boolean);
+  const unique = Array.from(new Set(normalized));
+  const optionalKeys = settings?.enableFileUpload === false
+    ? []
+    : unique.filter((key) => key !== "passport");
+  return ["passport", ...optionalKeys];
+};
+
 const getTravelerNoFromDocumentPath = (path) => {
   const fileName = String(path || "").split("/").pop() || "";
   const match = fileName.match(/^traveler-(\d+)_/i);
@@ -64,15 +76,18 @@ const getDocumentKeyFromPath = (path) => {
 
 export const getApplicationProgress = (application, settings = { enableFileUpload: true, enableGDriveUpload: true }) => {
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
-  const requiredDocuments = Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
-    ? settings.customRequiredDocs
-    : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
-    ? application.requiredDocuments
-    : ["passport"];
+  const requiredDocuments = resolveVisibleRequiredDocuments(
+    Array.isArray(settings?.customRequiredDocs) && settings.customRequiredDocs.length
+      ? settings.customRequiredDocs
+      : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
+        ? application.requiredDocuments
+        : ["passport"],
+    settings
+  );
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
   const rootDocuments = Array.isArray(application?.documents) ? application.documents.filter(Boolean) : [];
   const rootGdrive = String(application?.gdriveLink || "").trim();
-  const singleTravellerRootDrive = travellerCount === 1 && Boolean(rootGdrive);
+  const sharedRootDrive = Boolean(rootGdrive);
 
   const { enableFileUpload: fileOn, enableGDriveUpload: gdOn } = settings;
 
@@ -85,8 +100,7 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
       `Traveler ${travelerNo}`;
 
     const hasTravelerGdrive = Boolean(String(uploaded?.gdriveLink || "").trim());
-    const hasLegacyRootGdrive = singleTravellerRootDrive && travelerNo === 1;
-    const hasDriveLink = hasTravelerGdrive || hasLegacyRootGdrive;
+    const hasDriveLink = sharedRootDrive || hasTravelerGdrive;
 
     const docs = uploaded?.documents || {};
     const rootDocKeys = rootDocuments
@@ -96,22 +110,12 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     const missingKeys = requiredDocuments.filter((key) => !hasStoredDocument(docs, key) && !rootDocKeys.includes(key));
     const hasAllFiles = missingKeys.length === 0;
 
-    // Logic: If both are enabled, we require files for "complete" status.
-    // If only GDrive is enabled, Drive link is enough.
-    // If only File Upload is enabled, Files are required.
-    // Existing uploaded files remain valid regardless of the current global
-    // upload-toggle state. If the required files are present, mark complete.
-    let complete = hasAllFiles;
-    if (!complete && !fileOn && gdOn) {
-      complete = hasDriveLink;
-    }
-
     return {
       travelerNo,
       travelerName,
       missingKeys,
       missingLabels: missingKeys.map((key) => DOCUMENT_LABELS[key] || key),
-      complete,
+      complete: hasAllFiles,
     };
   });
 
@@ -142,14 +146,19 @@ export const getDerivedApplicationProgress = (
   const travellerCount = Math.max(1, Number(application?.travellerCount || 1));
   const travellers = Array.isArray(application?.travellerDocuments) ? application.travellerDocuments : [];
   const rootDocuments = Array.isArray(application?.documents) ? application.documents.filter(Boolean) : [];
-  const requiredDocuments = Array.isArray(requiredDocumentKeys) && requiredDocumentKeys.length
-    ? requiredDocumentKeys
-    : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
-    ? application.requiredDocuments
-    : ["passport"];
+  const requiredDocuments = resolveVisibleRequiredDocuments(
+    Array.isArray(requiredDocumentKeys) && requiredDocumentKeys.length
+      ? requiredDocumentKeys
+      : Array.isArray(application?.requiredDocuments) && application.requiredDocuments.length
+        ? application.requiredDocuments
+        : ["passport"],
+    settings
+  );
+  const rootGdrive = String(application?.gdriveLink || "").trim();
   const hasDriveLink = Boolean(
     settings?.enableGDriveUpload &&
-      travellers.some((entry) => typeof entry?.gdriveLink === "string" && entry.gdriveLink.trim().length > 0)
+      (rootGdrive.length > 0 ||
+        travellers.some((entry) => typeof entry?.gdriveLink === "string" && entry.gdriveLink.trim().length > 0))
   );
 
   let totalMissingDocuments = 0;
@@ -169,9 +178,7 @@ export const getDerivedApplicationProgress = (
   }
 
   return {
-    allDocumentsUploaded:
-      totalMissingDocuments === 0 ||
-      (!settings?.enableFileUpload && hasDriveLink),
+    allDocumentsUploaded: totalMissingDocuments === 0,
     totalMissingDocuments,
     hasDriveLink,
   };

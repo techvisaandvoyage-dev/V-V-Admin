@@ -30,6 +30,22 @@ const {
 } = require('../controllers/applicationController');
 const { createOrder, verifyPayment, cancelPayment, failPayment, getMyTransactions } = require('../controllers/paymentController');
 
+const handleDocumentUploadMiddleware = (req, res, next) => {
+  uploadOptimizer.array('documents', 25)(req, res, (error) => {
+    if (!error) return next();
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File size exceeds 300KB limit. Please upload a smaller file.',
+      });
+    }
+    return res.status(error.statusCode || 400).json({
+      success: false,
+      message: error.message || 'Could not process upload.',
+    });
+  });
+};
+
 // Auth routes
 router.post('/signup', signupUser);
 router.post('/verify-otp', verifyOtp);
@@ -55,7 +71,7 @@ router.put('/applications/:id', protect, updateUserApplication);
 router.post(
   '/applications/:id/documents',
   protect,
-  uploadOptimizer.array('documents', 25),
+  handleDocumentUploadMiddleware,
   saveDocumentsToDisk,
   appendApplicationDocuments
 );

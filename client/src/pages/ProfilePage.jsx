@@ -26,6 +26,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Input, { Select } from "../components/ui/Input";
 import { useNavigate } from "react-router-dom";
+import { formatOrdinalDate } from "../utils/dateUtils";
 
 const PHONE_COUNTRY_OPTIONS = [
   { value: "+91", label: "India (+91)" },
@@ -52,11 +53,7 @@ const formatMemberSince = (value) => {
   if (!value) return "Recently joined";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "Recently joined";
-  return parsed.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatOrdinalDate(parsed);
 };
 
 const StatusPill = ({ children, tone = "green" }) => {

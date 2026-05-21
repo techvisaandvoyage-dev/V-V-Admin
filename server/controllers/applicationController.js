@@ -50,7 +50,7 @@ const getNextApplicationId = async () => {
         counter = await Counter.findOneAndUpdate(
           { name: APPLICATION_ID_COUNTER },
           { $set: { value: APPLICATION_ID_START } },
-          { returnDocument: 'after', new: true }
+          { returnDocument: 'after' }
         );
         return String(counter.value);
       }
@@ -58,7 +58,7 @@ const getNextApplicationId = async () => {
       counter = await Counter.findOneAndUpdate(
         { name: APPLICATION_ID_COUNTER },
         { $inc: { value: 1 } },
-        { returnDocument: 'after', new: true }
+        { returnDocument: 'after' }
       );
 
       return String(counter.value);
@@ -215,6 +215,7 @@ const normalizeTravelerSelections = async (
 const createCheckoutDraft = async (req, res) => {
   try {
     const {
+      applicationDraftId,
       countryId,
       countryName,
       flagEmoji,
@@ -257,11 +258,29 @@ const createCheckoutDraft = async (req, res) => {
     const firstName = nameParts[0] || 'Applicant';
     const lastName = nameParts.slice(1).join(' ') || '-';
 
-    const existingDraft = await Application.findOne({
-      user: req.user.id,
-      countryId: String(countryId),
-      paymentStatus: 'pending_payment',
-    }).sort({ createdAt: -1 });
+    let existingDraft = null;
+    const normalizedDraftId = String(applicationDraftId || '').trim();
+    if (normalizedDraftId) {
+      existingDraft = await Application.findOne({
+        _id: normalizedDraftId,
+        user: req.user.id,
+      });
+      if (
+        existingDraft &&
+        existingDraft.paymentStatus !== 'pending_payment' &&
+        existingDraft.detailsPending !== true
+      ) {
+        existingDraft = null;
+      }
+    }
+
+    if (!existingDraft) {
+      existingDraft = await Application.findOne({
+        user: req.user.id,
+        countryId: String(countryId),
+        paymentStatus: 'pending_payment',
+      }).sort({ createdAt: -1 });
+    }
 
     let travelDate = new Date();
     if (travelDateFrom) {
@@ -364,7 +383,9 @@ const updateUserApplication = async (req, res) => {
       if (Object.keys(updates).length === 0) {
         return res.status(403).json({ success: false, message: 'This application cannot be edited' });
       }
-      const updated = await Application.findByIdAndUpdate(req.params.id, updates, { new: true });
+      const updated = await Application.findByIdAndUpdate(req.params.id, updates, {
+        returnDocument: 'after',
+      });
       return res.json({ success: true, application: updated });
     }
 
@@ -454,7 +475,9 @@ const updateUserApplication = async (req, res) => {
       }
     }
 
-    const updated = await Application.findByIdAndUpdate(req.params.id, updates, { new: true });
+    const updated = await Application.findByIdAndUpdate(req.params.id, updates, {
+      returnDocument: 'after',
+    });
     res.json({ success: true, application: updated });
   } catch (error) {
     console.error('updateUserApplication:', error);
@@ -470,6 +493,7 @@ const updateUserApplication = async (req, res) => {
 const appendApplicationDocuments = async (req, res) => {
   try {
     const paths = req.savedDocumentPaths;
+    const savedDocumentDetails = Array.isArray(req.savedDocumentDetails) ? req.savedDocumentDetails : [];
     if (!Array.isArray(paths) || paths.length === 0) {
       return res.status(400).json({ success: false, message: 'No files saved' });
     }
@@ -505,6 +529,7 @@ const appendApplicationDocuments = async (req, res) => {
 
     if (Number.isFinite(travelerNo) && travelerNo > 0 && documentsMeta.length > 0) {
       const docMap = {};
+      const docDetailsMap = {};
       const otherDocuments = [];
 
       for (let i = 0; i < documentsMeta.length; i += 1) {
@@ -512,12 +537,22 @@ const appendApplicationDocuments = async (req, res) => {
         const docType = String(meta.docType || '').trim();
         const docKind = String(meta.kind || '').trim();
         const pathForDoc = paths[i] || '';
+        const detailForDoc = savedDocumentDetails[i] || null;
         if (docKind === 'other' && pathForDoc) {
           otherDocuments.push(pathForDoc);
           continue;
         }
         if (docType && pathForDoc) {
           docMap[docType] = pathForDoc;
+          if (detailForDoc) {
+            docDetailsMap[docType] = {
+              url: pathForDoc,
+              fileName: String(detailForDoc.fileName || '').trim(),
+              fileSize: Number(detailForDoc.fileSize || 0),
+              mimeType: String(detailForDoc.mimeType || '').trim(),
+              uploadedAt: detailForDoc.uploadedAt || new Date(),
+            };
+          }
         }
       }
 
@@ -537,7 +572,22 @@ const appendApplicationDocuments = async (req, res) => {
         if (Object.prototype.hasOwnProperty.call(req.body, 'gdriveFurtherInfoLink')) {
           payload.gdriveFurtherInfoLink = gdriveFurtherInfoLink;
         }
-        payload.documents = { ...(payload.documents || {}), ...docMap };
+        const previousDocuments = payload.documents || {};
+        const previousDocumentDetails = payload.documentDetails || {};
+
+        Object.entries(docMap).forEach(([docType, nextPath]) => {
+          const previousPath =
+            typeof previousDocuments.get === 'function'
+              ? previousDocuments.get(docType)
+              : previousDocuments[docType];
+          if (previousPath && previousPath !== nextPath) {
+            application.documents = (Array.isArray(application.documents) ? application.documents : [])
+              .filter((storedPath) => String(storedPath || '').trim() !== String(previousPath || '').trim());
+          }
+        });
+
+        payload.documents = { ...(previousDocuments || {}), ...docMap };
+        payload.documentDetails = { ...(previousDocumentDetails || {}), ...docDetailsMap };
         const existingOther = Array.isArray(payload.otherDocuments)
           ? payload.otherDocuments.map((p) => String(p || '').trim()).filter(Boolean)
           : [];
@@ -551,6 +601,7 @@ const appendApplicationDocuments = async (req, res) => {
           gdriveLink,
           gdriveFurtherInfoLink,
           documents: docMap,
+          documentDetails: docDetailsMap,
           otherDocuments,
           uploadedAt: new Date(),
         };
@@ -789,7 +840,7 @@ const updateApplicationStatus = async (req, res) => {
     const application = await Application.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });

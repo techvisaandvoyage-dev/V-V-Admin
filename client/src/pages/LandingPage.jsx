@@ -26,7 +26,7 @@ import { useCountries } from "../hooks/useCountries";
 import { api } from "../store/authStore";
 import { getCountryFlagEmoji, getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
 import { getCountryRouteId } from "../utils/countryRouting";
-import heroImage from "../assets/hero.png";
+import heroImage from "../assets/landing-hero-travel.png";
 
   const GEOCODE_DEBOUNCE_MS = 680;
   const GEOCODE_MIN_CHARS = 3;
@@ -349,7 +349,7 @@ const LandingPage = () => {
       >
         <div className="absolute inset-0 hero-gradient" aria-hidden="true" />
         <div
-          className="absolute inset-0 bg-cover bg-[78%_top] sm:bg-[75%_18%] lg:bg-[72%_center] bg-no-repeat opacity-95"
+          className="absolute inset-0 bg-cover bg-[72%_-1.5rem] sm:bg-[74%_-2rem] lg:bg-[78%_-2.75rem] bg-no-repeat opacity-95"
           style={{ backgroundImage: `url(${heroImage})` }}
           aria-hidden="true"
         />

@@ -275,7 +275,7 @@ const deleteBlog = async (req, res) => {
     const post = await BlogPost.findOneAndUpdate(
       { _id: id, softDeleted: { $ne: true } },
       { softDeleted: true, deletedAt: new Date(), status: 'draft' },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, data: post });

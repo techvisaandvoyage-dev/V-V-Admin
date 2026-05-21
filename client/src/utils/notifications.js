@@ -1,4 +1,5 @@
 import { Bell, BadgeCheck, CalendarDays, MessageSquareText, Shield } from "lucide-react";
+import { formatOrdinalDate } from "./dateUtils";
 
 export const NOTIFICATION_READS_KEY = "visa_voyage_profile_notification_reads";
 
@@ -14,7 +15,7 @@ export const formatNotificationTime = (value) => {
   if (diffHours < 24) return `${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return formatOrdinalDate(date);
 };
 
 export const readNotificationKeys = () => {

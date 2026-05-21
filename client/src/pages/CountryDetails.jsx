@@ -48,6 +48,11 @@ import {
   validateRazorpayCheckoutReadiness,
 } from "../utils/razorpayCheckout";
 import ContactVerificationModal from "../components/account/ContactVerificationModal";
+import PassportUploadRow from "../components/application/PassportUploadRow";
+import {
+  optimizeUploadFile,
+  PASSPORT_UPLOAD_MAX_BYTES,
+} from "../utils/optimizeUploadFile";
 import VisaInformationSection from "../components/country/VisaInformationSection";
 import {
   needsPhoneContactGate,
@@ -56,6 +61,7 @@ import {
 import { loadTravelDraft, saveTravelDraft } from "../utils/travelDraftStorage";
 import { getLocalDateYmd } from "../utils/dateInput";
 import { matchesCountryRouteId, getCountryRouteId } from "../utils/countryRouting";
+import { formatOrdinalDate } from "../utils/dateUtils";
 
 const ease = [0.16, 1, 0.3, 1];
 const fadeUp = {
@@ -68,6 +74,46 @@ const normalizeProcessingDays = (value) => {
   const matches = String(value || "").match(/\d+/g);
   if (!matches?.length) return 0;
   return Number(matches[matches.length - 1]);
+};
+
+const ALLOWED_PASSPORT_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
+const INVALID_PASSPORT_TYPE_ERROR = "Only PDF, JPG, JPEG and PNG files are allowed.";
+const PASSPORT_FILE_SIZE_ERROR = "File size exceeds 300KB limit. Please upload a smaller file.";
+
+const formatFileSize = (size = 0) => {
+  if (!size) return "0 KB";
+  if (size < 1024 * 1024) return `${Math.ceil(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const getTravelerPassportDetail = (application, travelerNo) => {
+  const traveler = Array.isArray(application?.travellerDocuments)
+    ? application.travellerDocuments.find((entry) => Number(entry?.travelerNo) === Number(travelerNo))
+    : null;
+  if (!traveler) return null;
+
+  const docs = traveler.documents;
+  const url =
+    docs instanceof Map
+      ? docs.get("passport")
+      : typeof docs?.get === "function"
+        ? docs.get("passport")
+        : docs?.passport;
+  if (!url) return null;
+
+  const details = traveler.documentDetails;
+  const detail =
+    details instanceof Map
+      ? details.get("passport")
+      : typeof details?.get === "function"
+        ? details.get("passport")
+        : details?.passport;
+  return {
+    url,
+    fileName: detail?.fileName || String(url).split("/").pop() || "Passport",
+    fileSize: Number(detail?.fileSize || 0),
+    mimeType: detail?.mimeType || "",
+  };
 };
 
 /**
@@ -227,17 +273,6 @@ const normalizeDriveLink = (value) => {
   return `https://${trimmed}`;
 };
 
-const isGoogleDriveLink = (value) => {
-  const normalized = normalizeDriveLink(value);
-  if (!normalized) return false;
-  try {
-    const url = new URL(normalized);
-    return /(^|\.)drive\.google\.com$/i.test(url.hostname);
-  } catch {
-    return false;
-  }
-};
-
 const CountryDetails = () => {
   const { countryId } = useParams();
   const navigate = useNavigate();
@@ -291,8 +326,13 @@ const CountryDetails = () => {
   const [currentApplicationId, setCurrentApplicationId] = useState("");
   const [draftCreating, setDraftCreating] = useState(false);
   const [travelValidationAttempted, setTravelValidationAttempted] = useState(false);
+  const [passportUploading, setPassportUploading] = useState({});
+  const [passportErrors, setPassportErrors] = useState({});
+  const [passportSuccesses, setPassportSuccesses] = useState({});
+  const [passportDetails, setPassportDetails] = useState({});
   const travelerNameInputRefs = useRef({});
   const startApplicationCardRef = useRef(null);
+  const driveLinkSaveTimerRef = useRef(null);
   const startApplicationCardSeenRef = useRef(false);
   const [destinationPageContent, setDestinationPageContent] = useState(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -778,10 +818,13 @@ const CountryDetails = () => {
     if (draft.sharedDriveLink != null) {
       const restoredLink = String(draft.sharedDriveLink || "").trim();
       setSharedDriveLink(restoredLink);
-      setSharedDriveLinkVerified(isGoogleDriveLink(restoredLink));
+      setSharedDriveLinkVerified(Boolean(restoredLink));
     }
     if (Array.isArray(draft.travelers) && draft.travelers.length > 0) {
-      setTravelers(draft.travelers.map((t) => ({ name: String(t?.name || "") })));
+      setTravelers(draft.travelers.map((t) => ({ ...createTravelerState(), name: String(t?.name || "") })));
+    }
+    if (draft.applicationId) {
+      setCurrentApplicationId(String(draft.applicationId));
     }
     if (draft.showTravelDetails) {
       setShowTravelDetails(true);
@@ -804,10 +847,13 @@ const CountryDetails = () => {
       if (restore.sharedDriveLink != null) {
         const restoredLink = String(restore.sharedDriveLink || "").trim();
         setSharedDriveLink(restoredLink);
-        setSharedDriveLinkVerified(isGoogleDriveLink(restoredLink));
+        setSharedDriveLinkVerified(Boolean(restoredLink));
       }
       if (Array.isArray(restore.travelers)) {
-        setTravelers(restore.travelers.map((t) => ({ name: String(t.name || "") })));
+        setTravelers(restore.travelers.map((t) => ({ ...createTravelerState(), name: String(t.name || "") })));
+      }
+      if (location.state?.applicationDraftId || restore.applicationDraftId) {
+        setCurrentApplicationId(String(location.state?.applicationDraftId || restore.applicationDraftId));
       }
       setShowTravelDetails(true);
       window.setTimeout(() => {
@@ -820,6 +866,39 @@ const CountryDetails = () => {
       }, 180);
     }
   }, [location.state]);
+
+  useEffect(() => {
+    if (!currentApplicationId || !localStorage.getItem("token")) return;
+    let cancelled = false;
+
+    const loadPassportState = async () => {
+      try {
+        const { data } = await api.get(`/users/applications/${currentApplicationId}`);
+        if (cancelled || !data?.success || !data.application) return;
+
+        const nextSuccesses = {};
+        const nextDetails = {};
+        const count = Math.max(1, Number(data.application?.travellerCount || travelers.length || 1));
+        for (let index = 0; index < count; index += 1) {
+          const travelerNo = index + 1;
+          const detail = getTravelerPassportDetail(data.application, travelerNo);
+          if (!detail) continue;
+          nextSuccesses[travelerNo] = true;
+          nextDetails[travelerNo] = detail;
+        }
+
+        setPassportSuccesses(nextSuccesses);
+        setPassportDetails(nextDetails);
+      } catch {
+        /* Restoring upload status should not block the travel form. */
+      }
+    };
+
+    loadPassportState();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentApplicationId, travelers.length]);
 
   useEffect(() => {
     const raw = (location.hash || "").replace(/^#/, "");
@@ -907,6 +986,7 @@ const CountryDetails = () => {
     if (showTravelDetails) {
       setShowTravelDetails(false);
       saveTravelDraft(countryId, {
+        applicationId: currentApplicationId,
         travelDateFrom,
         travelDateTo,
         visaOption,
@@ -940,32 +1020,142 @@ const CountryDetails = () => {
     );
   };
 
-  const handleVerifySharedDriveLink = () => {
-    const normalized = normalizeDriveLink(sharedDriveLink);
-    if (!normalized) {
-      showToast("Please enter your Google Drive folder link first.", "error");
-      setSharedDriveLinkVerified(false);
+  const handleTravelerPassportFile = async (index, rawFile) => {
+    const travelerNo = index + 1;
+    if (!rawFile) {
+      updateTravelerPassportFile(index, null);
+      setPassportErrors((prev) => {
+        const next = { ...prev };
+        delete next[travelerNo];
+        return next;
+      });
       return;
     }
-    if (!isGoogleDriveLink(normalized)) {
-      showToast("Please enter a valid Google Drive link.", "error");
-      setSharedDriveLinkVerified(false);
+    if (!ALLOWED_PASSPORT_MIME_TYPES.has(String(rawFile.type || "").toLowerCase())) {
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: INVALID_PASSPORT_TYPE_ERROR }));
+      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
       return;
     }
-    setSharedDriveLink(normalized);
-    setSharedDriveLinkVerified(true);
-    showToast("Google Drive link verified.", "success");
+    if (rawFile.size > PASSPORT_UPLOAD_MAX_BYTES) {
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: PASSPORT_FILE_SIZE_ERROR }));
+      showToast(PASSPORT_FILE_SIZE_ERROR, "error");
+      return;
+    }
+    const { file: optimizedFile, error } = await optimizeUploadFile(rawFile, {
+      targetBytes: PASSPORT_UPLOAD_MAX_BYTES,
+    });
+    if (error || !optimizedFile) {
+      const message = error || "Could not prepare passport file for upload.";
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: message }));
+      showToast(message, "error");
+      return;
+    }
+    if (optimizedFile.size > PASSPORT_UPLOAD_MAX_BYTES) {
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: PASSPORT_FILE_SIZE_ERROR }));
+      showToast(PASSPORT_FILE_SIZE_ERROR, "error");
+      return;
+    }
+    updateTravelerPassportFile(index, optimizedFile);
+    setPassportErrors((prev) => {
+      const next = { ...prev };
+      delete next[travelerNo];
+      return next;
+    });
+    setPassportUploading((prev) => ({ ...prev, [travelerNo]: true }));
+
+    try {
+      const appId = await createCheckoutDraftAndSetId();
+      if (!appId) throw new Error("Could not create application draft.");
+
+      const travelerName = String(travelers[index]?.name || "").trim() || `Traveler ${travelerNo}`;
+      const formData = new FormData();
+      const ext = (optimizedFile.name.split(".").pop() || "").toLowerCase();
+      const safeExt = ext ? `.${ext}` : "";
+      formData.append(
+        "documents",
+        new File([optimizedFile], `traveler-${travelerNo}_passport${safeExt}`, { type: optimizedFile.type })
+      );
+      formData.append("travelerNo", String(travelerNo));
+      formData.append("travelerName", travelerName);
+      if (String(sharedDriveLink || "").trim()) {
+        formData.append("gdriveLink", String(sharedDriveLink || "").trim());
+      }
+      formData.append("documentsMeta", JSON.stringify([{ docType: "passport", kind: "required" }]));
+
+      const { data } = await api.post(`/users/applications/${appId}/documents`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (!data?.success || !data.application) {
+        throw new Error(data?.message || "Could not upload passport.");
+      }
+
+      const detail = getTravelerPassportDetail(data.application, travelerNo) || {
+        fileName: optimizedFile.name,
+        fileSize: optimizedFile.size,
+        mimeType: optimizedFile.type,
+      };
+      setPassportSuccesses((prev) => ({ ...prev, [travelerNo]: true }));
+      setPassportDetails((prev) => ({ ...prev, [travelerNo]: detail }));
+      updateTravelerPassportFile(index, null);
+      saveTravelDraft(countryId, {
+        applicationId: appId,
+        travelDateFrom,
+        travelDateTo,
+        visaOption,
+        sharedDriveLink,
+        travelers: travelers.map((t) => ({ name: String(t.name || "") })),
+        showTravelDetails: true,
+      });
+      await fetchUserApplications();
+      showToast("Passport uploaded successfully.", "success");
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || "Could not upload passport.";
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: message }));
+      showToast(message, "error");
+    } finally {
+      setPassportUploading((prev) => {
+        const next = { ...prev };
+        delete next[travelerNo];
+        return next;
+      });
+    }
   };
+
+  const handleSharedDriveLinkChange = (value) => {
+    setSharedDriveLink(value);
+    setSharedDriveLinkVerified(false);
+
+    if (driveLinkSaveTimerRef.current) {
+      window.clearTimeout(driveLinkSaveTimerRef.current);
+      driveLinkSaveTimerRef.current = null;
+    }
+
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return;
+
+    driveLinkSaveTimerRef.current = window.setTimeout(() => {
+      const normalized = normalizeDriveLink(trimmed);
+      setSharedDriveLink(normalized);
+      setSharedDriveLinkVerified(true);
+      showToast("Google Drive link saved.", "success");
+      driveLinkSaveTimerRef.current = null;
+    }, 1000);
+  };
+
+  useEffect(() => () => {
+    if (driveLinkSaveTimerRef.current) {
+      window.clearTimeout(driveLinkSaveTimerRef.current);
+    }
+  }, []);
 
   const formatTravelRange = () => {
     if (!travelDateFrom && !travelDateTo) return "—";
-    const opts = { day: "numeric", month: "short", year: "numeric" };
     try {
       const from = travelDateFrom
-        ? new Date(`${travelDateFrom}T12:00:00`).toLocaleDateString("en-IN", opts)
+        ? formatOrdinalDate(new Date(`${travelDateFrom}T12:00:00`))
         : "—";
       const to = travelDateTo
-        ? new Date(`${travelDateTo}T12:00:00`).toLocaleDateString("en-IN", opts)
+        ? formatOrdinalDate(new Date(`${travelDateTo}T12:00:00`))
         : "—";
       if (travelDateFrom && travelDateTo) return `${from} – ${to}`;
       return travelDateFrom ? `${from}` : to;
@@ -1139,6 +1329,7 @@ const CountryDetails = () => {
    */
   const persistCurrentTravelDraft = () => {
     saveTravelDraft(countryId, {
+      applicationId: currentApplicationId,
       travelDateFrom,
       travelDateTo,
       visaOption,
@@ -1310,6 +1501,7 @@ const CountryDetails = () => {
     setDraftCreating(true);
     try {
       const { data } = await api.post("/users/application/checkout-draft", {
+        applicationDraftId: String(currentApplicationId || "").trim() || undefined,
         countryId: country.id,
         countryName: country.name,
         flagEmoji: country.flagEmoji || "🛂",
@@ -2219,75 +2411,43 @@ const CountryDetails = () => {
                         )}
                       </div>
 
-                      <div
-                        className={`rounded-xl border px-3 py-3 transition-colors ${
+                      <PassportUploadRow
+                        inputId={`traveler-passport-${index}`}
+                        label="Passport Upload"
+                        file={traveler.passportFile}
+                        error={passportErrors[index + 1]}
+                        uploading={Boolean(passportUploading[index + 1])}
+                        saved={Boolean(passportSuccesses[index + 1] && !traveler.passportFile)}
+                        helperText={
                           traveler.passportFile
-                            ? "border-emerald-300 bg-emerald-50/60"
-                            : "border-border bg-background"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                              traveler.passportFile
-                                ? "bg-emerald-100 text-emerald-600"
-                                : "bg-cyan/10 text-cyan"
-                            }`}
-                          >
-                            <FileText size={15} />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-text-primary">
-                              Passport Upload{" "}
-                              <span className="text-[10px] font-medium text-text-muted">
-                                (optional)
-                              </span>
-                              <span className="group relative ml-1 inline-flex align-middle">
-                                <span
-                                  className="inline-flex rounded-full p-0.5 text-text-muted transition-all duration-150 hover:bg-cyan/10 hover:text-cyan"
-                                  aria-label="Optional passport upload info"
-                                >
-                                  <Info size={12} />
-                                </span>
-                                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
-                                  You can continue to payment now and upload required documents later from your application dashboard.
-                                </span>
-                              </span>
-                            </p>
-                            <p className="text-[11px] text-text-muted">
-                              {traveler.passportFile
-                                ? `${traveler.passportFile.name}`
-                                : "Upload passport copy for this traveler"}
-                            </p>
-                          </div>
-                          {traveler.passportFile && (
-                            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-                              <CircleCheck size={12} />
-                              Uploaded
-                            </span>
-                          )}
-                          <label
-                            htmlFor={`traveler-passport-${index}`}
-                            className={`shrink-0 cursor-pointer rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${
-                              traveler.passportFile
-                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                : "bg-cyan/15 text-cyan hover:bg-cyan/25"
-                            }`}
-                          >
-                            {traveler.passportFile ? "Replace" : "Upload"}
-                          </label>
-                          <input
-                            id={`traveler-passport-${index}`}
-                            type="file"
-                            accept=".pdf,image/jpeg,image/png,image/webp"
-                            className="sr-only"
-                            onChange={(e) => {
-                              updateTravelerPassportFile(index, e.target.files?.[0] || null);
-                              e.target.value = "";
-                            }}
-                          />
-                        </div>
-                      </div>
+                            ? `${traveler.passportFile.name} - ${formatFileSize(traveler.passportFile.size)}`
+                            : passportDetails[index + 1]?.fileName
+                              ? `${passportDetails[index + 1].fileName} - ${formatFileSize(passportDetails[index + 1].fileSize)}`
+                              : "PDF, JPG, PNG - max 300 KB"
+                        }
+                        savedText="Passport uploaded"
+                        reuploadLabel="Replace File"
+                        onChange={(file) => handleTravelerPassportFile(index, file)}
+                        onReupload={() => {
+                          updateTravelerPassportFile(index, null);
+                          setPassportSuccesses((prev) => {
+                            const next = { ...prev };
+                            delete next[index + 1];
+                            return next;
+                          });
+                          setPassportDetails((prev) => {
+                            const next = { ...prev };
+                            delete next[index + 1];
+                            return next;
+                          });
+                          setPassportErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[index + 1];
+                            return next;
+                          });
+                        }}
+                      />
+
                     </div>
                   ))}
                 </div>
@@ -2353,38 +2513,22 @@ const CountryDetails = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <div className="relative min-w-0 flex-1">
-                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                          <Link2 size={18} />
-                        </span>
-                        <input
-                          type="url"
-                          autoComplete="off"
-                          value={sharedDriveLink}
-                          onChange={(e) => {
-                            setSharedDriveLink(e.target.value);
-                            setSharedDriveLinkVerified(false);
-                          }}
-                          placeholder="https://drive.google.com/your-folder-link"
-                          className={`w-full rounded-2xl border bg-white py-3 pl-12 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
-                            sharedDriveLinkVerified
-                              ? "border-emerald-300 focus:border-emerald-400"
-                              : "border-slate-200 focus:border-cyan"
-                          }`}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleVerifySharedDriveLink}
-                        className={`inline-flex min-h-[52px] shrink-0 items-center justify-center rounded-2xl border px-5 text-sm font-semibold transition-colors sm:min-w-[148px] ${
+                    <div className="relative min-w-0">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                        <Link2 size={18} />
+                      </span>
+                      <input
+                        type="url"
+                        autoComplete="off"
+                        value={sharedDriveLink}
+                        onChange={(e) => handleSharedDriveLinkChange(e.target.value)}
+                        placeholder="https://drive.google.com/your-folder-link"
+                        className={`w-full rounded-2xl border bg-white py-3 pl-12 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
                           sharedDriveLinkVerified
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            : "border-blue-200 bg-white text-blue-600 hover:bg-blue-50"
+                            ? "border-emerald-300 focus:border-emerald-400"
+                            : "border-slate-200 focus:border-cyan"
                         }`}
-                      >
-                        {sharedDriveLinkVerified ? "Verified" : "Verify Link"}
-                      </button>
+                      />
                     </div>
 
                   </div>

@@ -60,6 +60,8 @@ export default {
       // ── Typography ────────────────────────────────────────
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
+        heading: ["SF Pro Display", "Inter", "system-ui", "sans-serif"],
+        playfair: ["SF Pro Display", "Inter", "system-ui", "sans-serif"],
       },
       fontSize: {
         "2xs": "0.625rem",

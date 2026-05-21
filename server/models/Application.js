@@ -1,6 +1,17 @@
 const mongoose = require('mongoose');
 const { travelerSnapshotSchemaDefinition } = require('../utils/travelerProfile');
 
+const uploadedDocumentDetailSchema = new mongoose.Schema(
+  {
+    url: { type: String, default: '' },
+    fileName: { type: String, default: '' },
+    fileSize: { type: Number, default: 0 },
+    mimeType: { type: String, default: '' },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const applicationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -56,6 +67,7 @@ const applicationSchema = new mongoose.Schema({
       /** Optional second folder (e.g. extra reference materials); not used for required-doc completion. */
       gdriveFurtherInfoLink: { type: String, default: "" },
       documents: { type: Map, of: String, default: {} },
+      documentDetails: { type: Map, of: uploadedDocumentDetailSchema, default: {} },
       otherDocuments: [{ type: String }],
       uploadedAt: { type: Date, default: Date.now },
     },

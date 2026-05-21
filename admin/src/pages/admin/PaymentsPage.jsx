@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import Card from "../../components/ui/Card";
+import { fmtDate } from "../../utils/formatDate";
 
 const PaymentsPage = ({ transactions }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -28,7 +29,7 @@ const PaymentsPage = ({ transactions }) => (
               transactions.map((transaction) => (
                 <tr key={transaction._id} className="border-b border-border/30 hover:bg-surface-2 transition-colors">
                   <td className="py-3 px-4 text-text-secondary">
-                    {new Date(transaction.createdAt).toLocaleDateString()}
+                    {fmtDate(transaction.createdAt)}
                   </td>
                   <td className="py-3 px-4 text-text-primary font-medium">
                     {transaction.user?.name || "Unknown"}

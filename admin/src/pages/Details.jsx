@@ -10,6 +10,7 @@ import { Select } from "../components/ui/Input";
 import { StatusBadge } from "../components/ui/Badge";
 import { useAuthStore, api, SERVER_URL } from "../store/authStore";
 import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
+import { fmtDate } from "../utils/formatDate";
 
 const getTravelerNoFromDocumentPath = (path) => {
   const fileName = String(path || "").split("/").pop() || "";
@@ -258,6 +259,13 @@ const Details = () => {
     [application]
   );
 
+  const sharedTravelerDriveLink = useMemo(() => {
+    if (!application) return "";
+    if (String(application.gdriveLink || "").trim()) return String(application.gdriveLink).trim();
+    const firstTravelerLink = travelerDocumentCards.find((traveler) => String(traveler?.gdriveLink || "").trim());
+    return String(firstTravelerLink?.gdriveLink || "").trim();
+  }, [application, travelerDocumentCards]);
+
   const hasAnyUploadedDocs =
     Boolean(application?.gdriveLink) ||
     hasTravelerGdrive ||
@@ -431,7 +439,7 @@ const Details = () => {
   const applicantPhone = application.user?.phone || "";
   const applicantAge = application.user?.age ?? "";
   const applicantGender = application.user?.gender || "";
-  const applicantDob = application.dob ? new Date(application.dob).toLocaleDateString() : "N/A";
+  const applicantDob = application.dob ? fmtDate(application.dob) : "N/A";
 
   return (
     <div className="min-h-screen bg-background pb-30 ">
@@ -452,7 +460,7 @@ const Details = () => {
               <StatusBadge status={resolveApplicationStatus(application, progress)} />
             </h1>
             <p className="text-text-secondary text-sm mt-1">
-              Application ID: {application.applicationId || application._id} • Submitted on {new Date(application.createdAt).toLocaleDateString()}
+              Application ID: {application.applicationId || application._id} • Submitted on {fmtDate(application.createdAt)}
             </p>
           </div>
         </div>
@@ -521,12 +529,12 @@ const Details = () => {
                 </div>
                 <div>
                   <p className="text-sm text-text-muted mb-1">Intended Arrival</p>
-                  <p className="font-medium text-text-primary">{new Date(application.travelDate).toLocaleDateString()}</p>
+                  <p className="font-medium text-text-primary">{fmtDate(application.travelDate)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-text-muted mb-1">Intended Return</p>
                   <p className="font-medium text-text-primary">
-                    {application.returnDate ? new Date(application.returnDate).toLocaleDateString() : "Not Specified"}
+                    {application.returnDate ? fmtDate(application.returnDate) : "Not Specified"}
                   </p>
                 </div>
               </div>
@@ -570,9 +578,6 @@ const Details = () => {
                       travelerNo === 1
                         ? [...rootDocs, ...legacyDocumentsFiltered]
                         : rootDocs;
-                    const effectiveGdriveLink =
-                      traveler.gdriveLink ||
-                      (travelerNo === 1 && isSingleTravelerApplication ? application.gdriveLink || "" : "");
                     const effectiveFurtherInfoLink =
                       traveler.gdriveFurtherInfoLink ||
                       (travelerNo === 1 && isSingleTravelerApplication ? application.gdriveFurtherInfoLink || "" : "");
@@ -584,7 +589,6 @@ const Details = () => {
                       documentEntries.length > 0 ||
                       otherDocs.length > 0 ||
                       effectiveRootDocs.length > 0 ||
-                      Boolean(effectiveGdriveLink) ||
                       Boolean(effectiveFurtherInfoLink);
                     const isExpanded = Boolean(expandedTravelerDocs[travelerNo]);
 
@@ -723,24 +727,6 @@ const Details = () => {
                           </div>
                         </div>
                       )}
-                      {effectiveGdriveLink && (
-                        <div className="mt-2 p-2 bg-cyan/10 border border-cyan/30 rounded-lg flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Link size={16} className="text-cyan" />
-                            <div className="text-[11px] text-text-primary font-medium truncate">
-                              {effectiveGdriveLink}
-                            </div>
-                          </div>
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            className="h-7 text-[10px] px-2"
-                            onClick={() => window.open(effectiveGdriveLink, "_blank")}
-                          >
-                            Open
-                          </Button>
-                        </div>
-                      )}
                       {effectiveFurtherInfoLink && (
                         <div className="mt-2 p-2 bg-surface-3 border border-border rounded-lg flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
@@ -766,6 +752,29 @@ const Details = () => {
                     </div>
                     );
                   })}
+                </div>
+              )}
+
+              {sharedTravelerDriveLink && (
+                <div className="mb-5 rounded-xl border border-cyan/30 bg-cyan/10 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-cyan">
+                        Shared Google Drive Link
+                      </p>
+                      <p className="mt-1 text-sm text-text-primary break-all">
+                        {sharedTravelerDriveLink}
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-8 shrink-0 text-xs"
+                      onClick={() => window.open(sharedTravelerDriveLink, "_blank")}
+                    >
+                      Open Link
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -870,7 +879,7 @@ const Details = () => {
                       </p>
                       {application.visaFileUploadedAt && (
                         <p className="mt-1 text-xs text-text-muted">
-                          Uploaded on {new Date(application.visaFileUploadedAt).toLocaleDateString()}
+                          Uploaded on {fmtDate(application.visaFileUploadedAt)}
                         </p>
                       )}
                     </div>

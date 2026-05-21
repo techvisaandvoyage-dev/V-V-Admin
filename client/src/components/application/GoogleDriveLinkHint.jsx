@@ -5,7 +5,7 @@
 export default function GoogleDriveLinkHint({ variant = "inline" }) {
   const step3 =
     variant === "shared"
-      ? "Copy the link and paste it into each traveler’s Google Drive field above."
+      ? "Copy the link and paste it in the shared Google Drive field below."
       : "Copy the link and paste it in the box above.";
 
   return (

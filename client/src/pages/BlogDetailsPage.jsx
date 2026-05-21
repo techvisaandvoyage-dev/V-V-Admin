@@ -31,6 +31,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
+import { formatOrdinalDate } from "../utils/dateUtils";
 import Footer from "../components/layout/Footer";
 import Button from "../components/ui/Button";
 import ImageWithShimmer from "../components/ui/ImageWithShimmer";
@@ -64,7 +65,7 @@ const formatDateLong = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return formatOrdinalDate(d);
 };
 
 const formatRelative = (iso) => {
@@ -76,7 +77,7 @@ const formatRelative = (iso) => {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatOrdinalDate(d);
 };
 
 const formatDayBadge = (iso) => {

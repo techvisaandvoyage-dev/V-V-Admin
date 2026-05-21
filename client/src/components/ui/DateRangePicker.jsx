@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { formatOrdinalDate } from "../../utils/dateUtils";
 
 /**
  * Date-range calendar picker. Two trigger pills (Start / End) sit on top; the
@@ -70,7 +71,7 @@ const stepMonth = ({ year, month }, delta) => {
 const prettyDate = (s) => {
   const d = fromYmd(s);
   if (!d) return "";
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return formatOrdinalDate(d);
 };
 
 // ── Component ──────────────────────────────────────────────────────────────

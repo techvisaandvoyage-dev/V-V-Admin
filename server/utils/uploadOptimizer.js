@@ -5,8 +5,10 @@ const sharp = require('sharp');
 const { PDFDocument } = require('pdf-lib');
 const { getFirebaseAdminApp } = require('./firebaseAdmin');
 
-const FINAL_DOCUMENT_LIMIT_BYTES = 500 * 1024;
-const RAW_UPLOAD_LIMIT_BYTES = 8 * 1024 * 1024;
+const FINAL_DOCUMENT_LIMIT_BYTES = 300 * 1024;
+const RAW_UPLOAD_LIMIT_BYTES = 300 * 1024;
+const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg']);
 
 const docsDir = path.join(__dirname, '..', 'uploads', 'documents');
 if (!fs.existsSync(docsDir)) {
@@ -22,14 +24,13 @@ const createUploadValidationError = (message) => {
 };
 
 const fileFilter = (req, file, cb) => {
-  const allowedFileTypes = /jpeg|jpg|png|webp|pdf/;
-  const extname = allowedFileTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedFileTypes.test(file.mimetype);
+  const extname = path.extname(file.originalname).toLowerCase();
+  const mimetype = String(file.mimetype || '').toLowerCase();
 
-  if (extname || mimetype) {
+  if (ALLOWED_EXTENSIONS.has(extname) && ALLOWED_MIME_TYPES.has(mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only images (jpeg, jpg, png, webp) and PDFs are allowed!'), false);
+    cb(createUploadValidationError('Only PDF, JPG, JPEG and PNG files are allowed.'), false);
   }
 };
 
@@ -89,7 +90,7 @@ const optimizeUploadedFile = async (file) => {
   }
 
   if (buffer.length > FINAL_DOCUMENT_LIMIT_BYTES) {
-    throw createUploadValidationError('Optimized file must be below 500 KB.');
+    throw createUploadValidationError('File size exceeds 300KB limit. Please upload a smaller file.');
   }
 
   return { buffer, mimetype };
@@ -209,8 +210,12 @@ const saveDocumentsToDisk = async (req, res, next) => {
 
   try {
     const paths = [];
+    const fileDetails = [];
     await Promise.all(
       req.files.map(async (file) => {
+        if (file.size > FINAL_DOCUMENT_LIMIT_BYTES) {
+          throw createUploadValidationError('File size exceeds 300KB limit. Please upload a smaller file.');
+        }
         const optimized = await optimizeUploadedFile(file);
         const filename = buildStoredFilename(file);
         const savedPath = await uploadToFirebase(
@@ -220,9 +225,17 @@ const saveDocumentsToDisk = async (req, res, next) => {
           { allowLocalFallback: true }
         );
         paths.push(savedPath);
+        fileDetails.push({
+          url: savedPath,
+          fileName: String(file.originalname || '').trim() || filename,
+          fileSize: optimized.buffer.length,
+          mimeType: optimized.mimetype,
+          uploadedAt: new Date(),
+        });
       })
     );
     req.savedDocumentPaths = paths;
+    req.savedDocumentDetails = fileDetails;
     next();
   } catch (error) {
     console.error('Error saving documents:', error);
@@ -244,4 +257,5 @@ module.exports = {
   saveDocumentsToDisk,
   uploadToFirebase,
   optimizeUploadedFile,
+  createUploadValidationError,
 };

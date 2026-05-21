@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PlusCircle, Clock, CheckCircle, FileText, ChevronRight, Calendar, Search, Filter,
   TrendingUp, Globe, ArrowLeft, User, Mail, Smartphone, Download, Users, Star, Pencil, Trash2, ShieldCheck,
+  Upload, ExternalLink,
 } from "lucide-react";
 import { StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
@@ -16,6 +17,7 @@ import { useUIStore } from "../store/uiStore";
 import { getApplicationProgress, getDerivedApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 import ContactVerificationModal from "../components/account/ContactVerificationModal";
 import { needsPhoneContactGate, needsEmailContactGate } from "../utils/contactVerificationGate";
+import { formatOrdinalDate } from "../utils/dateUtils";
 
 /**
  * Map every built-in doc key → its lucide icon component. Used to render the
@@ -27,7 +29,7 @@ const fmtDate = (iso) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? "N/A"
-    : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    : formatOrdinalDate(d);
 };
 
 const travelerFormDefaults = {
@@ -749,12 +751,62 @@ const UserDashboard = () => {
                                   ✈️ Travel: {fmtDate(booking.travelDate)}
                                 </span>
                               </div>
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                {booking.visaFilePath && (
+                              {booking.visaFilePath && (
+                                <div className="mt-1.5">
                                   <span className="text-xs text-emerald-400">
                                     Visa file received
                                   </span>
-                                )}
+                                </div>
+                              )}
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {(() => {
+                                  const travellers = Array.isArray(booking?.travellerDocuments) ? booking.travellerDocuments : [];
+                                  const tc = Math.max(1, Number(booking?.travellerCount || 1));
+                                  const hasPassport = travellers.some((entry) => {
+                                    const docs = entry?.documents;
+                                    if (!docs) return false;
+                                    if (docs instanceof Map) return Boolean(docs.get("passport"));
+                                    return Boolean(docs.passport);
+                                  });
+                                  const allPassports = tc > 0 && travellers.filter((entry) => {
+                                    const docs = entry?.documents;
+                                    if (!docs) return false;
+                                    if (docs instanceof Map) return Boolean(docs.get("passport"));
+                                    return Boolean(docs.passport);
+                                  }).length >= tc;
+                                  if (allPassports) {
+                                    return (
+                                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
+                                        <CheckCircle size={11} /> Passport uploaded
+                                      </span>
+                                    );
+                                  }
+                                  if (hasPassport) {
+                                    return (
+                                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-400">
+                                        <Upload size={11} /> Passport partial
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-text-muted">
+                                      <Upload size={11} /> No passport
+                                    </span>
+                                  );
+                                })()}
+                                {(() => {
+                                  const rootDrive = String(booking?.gdriveLink || "").trim();
+                                  const travellers = Array.isArray(booking?.travellerDocuments) ? booking.travellerDocuments : [];
+                                  const hasDrive = Boolean(rootDrive) || travellers.some((entry) => String(entry?.gdriveLink || "").trim());
+                                  if (hasDrive) {
+                                    return (
+                                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
+                                        <ExternalLink size={11} /> Drive linked
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
                             </div>
                           </div>

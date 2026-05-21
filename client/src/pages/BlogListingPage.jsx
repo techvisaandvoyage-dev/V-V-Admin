@@ -11,6 +11,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar, Heart, Loader2, MessageCircle, Search } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
+import { formatOrdinalDate } from "../utils/dateUtils";
 import Footer from "../components/layout/Footer";
 import Button from "../components/ui/Button";
 import ImageWithShimmer from "../components/ui/ImageWithShimmer";
@@ -48,7 +49,7 @@ const formatDate = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return formatOrdinalDate(d);
 };
 
 const SORT_OPTIONS = [

@@ -6,22 +6,22 @@ export const travelDraftStorageKey = (countryId) =>
 export function saveTravelDraft(countryId, draft) {
   if (!countryId || !draft) return;
   try {
-    sessionStorage.setItem(
-      travelDraftStorageKey(countryId),
-      JSON.stringify({
-        travelDateFrom: draft.travelDateFrom ?? "",
-        travelDateTo: draft.travelDateTo ?? "",
-        visaOption: draft.visaOption ?? "e-Visa",
-        sharedDriveLink: draft.sharedDriveLink ?? "",
-        travelers: Array.isArray(draft.travelers)
-          ? draft.travelers.map((traveler) => ({
-              ...traveler,
-              name: traveler?.name ?? traveler?.fullName ?? "",
-            }))
-          : [],
-        showTravelDetails: draft.showTravelDetails !== false,
-      })
-    );
+    const payload = JSON.stringify({
+      applicationId: draft.applicationId ?? "",
+      travelDateFrom: draft.travelDateFrom ?? "",
+      travelDateTo: draft.travelDateTo ?? "",
+      visaOption: draft.visaOption ?? "e-Visa",
+      sharedDriveLink: draft.sharedDriveLink ?? "",
+      travelers: Array.isArray(draft.travelers)
+        ? draft.travelers.map((traveler) => ({
+            ...traveler,
+            name: traveler?.name ?? traveler?.fullName ?? "",
+          }))
+        : [],
+      showTravelDetails: draft.showTravelDetails !== false,
+    });
+    localStorage.setItem(travelDraftStorageKey(countryId), payload);
+    sessionStorage.setItem(travelDraftStorageKey(countryId), payload);
   } catch {
     /* quota / private mode */
   }
@@ -30,7 +30,8 @@ export function saveTravelDraft(countryId, draft) {
 export function loadTravelDraft(countryId) {
   if (!countryId) return null;
   try {
-    const raw = sessionStorage.getItem(travelDraftStorageKey(countryId));
+    const key = travelDraftStorageKey(countryId);
+    const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -41,7 +42,9 @@ export function loadTravelDraft(countryId) {
 export function clearTravelDraft(countryId) {
   if (!countryId) return;
   try {
-    sessionStorage.removeItem(travelDraftStorageKey(countryId));
+    const key = travelDraftStorageKey(countryId);
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
   } catch {
     /* ignore */
   }

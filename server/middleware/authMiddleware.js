@@ -27,7 +27,14 @@ const protect = (req, res, next) => {
     req.user = { ...decoded, id: uid };
     return next();
   } catch (error) {
-    console.error(error);
+    if (error?.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        code: 'TOKEN_EXPIRED',
+        message: 'Session expired. Please log in again.',
+      });
+    }
+    console.error('protect middleware:', error);
     return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
   }
 };

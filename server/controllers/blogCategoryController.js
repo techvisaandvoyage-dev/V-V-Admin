@@ -87,7 +87,7 @@ const deleteCategory = async (req, res) => {
     const cat = await BlogCategory.findOneAndUpdate(
       { _id: id, softDeleted: { $ne: true } },
       { softDeleted: true, deletedAt: new Date(), isVisible: false },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!cat) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, data: cat });

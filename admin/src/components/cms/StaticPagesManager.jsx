@@ -21,6 +21,7 @@ import RichTextEditor from "./RichTextEditor";
 import { api, SERVER_URL } from "../../store/authStore";
 import { useDataStore } from "../../store/dataStore";
 import { useUIStore } from "../../store/uiStore";
+import { fmtDate } from "../../utils/formatDate";
 
 const PAGE_TYPE_OPTIONS = [
   { value: "general", label: "General" },
@@ -72,7 +73,7 @@ const formatDate = (value) => {
   if (!value) return "N/A";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "N/A";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return fmtDate(date);
 };
 
 const statusBadgeClass = {

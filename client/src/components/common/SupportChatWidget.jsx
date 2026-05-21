@@ -21,6 +21,7 @@ import {
 import { api, useAuthStore } from "../../store/authStore";
 import { useDataStore } from "../../store/dataStore";
 import { useLocation } from "react-router-dom";
+import { formatOrdinalDate } from "../../utils/dateUtils";
 
 const DEFAULT_CHAT_CONFIG = {
   enabled: true,
@@ -203,11 +204,7 @@ export default function SupportChatWidget() {
           values.country = app.countryName || values.country;
           values.visaType = app.visaType || values.visaType;
           if (app.travelDate) {
-            values.travelDate = new Date(app.travelDate).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-              year: "numeric"
-            });
+            values.travelDate = formatOrdinalDate(app.travelDate);
           }
           if (app.travelerNames && app.travelerNames[0]) {
             values.userName = app.travelerNames[0];
@@ -226,11 +223,7 @@ export default function SupportChatWidget() {
             values.visaType = draft.visaOption;
           }
           if (draft.travelDateFrom) {
-            values.travelDate = new Date(draft.travelDateFrom).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-              year: "numeric"
-            });
+            values.travelDate = formatOrdinalDate(draft.travelDateFrom);
           }
         }
       }

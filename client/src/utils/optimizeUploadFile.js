@@ -6,7 +6,16 @@ import * as pdfjs from "pdfjs-dist";
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export const RAW_UPLOAD_LIMIT_BYTES = 8 * 1024 * 1024;
-export const FINAL_UPLOAD_TARGET_BYTES = 500 * 1024;
+export const FINAL_UPLOAD_TARGET_BYTES = 300 * 1024;
+/** All document uploads now share the same 300 KB target. */
+export const PASSPORT_UPLOAD_MAX_BYTES = 300 * 1024;
+
+export const getUploadLimitForDocType = (docKey) => {
+  return {
+    maxBytes: docKey === "passport" ? PASSPORT_UPLOAD_MAX_BYTES : FINAL_UPLOAD_TARGET_BYTES,
+    label: "300 KB",
+  };
+};
 
 const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
@@ -26,7 +35,7 @@ const normalizeFileName = (file, nextType) => {
  * Aggressively compresses a PDF by rendering each page to a compressed JPEG 
  * and rebuilding a new PDF from those images.
  */
-const aggressiveCompressPdf = async (file) => {
+const aggressiveCompressPdf = async (file, targetBytes = FINAL_UPLOAD_TARGET_BYTES) => {
   console.log("Starting aggressive PDF compression for:", file.name, "Size:", file.size);
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -39,7 +48,8 @@ const aggressiveCompressPdf = async (file) => {
     for (let i = 1; i <= pdf.numPages; i++) {
       console.log(`Processing page ${i}/${pdf.numPages}...`);
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1.2 }); // Slightly lower scale for better compression
+      const targetScale = targetBytes <= 300 * 1024 ? 1.0 : 1.2;
+      const viewport = page.getViewport({ scale: targetScale });
       
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
@@ -49,7 +59,8 @@ const aggressiveCompressPdf = async (file) => {
       await page.render({ canvasContext: context, viewport }).promise;
       
       // Convert canvas to compressed JPEG
-      const imageData = canvas.toDataURL("image/jpeg", 0.6); // Lower quality (60%) for smaller size
+      const jpegQuality = targetBytes <= 300 * 1024 ? 0.45 : 0.6;
+      const imageData = canvas.toDataURL("image/jpeg", jpegQuality);
       const base64 = imageData.split(",")[1];
       const imageBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
       
@@ -78,7 +89,7 @@ const aggressiveCompressPdf = async (file) => {
   }
 };
 
-const optimizePdf = async (file) => {
+const optimizePdf = async (file, targetBytes = FINAL_UPLOAD_TARGET_BYTES) => {
   console.log("Attempting standard PDF optimization...");
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -101,9 +112,9 @@ const optimizePdf = async (file) => {
     console.log("Standard optimization finished. Size:", optimizedFile.size);
 
     // If still over limit and > 500KB, use aggressive compression
-    if (optimizedFile.size > FINAL_UPLOAD_TARGET_BYTES) {
+    if (optimizedFile.size > targetBytes) {
       console.log("File still over limit, switching to aggressive compression...");
-      optimizedFile = await aggressiveCompressPdf(file);
+      optimizedFile = await aggressiveCompressPdf(file, targetBytes);
     }
     
     return optimizedFile;
@@ -114,9 +125,12 @@ const optimizePdf = async (file) => {
 };
 
 
-export const optimizeUploadFile = async (file) => {
+export const optimizeUploadFile = async (file, options = {}) => {
   if (!(file instanceof File)) return { file: null };
   const originalSize = file.size;
+  const targetBytes = Number.isFinite(Number(options?.targetBytes))
+    ? Number(options.targetBytes)
+    : FINAL_UPLOAD_TARGET_BYTES;
 
   if (file.size > RAW_UPLOAD_LIMIT_BYTES) {
     return { error: "File must be below 8 MB." };
@@ -124,7 +138,7 @@ export const optimizeUploadFile = async (file) => {
 
   // Handle PDF Optimization
   if (file.type === "application/pdf") {
-    const optimizedFile = await optimizePdf(file);
+    const optimizedFile = await optimizePdf(file, targetBytes);
     return {
       file: optimizedFile,
       originalSize,
@@ -140,10 +154,10 @@ export const optimizeUploadFile = async (file) => {
 
   try {
     const compressed = await imageCompression(file, {
-      maxSizeMB: 0.48,
-      maxWidthOrHeight: 1600,
+      maxSizeMB: Math.max(targetBytes / (1024 * 1024), 0.1),
+      maxWidthOrHeight: targetBytes <= 300 * 1024 ? 1280 : 1600,
       useWebWorker: true,
-      initialQuality: 0.8,
+      initialQuality: targetBytes <= 300 * 1024 ? 0.65 : 0.8,
       fileType: file.type === "image/png" ? "image/png" : file.type,
     });
 
@@ -166,5 +180,3 @@ export const optimizeUploadFile = async (file) => {
     return { error: "Could not optimize this image for upload." };
   }
 };
-
-

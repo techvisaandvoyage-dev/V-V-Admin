@@ -22,6 +22,7 @@ import Modal from "../ui/Modal";
 import RichTextEditor from "../cms/RichTextEditor";
 import { api, SERVER_URL } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
+import { fmtDate } from "../../utils/formatDate";
 
 /** Convert relative `/uploads/...` URLs into absolute API URLs so admin
  *  previews load identically to the public client. */
@@ -75,7 +76,7 @@ const formatDateLabel = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return fmtDate(d);
 };
 
 /**

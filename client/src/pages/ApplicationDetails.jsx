@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -33,11 +33,13 @@ import {
   MessageSquare,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
+import PassportUploadRow from "../components/application/PassportUploadRow";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import Modal from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/Badge";
 import { api, SERVER_URL, useAuthStore } from "../store/authStore";
+import { formatOrdinalDate } from "../utils/dateUtils";
 import { useDataStore } from "../store/dataStore";
 import { useUIStore } from "../store/uiStore";
 import {
@@ -45,12 +47,21 @@ import {
   getDerivedApplicationProgress,
   resolveApplicationStatus,
 } from "../utils/applicationProgress";
-import { optimizeUploadFile } from "../utils/optimizeUploadFile";
+import {
+  optimizeUploadFile,
+  FINAL_UPLOAD_TARGET_BYTES,
+  getUploadLimitForDocType,
+} from "../utils/optimizeUploadFile";
 import { openRazorpayForApplication, validateRazorpayCheckoutReadiness } from "../utils/razorpayCheckout";
+import SharedGoogleDriveLinkSection from "../components/application/SharedGoogleDriveLinkSection";
 
-const MAX_DOCUMENT_SIZE_BYTES = 500 * 1024;
+const MAX_DOCUMENT_SIZE_BYTES = FINAL_UPLOAD_TARGET_BYTES;
 const FILE_SIZE_ERROR = "File must be below 8 MB before optimization.";
 const OPTIMIZE_ERROR = "Could not prepare this file for upload.";
+const ALLOWED_PASSPORT_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
+const INVALID_PASSPORT_TYPE_ERROR = "Only PDF, JPG, JPEG and PNG files are allowed.";
+const PASSPORT_FILE_SIZE_ERROR = "File size exceeds 300KB limit. Please upload a smaller file.";
+const PASSPORT_UPLOAD_ALWAYS_ENABLED = true;
 const SERVICE_FEE_PER_TRAVELLER = 1500;
 const GST_RATE = 0.18;
 const TERMS_CMS_SLUG = "terms-and-conditions";
@@ -198,7 +209,7 @@ const ApplicationDetails = () => {
   const [uploadingStates, setUploadingStates] = useState({});
   const [selectedDocs, setSelectedDocs] = useState({});
   const [travelerNames, setTravelerNames] = useState({});
-  const [travelerGdriveLinks, setTravelerGdriveLinks] = useState({});
+  const [sharedDriveLink, setSharedDriveLink] = useState("");
   const [travelerGdriveFurtherInfoLinks, setTravelerGdriveFurtherInfoLinks] = useState({});
   const [loading, setLoading] = useState(true);
   const [docFields, setDocFields] = useState(buildDocFields());
@@ -210,9 +221,7 @@ const ApplicationDetails = () => {
   const [applicantNotesDraft, setApplicantNotesDraft] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
   const [expandedTravelerNo, setExpandedTravelerNo] = useState(undefined);
-  const [visibleDriveInputs, setVisibleDriveInputs] = useState({});
   const [unlockedDocs, setUnlockedDocs] = useState({});
-  const [unlockedDriveLinks, setUnlockedDriveLinks] = useState({});
   const [uploadedDocSuccesses, setUploadedDocSuccesses] = useState({});
   const [liveBooking, setLiveBooking] = useState(null);
   const [bookingLoaded, setBookingLoaded] = useState(false);
@@ -230,7 +239,7 @@ const ApplicationDetails = () => {
   const uploadSettingsRef = useRef({ enableGDriveUpload: true, enableFileUpload: true });
   const selectedDocsRef = useRef({});
   const travelerNamesRef = useRef({});
-  const travelerGdriveLinksRef = useRef({});
+  const sharedDriveLinkRef = useRef("");
   const travelerGdriveFurtherInfoLinksRef = useRef({});
 
   const setUploadingState = (key, value) => {
@@ -252,14 +261,6 @@ const ApplicationDetails = () => {
       window.clearTimeout(timer);
       delete autoUploadTimersRef.current[key];
     }
-  };
-
-  const toggleDriveInput = (travelerNo, field = "main") => {
-    const key = `${travelerNo}-${field}`;
-    setVisibleDriveInputs((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
   };
 
   useEffect(() => {
@@ -340,6 +341,17 @@ const ApplicationDetails = () => {
 
   const storeBooking = bookings.find((b) => String(b._id || b.id) === String(id));
   const booking = bookingLoaded ? liveBooking : storeBooking;
+
+  const getSharedDriveLink = () => {
+    const root = String(booking?.gdriveLink || "").trim();
+    if (root) return root;
+    const travellers = Array.isArray(booking?.travellerDocuments) ? booking.travellerDocuments : [];
+    const legacy = travellers.find((entry) => String(entry?.gdriveLink || "").trim());
+    return String(legacy?.gdriveLink || "").trim();
+  };
+
+  const getSavedTravelerGdriveLink = () => getSharedDriveLink();
+
   const travelerCount = Math.max(1, Number(booking?.travellerCount || 1));
   const progress = booking
     ? getApplicationProgress(booking, {
@@ -416,8 +428,13 @@ const ApplicationDetails = () => {
   }, [travelerNames]);
 
   useEffect(() => {
-    travelerGdriveLinksRef.current = travelerGdriveLinks;
-  }, [travelerGdriveLinks]);
+    sharedDriveLinkRef.current = sharedDriveLink;
+  }, [sharedDriveLink]);
+
+  useEffect(() => {
+    if (!booking) return;
+    setSharedDriveLink(getSharedDriveLink());
+  }, [booking?._id, booking?.gdriveLink, booking?.travellerDocuments]);
 
   useEffect(() => {
     travelerGdriveFurtherInfoLinksRef.current = travelerGdriveFurtherInfoLinks;
@@ -475,17 +492,6 @@ const ApplicationDetails = () => {
     return names[Number(travelerNo) - 1] || "";
   };
 
-  const getSavedTravelerGdriveLink = (travelerNo) => {
-    const travellers = Array.isArray(booking?.travellerDocuments) ? booking.travellerDocuments : [];
-    const uploadedTraveler = travellers.find((x) => String(x.travelerNo) === String(travelerNo));
-    if (uploadedTraveler?.gdriveLink) return uploadedTraveler.gdriveLink;
-    const tc = Math.max(1, Number(booking?.travellerCount || 1));
-    if (tc === 1 && Number(travelerNo) === 1 && String(booking?.gdriveLink || "").trim()) {
-      return booking.gdriveLink;
-    }
-    return "";
-  };
-
   const getSavedTravelerGdriveFurtherInfoLink = (travelerNo) => {
     const travellers = Array.isArray(booking?.travellerDocuments) ? booking.travellerDocuments : [];
     const uploadedTraveler = travellers.find((x) => String(x.travelerNo) === String(travelerNo));
@@ -529,10 +535,6 @@ const ApplicationDetails = () => {
     const nameSaved = String(getSavedTravelerName(travelerNo)).trim();
     if (nameNow !== nameSaved) return true;
 
-    const gNow = String(travelerGdriveLinks[travelerNoStr] ?? getSavedTravelerGdriveLink(travelerNo)).trim();
-    const gSaved = String(getSavedTravelerGdriveLink(travelerNo)).trim();
-    if (gNow !== gSaved) return true;
-
     const gFurtherNow = String(
       travelerGdriveFurtherInfoLinks[travelerNoStr] ?? getSavedTravelerGdriveFurtherInfoLink(travelerNo)
     ).trim();
@@ -567,7 +569,7 @@ const ApplicationDetails = () => {
     return {
       travelerNo,
       travelerName,
-      gdriveLink: uploadedTraveler?.gdriveLink || "",
+      gdriveLink: getSharedDriveLink(),
       gdriveFurtherInfoLink: uploadedTraveler?.gdriveFurtherInfoLink || "",
       uploadedDocumentsCount,
       submittedDocFields,
@@ -589,7 +591,32 @@ const ApplicationDetails = () => {
       });
       return;
     }
-    const { file: optimizedFile, error, originalSize, compressedSize, wasCompressed } = await optimizeUploadFile(file);
+    if (docKey === "passport" && !ALLOWED_PASSPORT_MIME_TYPES.has(String(file.type || "").toLowerCase())) {
+      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: INVALID_PASSPORT_TYPE_ERROR }));
+      setSelectedDocs((prev) => ({ ...prev, [inputKey]: null }));
+      setUploadedDocSuccesses((prev) => {
+        const next = { ...prev };
+        delete next[inputKey];
+        return next;
+      });
+      return;
+    }
+    const { maxBytes, label } = getUploadLimitForDocType(docKey);
+    if (docKey === "passport" && file.size > maxBytes) {
+      showToast(PASSPORT_FILE_SIZE_ERROR, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: PASSPORT_FILE_SIZE_ERROR }));
+      setSelectedDocs((prev) => ({ ...prev, [inputKey]: null }));
+      setUploadedDocSuccesses((prev) => {
+        const next = { ...prev };
+        delete next[inputKey];
+        return next;
+      });
+      return;
+    }
+    const { file: optimizedFile, error, originalSize, compressedSize, wasCompressed } = await optimizeUploadFile(file, {
+      targetBytes: maxBytes,
+    });
     if (error || !optimizedFile) {
       const message = error || OPTIMIZE_ERROR;
       showToast(message, "error");
@@ -602,9 +629,12 @@ const ApplicationDetails = () => {
       });
       return;
     }
-    if (optimizedFile.size > MAX_DOCUMENT_SIZE_BYTES) {
-      showToast("File must be below 500 KB after optimization.", "error");
-      setDocErrors((prev) => ({ ...prev, [inputKey]: "File must be below 500 KB after optimization." }));
+    if (optimizedFile.size > maxBytes) {
+      const message = docKey === "passport"
+        ? PASSPORT_FILE_SIZE_ERROR
+        : `File must be below ${label} after optimization.`;
+      showToast(message, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: message }));
       setSelectedDocs((prev) => ({ ...prev, [inputKey]: null }));
       setUploadedDocSuccesses((prev) => {
         const next = { ...prev };
@@ -638,7 +668,7 @@ const ApplicationDetails = () => {
         return;
       }
       if (optimizedFile.size > MAX_DOCUMENT_SIZE_BYTES) {
-        showToast("File must be below 500 KB after optimization.", "error");
+        showToast("File must be below 300 KB after optimization.", "error");
         return;
       }
       optimizedFiles.push(attachCompressionMeta(optimizedFile, { originalSize, compressedSize, wasCompressed }));
@@ -722,7 +752,7 @@ const ApplicationDetails = () => {
     const travelerName =
       String(travelerNames[travelerNoStr] ?? getSavedTravelerName(travelerNo)).trim() ||
       `Traveler ${travelerNo}`;
-    const gdriveLinkForTraveler = String(travelerGdriveLinks[travelerNoStr] ?? getSavedTravelerGdriveLink(travelerNo)).trim();
+    const gdriveLinkForTraveler = String(sharedDriveLink || getSharedDriveLink()).trim();
     const gdriveFurtherInfoLinkForTraveler = String(
       travelerGdriveFurtherInfoLinks[travelerNoStr] ?? getSavedTravelerGdriveFurtherInfoLink(travelerNo)
     ).trim();
@@ -736,8 +766,19 @@ const ApplicationDetails = () => {
     const otherDocs = Array.isArray(selectedOtherDocs) ? selectedOtherDocs : [];
 
     const serverComplete = travelerServerComplete(travelerNo);
+    const savedDocuments = getSavedTravelerDocuments(travelerNo);
+    const passportInputKey = `${travelerNoStr}-passport`;
+    const savedPassportUrl = getStoredDocumentValue(savedDocuments, "passport");
+    const passportFile = selectedDocs[passportInputKey];
+    const hasPassport = Boolean(savedPassportUrl || (passportFile instanceof File));
+
+    const hasPassportSelection = passportFile instanceof File;
     const hasRequiredFileSelection =
-      fileOn && docFields.some((field) => selectedDocs[`${travelerNoStr}-${field.key}`] instanceof File);
+      hasPassportSelection ||
+      (
+        fileOn &&
+        docFields.some((field) => field.key !== "passport" && selectedDocs[`${travelerNoStr}-${field.key}`] instanceof File)
+      );
 
     const onlyAdditionalOtherUpload =
       fileOn &&
@@ -754,43 +795,63 @@ const ApplicationDetails = () => {
         }
         files.push({ field: { key: "otherDocument", kind: "other" }, file: f });
       }
-    } else if (!fileOn && gdOn) {
-      if (!hasGdriveLink) {
-        showToast(`Traveler ${travelerNo}: Please add a Google Drive link.`, "error");
+    } else {
+      if (!hasPassport) {
+        showToast(`Traveler ${travelerNo}: Passport is required.`, "error");
         return;
       }
-    } else if (fileOn && !gdOn) {
+      if (passportFile instanceof File) {
+        const { maxBytes, label } = getUploadLimitForDocType("passport");
+        if (passportFile.size > maxBytes) {
+          showToast(`Passport file must be below ${label} after optimization.`, "error");
+          return;
+        }
+        files.push({ field: { key: "passport", label: "Passport", kind: "required" }, file: passportFile });
+      }
+
+      if (fileOn && !gdOn) {
       for (const field of docFields) {
+        if (field.key === "passport") continue;
         const f = selectedDocs[`${travelerNoStr}-${field.key}`];
-        if (!(f instanceof File)) {
+        const savedUrl = unlockedDocs[`${travelerNoStr}-${field.key}`]
+          ? ""
+          : getStoredDocumentValue(savedDocuments, field.key);
+        if (!(f instanceof File) && !savedUrl) {
           showToast(`Traveler ${travelerNo}: ${field.label} is required.`, "error");
           return;
         }
-        if (f.size > MAX_DOCUMENT_SIZE_BYTES) {
-          showToast(FILE_SIZE_ERROR, "error");
-          return;
-        }
-        files.push({ field, file: f });
-      }
-      if (otherDocsOn) {
-        for (const f of otherDocs) {
-          files.push({ field: { key: "otherDocument", kind: "other" }, file: f });
-        }
-      }
-    } else if (fileOn && gdOn) {
-      for (const field of docFields) {
-        const f = selectedDocs[`${travelerNoStr}-${field.key}`];
         if (f instanceof File) {
-          if (f.size > MAX_DOCUMENT_SIZE_BYTES) {
-            showToast(FILE_SIZE_ERROR, "error");
+          const { maxBytes, label } = getUploadLimitForDocType(field.key);
+          if (f.size > maxBytes) {
+            showToast(`File must be below ${label} after optimization.`, "error");
             return;
           }
           files.push({ field, file: f });
-        } else if (!hasGdriveLink) {
-          showToast(`Traveler ${travelerNo}: ${field.label} is required, or provide a Google Drive link.`, "error");
-          return;
         }
       }
+      } else if (fileOn && gdOn) {
+        for (const field of docFields) {
+          if (field.key === "passport") continue;
+          const f = selectedDocs[`${travelerNoStr}-${field.key}`];
+          if (f instanceof File) {
+            const { maxBytes, label } = getUploadLimitForDocType(field.key);
+            if (f.size > maxBytes) {
+              showToast(`File must be below ${label} after optimization.`, "error");
+              return;
+            }
+            files.push({ field, file: f });
+          } else if (!hasGdriveLink) {
+            const savedUrl = unlockedDocs[`${travelerNoStr}-${field.key}`]
+              ? ""
+              : getStoredDocumentValue(savedDocuments, field.key);
+            if (!savedUrl) {
+              showToast(`Traveler ${travelerNo}: ${field.label} is required, or provide a Google Drive link.`, "error");
+              return;
+            }
+          }
+        }
+      }
+
       if (otherDocsOn) {
         for (const f of otherDocs) {
           files.push({ field: { key: "otherDocument", kind: "other" }, file: f });
@@ -858,6 +919,7 @@ const ApplicationDetails = () => {
           setSelectedDocs((prev) => {
             const next = { ...prev };
             docFields.forEach((f) => { delete next[`${travelerNoStr}-${f.key}`]; });
+            delete next[`${travelerNoStr}-passport`];
             delete next[`${travelerNoStr}-otherDocuments`];
             return next;
           });
@@ -889,35 +951,26 @@ const ApplicationDetails = () => {
     }
   };
 
-  const handleAutoSaveDriveLink = async (travelerNo, linkValue) => {
-    const travelerNoStr = String(travelerNo);
-    const travelerName =
-      String(travelerNames[travelerNoStr] ?? getSavedTravelerName(travelerNo)).trim() ||
-      `Traveler ${travelerNo}`;
+  const handleSaveSharedDriveLink = async () => {
+    const linkValue = String(sharedDriveLink || "").trim();
+    if (!linkValue) {
+      showToast("Please enter a Google Drive folder link.", "error");
+      return;
+    }
 
-    const uploadStateKey = `traveler-gdrive-${travelerNo}`;
+    const uploadStateKey = "shared-gdrive";
     setUploadingState(uploadStateKey, true);
-
-    setUnlockedDriveLinks((prev) => {
-      const next = { ...prev };
-      delete next[travelerNoStr];
-      return next;
-    });
-
     const appId = booking._id || booking.id;
     try {
       const { data } = await api.put(`/users/applications/${appId}`, {
-        travelerUpdate: {
-          travelerNo: travelerNoStr,
-          travelerName,
-          gdriveLink: linkValue.trim(),
-        },
+        gdriveLink: linkValue,
       });
 
       if (data?.success && data.application) {
         setLiveBooking(data.application);
         updateBookingDetails(appId, data.application);
         await fetchUserApplications();
+        setSharedDriveLink(linkValue);
         showToast("Google Drive link saved successfully!", "success");
       }
     } catch (err) {
@@ -964,14 +1017,12 @@ const ApplicationDetails = () => {
   const handleSaveTravelerNameAndLink = async (travelerNo) => {
     const travelerNoStr = String(travelerNo);
     const travelerName = travelerNames[travelerNoStr] ?? getSavedTravelerName(travelerNo);
-    const gdriveLink = travelerGdriveLinks[travelerNoStr] ?? getSavedTravelerGdriveLink(travelerNo);
     const appId = booking._id || booking.id;
     try {
       const { data } = await api.put(`/users/applications/${appId}`, {
         travelerUpdate: {
           travelerNo: travelerNoStr,
           travelerName,
-          gdriveLink,
         }
       });
       if (data.success && data.application) {
@@ -988,15 +1039,17 @@ const ApplicationDetails = () => {
 
   const handleSaveTravelerDriveLink = async (travelerNo, field = "main") => {
     if (!canUploadDocuments || !uploadSettings.enableGDriveUpload) return;
+    if (field === "main") {
+      await handleSaveSharedDriveLink();
+      return;
+    }
     const uploadStateKey = `traveler-drive-${travelerNo}-${field}`;
 
     const travelerNoStr = String(travelerNo);
     const travelerName =
       String(travelerNames[travelerNoStr] ?? getSavedTravelerName(travelerNo)).trim() ||
       `Traveler ${travelerNo}`;
-    const gdriveLinkForTraveler = String(
-      travelerGdriveLinks[travelerNoStr] ?? getSavedTravelerGdriveLink(travelerNo)
-    ).trim();
+    const gdriveLinkForTraveler = String(sharedDriveLink || getSharedDriveLink()).trim();
     const gdriveFurtherInfoLinkForTraveler = String(
       travelerGdriveFurtherInfoLinks[travelerNoStr] ?? getSavedTravelerGdriveFurtherInfoLink(travelerNo)
     ).trim();
@@ -1056,7 +1109,7 @@ const ApplicationDetails = () => {
     const uploadSettingsSnapshot = uploadSettingsRef.current;
     const selectedDocsSnapshot = selectedDocsRef.current;
     const travelerNamesSnapshot = travelerNamesRef.current;
-    const travelerGdriveLinksSnapshot = travelerGdriveLinksRef.current;
+    const sharedDriveLinkSnapshot = String(sharedDriveLinkRef.current || "").trim();
     const travelerGdriveFurtherInfoLinksSnapshot = travelerGdriveFurtherInfoLinksRef.current;
     if (!bookingSnapshot) return null;
 
@@ -1064,9 +1117,7 @@ const ApplicationDetails = () => {
     const travelerName =
       String(travelerNamesSnapshot[travelerNoStr] ?? getSavedTravelerName(travelerNo)).trim() ||
       `Traveler ${travelerNo}`;
-    const gdriveLinkForTraveler = String(
-      travelerGdriveLinksSnapshot[travelerNoStr] ?? getSavedTravelerGdriveLink(travelerNo)
-    ).trim();
+    const gdriveLinkForTraveler = sharedDriveLinkSnapshot;
     const gdriveFurtherInfoLinkForTraveler = String(
       travelerGdriveFurtherInfoLinksSnapshot[travelerNoStr] ?? getSavedTravelerGdriveFurtherInfoLink(travelerNo)
     ).trim();
@@ -1074,12 +1125,22 @@ const ApplicationDetails = () => {
 
     const requiredFiles = uploadSettingsSnapshot.enableFileUpload
       ? docFieldsSnapshot
+          .filter((field) => field.key !== "passport")
           .map((field) => ({
             field,
             file: selectedDocsSnapshot[`${travelerNoStr}-${field.key}`],
           }))
           .filter((entry) => entry.file instanceof File)
       : [];
+
+    const passportFile = selectedDocsSnapshot[`${travelerNoStr}-passport`];
+    if (passportFile instanceof File) {
+      requiredFiles.push({
+        field: { key: "passport", kind: "required", label: "Passport" },
+        file: passportFile,
+      });
+    }
+
     const otherFiles = uploadSettingsSnapshot.enableFileUpload
       ? (Array.isArray(selectedDocsSnapshot[`${travelerNoStr}-otherDocuments`])
           ? selectedDocsSnapshot[`${travelerNoStr}-otherDocuments`].filter((file) => file instanceof File)
@@ -1088,7 +1149,6 @@ const ApplicationDetails = () => {
     const hasFileSelections = requiredFiles.length > 0 || otherFiles.length > 0;
     const hasUnsavedTextChanges =
       String(travelerName).trim() !== String(getSavedTravelerName(travelerNo)).trim() ||
-      gdriveLinkForTraveler !== String(getSavedTravelerGdriveLink(travelerNo)).trim() ||
       gdriveFurtherInfoLinkForTraveler !== String(getSavedTravelerGdriveFurtherInfoLink(travelerNo)).trim();
 
     if (!hasFileSelections && !hasUnsavedTextChanges) {
@@ -1145,6 +1205,7 @@ const ApplicationDetails = () => {
           docFieldsSnapshot.forEach((field) => {
             delete next[`${travelerNoStr}-${field.key}`];
           });
+          delete next[`${travelerNoStr}-passport`];
           delete next[`${travelerNoStr}-otherDocuments`];
           return next;
         });
@@ -1389,15 +1450,15 @@ const ApplicationDetails = () => {
               </div>
               <div className="rounded-xl bg-surface-2 p-4">
                 <p className="text-xs text-text-muted mb-1">Applied On</p>
-                <p className="text-sm font-semibold text-text-primary">{new Date(booking.createdAt).toLocaleDateString()}</p>
+                <p className="text-sm font-semibold text-text-primary">{formatOrdinalDate(booking.createdAt)}</p>
               </div>
               <div className="rounded-xl bg-surface-2 p-4">
                 <p className="text-xs text-text-muted mb-1">Travel Date</p>
-                <p className="text-sm font-semibold text-text-primary">{booking.travelDate ? new Date(booking.travelDate).toLocaleDateString() : "N/A"}</p>
+                <p className="text-sm font-semibold text-text-primary">{booking.travelDate ? formatOrdinalDate(booking.travelDate) : "N/A"}</p>
               </div>
               <div className="rounded-xl bg-surface-2 p-4">
                 <p className="text-xs text-text-muted mb-1">Return Date</p>
-                <p className="text-sm font-semibold text-text-primary">{booking.returnDate ? new Date(booking.returnDate).toLocaleDateString() : "Not specified"}</p>
+                <p className="text-sm font-semibold text-text-primary">{booking.returnDate ? formatOrdinalDate(booking.returnDate) : "Not specified"}</p>
               </div>
             </div>
           </Card>
@@ -1414,11 +1475,11 @@ const ApplicationDetails = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-muted">Amount</span>
-                <span className="font-semibold text-text-primary">₹{Number(booking.fee || 0).toLocaleString("en-IN")}</span>
+                <span className="font-semibold text-text-primary">{"\u20B9"}{Number(booking.fee || 0).toLocaleString("en-IN")}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-muted">Transaction ID</span>
-                <span className="font-mono text-xs text-text-primary text-right">{booking.transactionId || "N/A"}</span>
+                <span className="font-medium text-text-primary text-right break-all">{booking.transactionId || "N/A"}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-muted">Payment Method</span>
@@ -1432,100 +1493,88 @@ const ApplicationDetails = () => {
           </Card>
         </div>
 
-        {/* Drive link detection */}
-        {(() => {
-          const hasDriveLink = derivedApplicationProgress.hasDriveLink;
-
-          return (
-            <div className={`rounded-2xl border p-4 ${derivedApplicationProgress.allDocumentsUploaded ? "border-emerald-500/30 bg-emerald-500/5" : hasDriveLink ? "border-cyan/30 bg-cyan/5" : "border-amber-500/30 bg-amber-500/5"}`}>
-              <p className="text-xs text-text-muted">Application progress</p>
-              <p className={`text-sm font-semibold mt-1 ${derivedApplicationProgress.allDocumentsUploaded ? "text-emerald-400" : hasDriveLink ? "text-cyan" : "text-amber-400"}`}>
-                {derivedApplicationProgress.allDocumentsUploaded
-                  ? "All required documents are uploaded."
-                  : hasDriveLink
-                  ? "Google Drive link is submitted."
-                  : !uploadSettings.enableFileUpload
-                  ? "Please submit your Google Drive folder link."
-                  : `${derivedApplicationProgress.totalMissingDocuments} required document${derivedApplicationProgress.totalMissingDocuments === 1 ? "" : "s"} still missing.`}
-              </p>
-            </div>
-          );
-        })()}
         <Card>
           <div className="flex items-center gap-2 mb-5">
             <Users size={18} className="text-cyan" />
             <h3 className="text-lg font-semibold text-text-primary">Traveler Details</h3>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {travelers.map((traveler) => (
+            {travelers.map((traveler) => {
+              const travelerNo = traveler.travelerNo;
+              const travelerNoStr = String(travelerNo);
+              const savedDocuments = getSavedTravelerDocuments(travelerNo);
+              const passportInputKey = `${travelerNoStr}-passport`;
+              const savedPassportUrl = unlockedDocs[passportInputKey]
+                ? ""
+                : getStoredDocumentValue(savedDocuments, "passport");
+              const localSuccess = uploadedDocSuccesses[passportInputKey];
+              const selectedFile = selectedDocs[passportInputKey];
+              const isPassportUploading =
+                isUploadingState(`traveler-upload-${travelerNo}`)
+                || isUploadingState(`traveler-auto-${travelerNo}`);
+              const passportError = docErrors[passportInputKey];
+              const hasSuccessfulUpload = !selectedFile
+                && (Boolean(savedPassportUrl) || Boolean(localSuccess));
+
+              const resetPassportUploadState = () => {
+                setUnlockedDocs((prev) => ({ ...prev, [passportInputKey]: true }));
+                setUploadedDocSuccesses((prev) => {
+                  const next = { ...prev };
+                  delete next[passportInputKey];
+                  return next;
+                });
+              };
+
+              const renderPassportUpload = (disabled = isPassportUploading) => (
+                <PassportUploadRow
+                  inputId={`passport-reupload-${travelerNoStr}`}
+                  label="Passport Upload"
+                  file={selectedFile}
+                  error={passportError}
+                  uploading={isPassportUploading}
+                  saved={hasSuccessfulUpload}
+                  disabled={disabled}
+                  helperText={
+                    selectedFile
+                      ? `${selectedFile.name} Â· ${formatFileSize(selectedFile.size)}`
+                      : `PDF, JPG, PNG Â· max ${getUploadLimitForDocType("passport").label}`
+                  }
+                  savedText="Document saved securely"
+                  onChange={(file) => handleDocFieldChange(travelerNo, "passport", file)}
+                  onReupload={canUploadDocuments ? resetPassportUploadState : undefined}
+                />
+              );
+              return (
                 <div
                   key={`summary-traveler-${traveler.travelerNo}`}
                   id={`document-upload-section-${traveler.travelerNo}`}
                   className="rounded-2xl border border-border bg-surface-2 p-4"
                 >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <p className="text-sm font-semibold text-text-primary">Traveler {traveler.travelerNo}</p>
-                    <p className="text-sm text-text-secondary mt-1">{traveler.travelerName}</p>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">Traveler {traveler.travelerNo}</p>
+                      <p className="text-sm text-text-secondary mt-1">{traveler.travelerName}</p>
+                    </div>
+                    {traveler.isComplete ? (
+                      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-400">
+                        Complete
+                      </span>
+                    ) : null}
                   </div>
-                  {traveler.isComplete || (uploadSettings.enableGDriveUpload && traveler.gdriveLink) ? (
-                    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${
-                      traveler.isComplete
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-cyan/30 bg-cyan/10 text-cyan"
-                    }`}>
-                      {traveler.isComplete ? "Complete" : "Drive Link Submitted"}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="space-y-2 text-sm">
-                  {uploadSettings.enableFileUpload && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-text-muted">Submitted documents</span>
-                      <span className="font-medium text-text-primary">{traveler.uploadedDocumentsCount} / {docFields.length}</span>
-                    </div>
-                  )}
-                  {uploadSettings.enableFileUpload && traveler.isComplete && (
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                      <p className="text-xs font-semibold text-emerald-400">All documents submitted</p>
-                    </div>
-                  )}
-                  {uploadSettings.enableFileUpload && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-text-muted">Other documents</span>
-                      <span className="font-medium text-text-primary">{traveler.uploadedOtherDocumentsCount}</span>
-                    </div>
-                  )}
-                  {uploadSettings.enableGDriveUpload && (
-                    <>
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <span className="text-text-muted">Drive link</span>
-                          <span className="font-medium text-text-primary text-right break-all">
-                            {traveler.gdriveLink ? (
-                              <a
-                                href={traveler.gdriveLink}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="text-cyan hover:underline break-all"
-                              >
-                                View
-                              </a>
-                            ) : (
-                              "Not added"
-                            )}
-                          </span>
-                        </div>
+
+                  {!canUploadDocuments && renderPassportUpload()}
+
+                  <div className="space-y-2 text-sm">
+                    {uploadSettings.enableFileUpload && (
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-text-muted">Other documents</span>
+                        <span className="font-medium text-text-primary">{traveler.uploadedOtherDocumentsCount}</span>
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
+
                   {canUploadDocuments && (
                     <div className="mt-4 space-y-4 border-t border-border pt-4">
-                      {(!uploadSettings.enableFileUpload && !uploadSettings.enableGDriveUpload) ? (
-                        <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted text-center">
-                          Document uploads are currently disabled.
-                        </div>
-                      ) : (
                         <>
                           {(() => {
                             const travelerNo = traveler.travelerNo;
@@ -1540,10 +1589,14 @@ const ApplicationDetails = () => {
                             const travelerProgress = progress.missingByTraveler.find((item) => item.travelerNo === travelerNo);
                             const otherList = selectedDocs[`${travelerNoStr}-otherDocuments`] || [];
                             const hasOtherPending = Array.isArray(otherList) && otherList.length > 0;
-                            const showMainDriveInput = Boolean(
-                              visibleDriveInputs[`${travelerNo}-main`] || getSavedTravelerGdriveLink(travelerNo)
-                            );
                             const savedDocuments = getSavedTravelerDocuments(travelerNo);
+                            const passportInputKey = `${travelerNoStr}-passport`;
+                            const passportSelectedFile = selectedDocs[passportInputKey];
+                            const passportSavedDocUrl = unlockedDocs[passportInputKey]
+                              ? ""
+                              : getStoredDocumentValue(savedDocuments, "passport");
+                            const passportHasSuccessfulUpload = !passportSelectedFile
+                              && (Boolean(passportSavedDocUrl) || Boolean(uploadedDocSuccesses[passportInputKey]));
                             const savedOtherDocuments = getSavedTravelerOtherDocuments(travelerNo);
                             const totalOtherDocumentsCount = savedOtherDocuments.length + otherList.length;
                             const submittedRequiredFields = docFields.filter((field) => {
@@ -1582,112 +1635,33 @@ const ApplicationDetails = () => {
                                   />
                                 </div>
 
-                                {uploadSettings.enableGDriveUpload && (
-                                  <div>
-                                    <label className="text-xs text-text-muted mb-1.5 flex items-center gap-1.5">
-                                      <span>Google Drive link</span>
-                                      <span className="group relative inline-flex">
-                                        <span
-                                          className="inline-flex rounded-full p-0.5 text-text-muted transition-all duration-150 hover:bg-cyan/10 hover:text-cyan"
-                                          aria-label="How to share your folder guide"
-                                        >
-                                          <Info size={12} />
-                                        </span>
-                                        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
-                                          How to share your folder guide: open your Google Drive folder, click Share, change access to Anyone with the link, and paste that folder link here.
-                                        </span>
-                                      </span>
-                                    </label>
-                                    {!unlockedDriveLinks[travelerNoStr] && Boolean(getSavedTravelerGdriveLink(travelerNo)) ? (
-                                      <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 animate-pop-in">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-400 animate-check-pop">
-                                            <CheckCircle size={14} />
-                                          </span>
-                                          <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-semibold text-text-primary">Google Drive Link Submitted</p>
-                                            <a href={getSavedTravelerGdriveLink(travelerNo)} target="_blank" rel="noreferrer noopener" className="text-[10px] text-cyan hover:underline truncate block max-w-[200px] sm:max-w-xs">
-                                              {getSavedTravelerGdriveLink(travelerNo)}
-                                            </a>
-                                          </div>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setUnlockedDriveLinks((prev) => ({ ...prev, [travelerNoStr]: true }));
-                                            setTravelerGdriveLinks((prev) => ({ ...prev, [travelerNoStr]: "" }));
-                                          }}
-                                          className="rounded-md bg-cyan/15 hover:bg-cyan/25 text-cyan px-2 py-1 text-[10px] font-semibold transition-colors shrink-0"
-                                        >
-                                          Modify Link
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div className="relative">
-                                        <input
-                                          type="url"
-                                          autoComplete="off"
-                                          value={travelerGdriveLinks[travelerNoStr] ?? ""}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            setTravelerGdriveLinks((prev) => ({ ...prev, [travelerNoStr]: val }));
-                                          }}
-                                          onPaste={async (e) => {
-                                            e.preventDefault();
-                                            const val = e.clipboardData.getData("text");
-                                            if (val) {
-                                              const trimmed = val.trim();
-                                              let processedLink = trimmed;
-                                              if (trimmed && !trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-                                                processedLink = "https://" + trimmed;
-                                              }
-                                              setTravelerGdriveLinks((prev) => ({ ...prev, [travelerNoStr]: processedLink }));
-                                              await handleAutoSaveDriveLink(travelerNo, processedLink);
-                                            }
-                                          }}
-                                          onBlur={async (e) => {
-                                            const val = e.target.value;
-                                            if (val && val.trim()) {
-                                              const trimmed = val.trim();
-                                              let processedLink = trimmed;
-                                              if (trimmed && !trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-                                                processedLink = "https://" + trimmed;
-                                              }
-                                              await handleAutoSaveDriveLink(travelerNo, processedLink);
-                                            }
-                                          }}
-                                          onKeyDown={async (e) => {
-                                            if (e.key === "Enter") {
-                                              e.preventDefault();
-                                              const val = e.target.value;
-                                              if (val && val.trim()) {
-                                                const trimmed = val.trim();
-                                                let processedLink = trimmed;
-                                                if (trimmed && !trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-                                                  processedLink = "https://" + trimmed;
-                                                }
-                                                await handleAutoSaveDriveLink(travelerNo, processedLink);
-                                              }
-                                            }
-                                          }}
-                                          placeholder="https://drive.google.com/..."
-                                          disabled={docUploading || isUploadingState(`traveler-gdrive-${travelerNo}`)}
-                                          className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                                        />
-                                        {isUploadingState(`traveler-gdrive-${travelerNo}`) && (
-                                          <div className="text-[10px] text-cyan animate-pulse mt-1.5 flex items-center gap-1.5 px-0.5">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-cyan animate-ping" />
-                                            Saving Google Drive link automatically...
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
+                                <PassportUploadRow
+                                  inputId={`file-${passportInputKey}`}
+                                  label="Passport Upload"
+                                  file={passportSelectedFile}
+                                  error={docErrors[passportInputKey]}
+                                  uploading={isAnyFileUploading}
+                                  saved={passportHasSuccessfulUpload}
+                                  disabled={isTravelerUploadLoading}
+                                  helperText={
+                                    passportSelectedFile
+                                      ? `${passportSelectedFile.name} Â· ${formatFileSize(passportSelectedFile.size)}`
+                                      : `PDF, JPG, PNG Â· max ${getUploadLimitForDocType("passport").label}`
+                                  }
+                                  savedText="Document saved securely"
+                                  onChange={(file) => handleDocFieldChange(travelerNo, "passport", file)}
+                                  onReupload={() => {
+                                    setUnlockedDocs((prev) => ({ ...prev, [passportInputKey]: true }));
+                                    setUploadedDocSuccesses((prev) => {
+                                      const next = { ...prev };
+                                      delete next[passportInputKey];
+                                      return next;
+                                    });
+                                  }}
+                                />
                                 {uploadSettings.enableFileUpload && (
                                   <div className="flex flex-col gap-2">
-                                    {docFields.map((field) => {
+                                    {docFields.filter((f) => f.key !== "passport").map((field) => {
                                       const inputKey = `${travelerNoStr}-${field.key}`;
                                       const selectedFile = selectedDocs[inputKey];
                                       const savedDocUrl = unlockedDocs[inputKey]
@@ -1718,10 +1692,10 @@ const ApplicationDetails = () => {
                                               <p className="text-xs font-medium text-text-primary truncate">{field.label}</p>
                                               <p className="text-[10px] text-text-muted truncate">
                                                 {selectedFile
-                                                  ? `${selectedFile.name} · ${formatFileSize(selectedFile.size)}`
+                                                  ? `${selectedFile.name} Ãƒâ€šÃ‚Â· ${formatFileSize(selectedFile.size)}`
                                                   : hasSuccessfulUpload
                                                   ? "Document saved securely"
-                                                  : "PDF, JPG, PNG · max 500 KB"}
+                                                  : `PDF, JPG, PNG Ãƒâ€šÃ‚Â· max ${getUploadLimitForDocType(field.key).label}`}
                                               </p>
                                             </div>
                                             {hasSuccessfulUpload ? (
@@ -1884,13 +1858,25 @@ const ApplicationDetails = () => {
                             );
                           })()}
                         </>
-                      )}
                     </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+          {uploadSettings.enableGDriveUpload && (
+            <SharedGoogleDriveLinkSection
+              value={sharedDriveLink}
+              onChange={setSharedDriveLink}
+              onSave={canUploadDocuments ? handleSaveSharedDriveLink : undefined}
+              savedLink={getSharedDriveLink()}
+              loading={isUploadingState("shared-gdrive")}
+              disabled={!canUploadDocuments || docUploading}
+              showSkipHint={booking?.paymentStatus !== "completed"}
+              className="mt-6"
+            />
+          )}
         </Card>
 
 
@@ -1916,7 +1902,7 @@ const ApplicationDetails = () => {
                       disabled={notesSaving}
                       rows={5}
                       maxLength={8000}
-                      placeholder="Special requests, travel context, document explanations…"
+                      placeholder="Special requests, travel context, document explanations"
                       className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-cyan/50 min-h-[120px] resize-y"
                     />
                     <div className="flex flex-wrap justify-between items-center gap-2">
@@ -1940,7 +1926,7 @@ const ApplicationDetails = () => {
                   </>
                 ) : (
                   <div className="rounded-xl border border-border bg-surface-2 p-4 text-sm text-text-secondary whitespace-pre-wrap">
-                    {String(booking.applicantNotes || "").trim() || "—"}
+                    {String(booking.applicantNotes || "").trim() || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
                   </div>
                 )}
               </div>
@@ -1951,7 +1937,7 @@ const ApplicationDetails = () => {
               !uploadSettings.enableFileUpload && false && (
                 <div className="space-y-4 mb-6">
                   <h4 className="text-sm font-semibold text-text-primary">
-                    Further information — Google Drive (optional)
+                    Further information ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Google Drive (optional)
                   </h4>
                   <p className="text-[11px] text-text-muted leading-relaxed">
                     Optional second folder per traveler (references, samples, etc.). Does not replace the main documents folder above.
@@ -1973,7 +1959,7 @@ const ApplicationDetails = () => {
                         <p className="text-sm font-semibold text-text-primary">Traveler {travelerNo}</p>
                         <div>
                           <label className="text-xs text-text-muted block mb-1.5">
-                            Google Drive — further information (optional)
+                            Google Drive ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â further information (optional)
                           </label>
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                             <input
@@ -2028,9 +2014,6 @@ const ApplicationDetails = () => {
                   const saveDisabled = docUploading || (serverComplete && !dirty);
                   const headerShowsComplete = serverComplete && !dirty;
                   const travelerProgress = progress.missingByTraveler.find((item) => item.travelerNo === travelerNo);
-                  const showMainDriveInput = Boolean(
-                    visibleDriveInputs[`${travelerNo}-main`] || getSavedTravelerGdriveLink(travelerNo)
-                  );
                   const otherList = selectedDocs[`${travelerNoStr}-otherDocuments`] || [];
                   const hasOtherPending = Array.isArray(otherList) && otherList.length > 0;
                   const savedOtherDocuments = getSavedTravelerOtherDocuments(travelerNo);
@@ -2053,7 +2036,7 @@ const ApplicationDetails = () => {
                       {false && uploadSettings.enableGDriveUpload && (
                         <div className="space-y-1.5 pb-3 border-b border-border">
                           <label className="text-xs text-text-muted block">
-                            Google Drive — further information (optional)
+                            Google Drive ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â further information (optional)
                           </label>
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
                             <input
@@ -2071,7 +2054,7 @@ const ApplicationDetails = () => {
                             onKeyDown={(e) => {
                               if (e.key === "Enter") e.preventDefault();
                             }}
-                            placeholder="Extra folder for references, samples…"
+                            placeholder="Extra folder for references, samplesÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
                             disabled={docUploading || submissionLocked}
                             className="min-w-0 flex-1 bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary outline-none focus:border-cyan/50 placeholder:text-text-muted"
                             autoComplete="off"
@@ -2182,11 +2165,7 @@ const ApplicationDetails = () => {
                               ? "Upload additional documents"
                               : `Save traveler ${travelerNo} & files`}
                         </Button>
-                        {cardShowsComplete ? (
-                          <p className="text-xs text-emerald-400 sm:min-w-0 sm:flex-1 sm:text-right">
-                            All documents submitted
-                          </p>
-                        ) : derivedMissingLabels.length > 0 && (
+                        {!cardShowsComplete && derivedMissingLabels.length > 0 && (
                           <p className="text-xs text-amber-400 sm:min-w-0 sm:flex-1 sm:text-right">
                             Missing: {derivedMissingLabels.join(", ")}
                           </p>
@@ -2229,16 +2208,7 @@ const ApplicationDetails = () => {
         {/* Upload Sections */}
         {showLegacyUploadSections ? (
           allTravelersComplete ? (
-            <section id="document-upload-section" className="scroll-mt-28 space-y-3">
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center">
-                <p className="text-sm font-semibold text-emerald-400">
-                  All required documents are uploaded.
-                </p>
-                <p className="text-xs text-text-muted mt-1">
-                  You can still add optional supporting files in <span className="text-text-secondary font-medium">Further information & other documents</span> above.
-                </p>
-              </div>
-            </section>
+            null
           ) : (
           (!uploadSettings.enableFileUpload && !uploadSettings.enableGDriveUpload) ? (
             <section id="document-upload-section" className="scroll-mt-28">
@@ -2252,7 +2222,7 @@ const ApplicationDetails = () => {
                 <Upload size={18} className="text-cyan shrink-0" />
                 <div>
                   <h3 className="text-base font-semibold text-text-primary">Upload documents</h3>
-                  <p className="text-xs text-text-muted">Per traveler — use Upload for each item (max 500 KB per file).</p>
+                  <p className="text-xs text-text-muted">Per traveler ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â all documents max 300 KB.</p>
                 </div>
               </div>
               {(uploadSettings.enableFileUpload || uploadSettings.enableGDriveUpload) && (
@@ -2281,6 +2251,41 @@ const ApplicationDetails = () => {
               )}
               {(uploadSettings.enableFileUpload || uploadSettings.enableGDriveUpload) && (
                 <>
+                {uploadSettings.enableGDriveUpload && (
+                  <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 space-y-4 shadow-[0_24px_60px_-36px_rgba(15,23,42,0.22)]">
+                    <div>
+                      <h3 className="text-base font-semibold text-text-primary">Google Drive Link (For All Travelers)</h3>
+                      <p className="text-xs text-slate-600 mt-1">Add a single Google Drive folder link containing all the required documents for all travelers.</p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 items-stretch">
+                      <input
+                        type="url"
+                        value={sharedDriveLink}
+                        onChange={(e) => setSharedDriveLink(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSaveSharedDriveLink();
+                          }
+                        }}
+                        placeholder="https://drive.google.com/..."
+                        className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-cyan/40 focus:bg-white placeholder:text-slate-400"
+                        autoComplete="off"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="shrink-0"
+                        leftIcon={<Upload size={14} />}
+                        loading={isUploadingState("global-drive")}
+                        onClick={handleSaveSharedDriveLink}
+                      >
+                        Save Drive Link
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 {Array.from({ length: travelerCount }).map((_, idx) => {
                   const travelerNo = idx + 1;
@@ -2332,62 +2337,9 @@ const ApplicationDetails = () => {
                     />
                   </div>
 
-                  {/* GDrive link + explicit save (typing does not save until you click Save) */}
-                  {uploadSettings.enableGDriveUpload && (
-                    <div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full sm:w-auto mb-2"
-                        leftIcon={<Upload size={14} />}
-                        disabled={docUploading || submissionLocked}
-                        onClick={() => toggleDriveInput(travelerNo, "main")}
-                      >
-                        {showMainDriveInput ? "Hide Google Drive Link" : "Upload Google Drive Link"}
-                      </Button>
-                      {showMainDriveInput && (
-                        <>
-                      <label className="text-xs text-slate-500 block mb-1.5">
-                        Google Drive link
-                        {uploadSettings.enableFileUpload
-                          ? " (optional if you upload every file below)"
-                          : " (required)"}
-                      </label>
-                      <div className="flex flex-row gap-2 items-stretch">
-                        <input
-                          type="text"
-                          value={travelerGdriveLinks[travelerNoStr] ?? getSavedTravelerGdriveLink(travelerNo)}
-                          onChange={(e) =>
-                            setTravelerGdriveLinks((prev) => ({ ...prev, [travelerNoStr]: e.target.value }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") e.preventDefault();
-                          }}
-                          placeholder="Paste link here — then click Save"
-                          disabled={docUploading || submissionLocked}
-                          className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-cyan/40 focus:bg-white placeholder:text-slate-400"
-                          autoComplete="off"
-                        />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="shrink-0 min-w-[132px]"
-                          leftIcon={<Upload size={14} />}
-                          loading={docUploading}
-                          disabled={docUploading || submissionLocked}
-                          onClick={() => handleSaveTravelerDriveLink(travelerNo, "main")}
-                        >
-                          Upload Link
-                        </Button>
-                      </div>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  {/* Global GDrive link moved outside traveler loop */}
 
-                  {/* Doc uploads — compact rows below traveler header */}
+                  {/* Doc uploads ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â compact rows below traveler header */}
                   {uploadSettings.enableFileUpload && (
                     <>
                     <div className="flex flex-col gap-2 mt-3">
@@ -2410,8 +2362,8 @@ const ApplicationDetails = () => {
                               <p className="text-xs font-semibold text-slate-900 truncate">{field.label}</p>
                               <p className="text-[10px] text-slate-500 truncate">
                                 {selectedFile
-                                  ? `${selectedFile.name} · ${formatFileSize(selectedFile.size)}`
-                                  : "PDF, JPG, PNG · max 500 KB"}
+                                  ? `${selectedFile.name} Ãƒâ€šÃ‚Â· ${formatFileSize(selectedFile.size)}`
+                                  : `PDF, JPG, PNG Ãƒâ€šÃ‚Â· max ${getUploadLimitForDocType(field.key).label}`}
                               </p>
                             </div>
                             <label
@@ -2445,15 +2397,11 @@ const ApplicationDetails = () => {
                   )}
 
                   {!uploadSettings.enableFileUpload && uploadSettings.enableGDriveUpload && (
-                    cardShowsComplete ? (
-                      <p className="text-xs text-emerald-700">
-                        All documents submitted
-                      </p>
-                    ) : derivedMissingLabels.length > 0 && (
+                    !cardShowsComplete && derivedMissingLabels.length > 0 ? (
                       <p className="text-xs text-amber-700">
                         Missing: {derivedMissingLabels.join(", ")}
                       </p>
-                    )
+                    ) : null
                   )}
                   <Button
                     type="button"
@@ -2475,7 +2423,7 @@ const ApplicationDetails = () => {
                 );
               })}
                 </div>
-                </>
+              </>
               )}
 
             </section>
@@ -2516,11 +2464,6 @@ const ApplicationDetails = () => {
             >
               {"Proceed to Payment"}
             </Button>
-            {!allTravelersComplete && (
-              <p className="text-xs text-text-muted text-center">
-                You can still proceed to payment — documents can be uploaded later from your dashboard.
-              </p>
-            )}
           </div>
         )}
 
@@ -2605,3 +2548,6 @@ const ApplicationDetails = () => {
 };
 
 export default ApplicationDetails;
+
+
+

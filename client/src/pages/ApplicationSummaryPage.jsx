@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle, CreditCard, Loader2, ShieldCheck, Info } from "lucide-react";
+import SharedGoogleDriveLinkSection from "../components/application/SharedGoogleDriveLinkSection";
+import PassportUploadRow from "../components/application/PassportUploadRow";
 import Navbar from "../components/layout/Navbar";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
@@ -10,6 +12,14 @@ import { openRazorpayForApplication, validateRazorpayCheckoutReadiness } from ".
 import { slugifyCountryRoute } from "../utils/countryRouting";
 import { getLocalDateYmd } from "../utils/dateInput";
 import { useCountries, useMergedCountry } from "../hooks/useCountries";
+import { optimizeUploadFile } from "../utils/optimizeUploadFile";
+import { formatOrdinalDate } from "../utils/dateUtils";
+import { saveTravelDraft } from "../utils/travelDraftStorage";
+
+const SUMMARY_UPLOAD_MAX_BYTES = 300 * 1024;
+const ALLOWED_PASSPORT_MIME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
+const INVALID_PASSPORT_TYPE_ERROR = "Only PDF, JPG, JPEG and PNG files are allowed.";
+const PASSPORT_FILE_SIZE_ERROR = "File size exceeds 300KB limit. Please upload a smaller file.";
 
 const normalizeProcessingDays = (value) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -28,23 +38,153 @@ const formatTravelerDateForInput = (value) => {
   return parsed.toISOString().slice(0, 10);
 };
 
+const formatSummaryDate = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return formatOrdinalDate(parsed);
+};
+
+const hasUploadedPassport = (entry) => {
+  const docs = entry?.documents;
+  if (!docs) return false;
+  if (docs instanceof Map) return Boolean(docs.get("passport"));
+  if (typeof docs?.get === "function") return Boolean(docs.get("passport"));
+  if (typeof docs === "object") return Boolean(docs.passport);
+  return false;
+};
+
+const buildTravelerPassportSuccessMap = ({ application, summaryData, uploadSuccesses, travelerCount }) => {
+  const applicationSuccesses = buildSuccessMapFromApplication(application);
+  const summarySuccesses =
+    summaryData?.uploadedDocSuccesses && typeof summaryData.uploadedDocSuccesses === "object"
+      ? summaryData.uploadedDocSuccesses
+      : {};
+  const merged = {
+    ...summarySuccesses,
+    ...uploadSuccesses,
+    ...applicationSuccesses,
+  };
+
+  Array.from({ length: travelerCount }).forEach((_, index) => {
+    const travelerNo = index + 1;
+    if (merged[`${travelerNo}-passport`]) return;
+    const travelerEntry = Array.isArray(application?.travellerDocuments)
+      ? application.travellerDocuments.find((entry) => Number(entry?.travelerNo) === travelerNo)
+      : null;
+    if (hasUploadedPassport(travelerEntry)) {
+      merged[`${travelerNo}-passport`] = true;
+    }
+  });
+
+  return merged;
+};
+
+const getApplicationDocSuccessStorageKey = (applicationId) =>
+  applicationId ? `application-doc-successes:${applicationId}` : "";
+
+const buildSuccessMapFromApplication = (application) => {
+  const map = {};
+  const travelers = Array.isArray(application?.travellerDocuments)
+    ? application.travellerDocuments
+    : [];
+
+  travelers.forEach((traveler) => {
+    const travelerNo = String(traveler?.travelerNo || "");
+    if (!travelerNo) return;
+
+    const docs = traveler?.documents;
+    if (docs instanceof Map) {
+      docs.forEach((value, key) => {
+        if (value) map[`${travelerNo}-${key}`] = true;
+      });
+      return;
+    }
+
+    if (docs && typeof docs === "object") {
+      Object.entries(docs).forEach(([key, value]) => {
+        if (value) map[`${travelerNo}-${key}`] = true;
+      });
+    }
+  });
+
+  return map;
+};
+
+const getStoredApplicationDocSuccesses = (applicationId) => {
+  if (!applicationId) return {};
+  try {
+    const raw = localStorage.getItem(getApplicationDocSuccessStorageKey(applicationId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const setStoredApplicationDocSuccesses = (applicationId, successes) => {
+  if (!applicationId) return;
+  try {
+    localStorage.setItem(
+      getApplicationDocSuccessStorageKey(applicationId),
+      JSON.stringify(successes && typeof successes === "object" ? successes : {})
+    );
+  } catch {
+    /* ignore storage errors */
+  }
+};
+
+const buildFallbackApplication = (applicationId, summaryData) => {
+  if (!summaryData) return null;
+  return {
+    _id: applicationId || null,
+    applicationId: summaryData.applicationId || applicationId || null,
+    countryId: summaryData.countryId || "",
+    countryName: summaryData.countryName || "Visa",
+    flagEmoji: summaryData.flagEmoji || "",
+    visaType: summaryData.visaType || "e-Visa",
+    travellerCount: summaryData.travellerCount || 1,
+    travelerNames: Array.isArray(summaryData.travelerNames) ? summaryData.travelerNames : [],
+    fee: Number(summaryData.fee || 0),
+    gdriveLink: summaryData.sharedDriveLink || "",
+    travellerDocuments: [],
+  };
+};
+
 const ApplicationSummaryPage = () => {
   const { id: paramId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  
-  const id = paramId 
-    || location.state?.summaryData?.applicationId 
-    || (() => {
-         try {
-           const raw = sessionStorage.getItem("paymentSummarySource");
-           return raw ? JSON.parse(raw).applicationDraftId : null;
-         } catch { return null; }
-       })();
+
+  const persistedSummarySource = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem("paymentSummarySource");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const summaryData = location.state?.summaryData || persistedSummarySource?.summaryData || null;
+  const docsSkipped = Boolean(location.state?.docsSkipped ?? persistedSummarySource?.docsSkipped);
+  const isDashboardSummaryRoute = location.pathname.startsWith("/dashboard/application/");
+  const id = isDashboardSummaryRoute
+    ? (
+        paramId ||
+        location.state?.applicationDraftId ||
+        summaryData?.applicationId ||
+        persistedSummarySource?.applicationDraftId ||
+        null
+      )
+    : (
+        location.state?.applicationDraftId ||
+        summaryData?.applicationId ||
+        persistedSummarySource?.applicationDraftId ||
+        paramId ||
+        null
+      );
   const { user } = useAuthStore();
   const { showToast } = useUIStore();
-  const docsSkipped = Boolean(location.state?.docsSkipped);
-  const summaryData = location.state?.summaryData || null;
 
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,14 +194,67 @@ const ApplicationSummaryPage = () => {
   const [termsPageLoading, setTermsPageLoading] = useState(false);
   const [termsPageError, setTermsPageError] = useState("");
   const [paying, setPaying] = useState(false);
+  const [uploadDocumentsModalOpen, setUploadDocumentsModalOpen] = useState(false);
+  const [uploadModalTravelers, setUploadModalTravelers] = useState([]);
+  const [uploadModalDriveLink, setUploadModalDriveLink] = useState("");
+  const [uploadModalErrors, setUploadModalErrors] = useState({});
+  const [uploadModalUploading, setUploadModalUploading] = useState({});
+  const [uploadSuccesses, setUploadSuccesses] = useState({});
   const [razorpayReady, setRazorpayReady] = useState(false);
   const [razorpayMessage, setRazorpayMessage] = useState("");
   const countryIdForPricing = summaryData?.countryId || application?.countryId || "";
   const { countries: allCountries } = useCountries();
   const listCountry = allCountries.find((c) => c.id === countryIdForPricing);
   const country = useMergedCountry(countryIdForPricing, listCountry);
+  const fallbackApplication = useMemo(
+    () => buildFallbackApplication(id, summaryData),
+    [id, summaryData]
+  );
+  const applicationIdForUploads = String(
+    application?._id || application?.applicationId || id || summaryData?.applicationId || ""
+  );
 
   useEffect(() => {
+    if (!summaryData && typeof location.state?.docsSkipped === "undefined") return;
+    try {
+      sessionStorage.setItem(
+        "paymentSummarySource",
+        JSON.stringify({
+          ...(persistedSummarySource && typeof persistedSummarySource === "object"
+            ? persistedSummarySource
+            : {}),
+          applicationDraftId: id || persistedSummarySource?.applicationDraftId || null,
+          docsSkipped,
+          summaryData: summaryData || persistedSummarySource?.summaryData || null,
+        })
+      );
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [docsSkipped, id, location.state?.docsSkipped, persistedSummarySource, summaryData]);
+
+  useEffect(() => {
+    setUploadSuccesses(getStoredApplicationDocSuccesses(applicationIdForUploads));
+  }, [applicationIdForUploads]);
+
+  useEffect(() => {
+    if (!applicationIdForUploads) return;
+    const serverSuccesses = buildSuccessMapFromApplication(application);
+    if (!Object.keys(serverSuccesses).length) return;
+    const merged = {
+      ...getStoredApplicationDocSuccesses(applicationIdForUploads),
+      ...serverSuccesses,
+    };
+    setStoredApplicationDocSuccesses(applicationIdForUploads, merged);
+    setUploadSuccesses((prev) => ({ ...prev, ...merged }));
+  }, [application, applicationIdForUploads]);
+
+  useEffect(() => {
+    if (!id && fallbackApplication) {
+      setApplication(fallbackApplication);
+      setLoading(false);
+      return;
+    }
     if (!id) {
       if (summaryData) {
         setApplication({
@@ -86,13 +279,20 @@ const ApplicationSummaryPage = () => {
         if (data?.success) setApplication(data.application);
         else showToast(data?.message || "Could not load application.", "error");
       } catch (err) {
-        showToast(err.response?.data?.message || "Could not load application summary.", "error");
+        if (fallbackApplication) {
+          setApplication(fallbackApplication);
+        }
+        if (err?.response?.status === 401 && fallbackApplication) {
+          showToast("Session expired. Showing your saved summary. Please log in again to sync the latest uploads.", "info");
+        } else {
+          showToast(err.response?.data?.message || "Could not load application summary.", "error");
+        }
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [id, summaryData]);
+  }, [fallbackApplication, id, summaryData, showToast]);
 
   useEffect(() => {
     let mounted = true;
@@ -131,6 +331,12 @@ const ApplicationSummaryPage = () => {
   }, [termsModalOpen, termsPage]);
 
   const travelerCount = Math.max(1, Number(application?.travellerCount || 1));
+  const summaryVisaType = summaryData?.visaType || application?.visaType || "e-Visa";
+  const summaryTravelDateFrom = summaryData?.travelDateFrom ?? application?.travelDate ?? null;
+  const summaryTravelDateTo = summaryData?.travelDateTo ?? application?.returnDate ?? null;
+  const summaryTravelRange = summaryTravelDateFrom || summaryTravelDateTo
+    ? `${formatSummaryDate(summaryTravelDateFrom)} - ${formatSummaryDate(summaryTravelDateTo)}`
+    : "—";
 
   const travelerNames = useMemo(() => {
     const names = Array.isArray(application?.travelerNames) ? application.travelerNames : [];
@@ -193,6 +399,10 @@ const ApplicationSummaryPage = () => {
     if (summaryData && typeof summaryData.docsUploaded === "boolean") {
       return summaryData.docsUploaded;
     }
+    const allPassportUploadsStored = Array.from({ length: travelerCount }).every((_, index) =>
+      Boolean(uploadSuccesses[`${index + 1}-passport`])
+    );
+    if (allPassportUploadsStored) return true;
     const entries = Array.isArray(application?.travellerDocuments)
       ? application.travellerDocuments
       : [];
@@ -208,32 +418,226 @@ const ApplicationSummaryPage = () => {
       return false;
     };
     return entries.slice(0, travelerCount).every(entryHasUpload);
-  }, [docsSkipped, summaryData, application?.travellerDocuments, travelerCount]);
+  }, [docsSkipped, summaryData, uploadSuccesses, application?.travellerDocuments, travelerCount]);
 
-  const handleGoToUploadForm = () => {
-    const previousFlowPath = location.state?.applicationPrev?.path;
-    const previousFlowState = location.state?.applicationPrev?.state;
-    if (previousFlowPath) {
-      navigate(previousFlowPath, {
-        state: previousFlowState || undefined,
-        replace: true,
-      });
-      return;
+  const travelerPassportSuccesses = useMemo(
+    () => buildTravelerPassportSuccessMap({
+      application,
+      summaryData,
+      uploadSuccesses,
+      travelerCount,
+    }),
+    [application, summaryData, uploadSuccesses, travelerCount]
+  );
+
+  useEffect(() => {
+    if (!applicationIdForUploads || !Object.keys(travelerPassportSuccesses).length) return;
+    setStoredApplicationDocSuccesses(applicationIdForUploads, travelerPassportSuccesses);
+    setUploadSuccesses((prev) => {
+      const missingEntries = Object.entries(travelerPassportSuccesses).filter(
+        ([key, value]) => value && !prev[key]
+      );
+      if (!missingEntries.length) return prev;
+      return { ...prev, ...travelerPassportSuccesses };
+    });
+  }, [applicationIdForUploads, travelerPassportSuccesses]);
+
+  const ensureApplicationDraft = async () => {
+    let app = application;
+    let appId = app?._id;
+
+    if (!appId && id) {
+      try {
+        const { data } = await api.get(`/users/applications/${id}`);
+        if (data?.success && data.application?._id) {
+          app = data.application;
+          appId = data.application._id;
+          setApplication(data.application);
+        }
+      } catch {
+        /* fall through to draft creation */
+      }
     }
 
-    if (countryIdForPricing) {
-      navigate(`/apply/${encodeURIComponent(countryIdForPricing)}`, {
-        state: {
-          travelDateFrom: summaryData?.travelDateFrom ?? null,
-          travelDateTo: summaryData?.travelDateTo ?? null,
-          visaOption: summaryData?.visaType || application?.visaType || "e-Visa",
-          travelers: Array.isArray(summaryData?.travelers) ? summaryData.travelers : [],
-        },
+    if (!appId && summaryData?.countryId) {
+      const { data } = await api.post("/users/application/checkout-draft", {
+        applicationDraftId: String(id || summaryData?.applicationId || "").trim() || undefined,
+        countryId: summaryData.countryId,
+        countryName: summaryData.countryName,
+        flagEmoji: summaryData.flagEmoji || "🛂",
+        visaType: summaryData.visaType || "e-Visa",
+        travelDateFrom: summaryData.travelDateFrom ?? null,
+        travelDateTo: summaryData.travelDateTo ?? null,
+        travellerCount: summaryData.travellerCount || 1,
+        travelerNames: Array.isArray(summaryData.travelerNames) ? summaryData.travelerNames : [],
+        travelers: Array.isArray(summaryData.travelers) ? summaryData.travelers : [],
+        processingDays: normalizeProcessingDays(summaryData.processingDays),
       });
-      return;
+      if (!data?.success || !data.application?._id) {
+        throw new Error(data?.message || "Could not start application.");
+      }
+      app = data.application;
+      appId = data.application._id;
+      setApplication(data.application);
     }
 
-    showToast("Upload page is not available for this application yet.", "error");
+    if (!appId) {
+      throw new Error("Application not found. Go back and continue from the document step.");
+    }
+
+    return { app, appId };
+  };
+
+  const openUploadDocumentsModal = () => {
+    const uploadedEntries = Array.isArray(application?.travellerDocuments)
+      ? application.travellerDocuments
+      : [];
+    const firstDriveLink = uploadedEntries.find((entry) => String(entry?.gdriveLink || "").trim())?.gdriveLink || "";
+    setUploadModalTravelers(
+      Array.from({ length: travelerCount }).map((_, index) => ({
+        id: index + 1,
+        name: travelerNames[index] || `Traveler ${index + 1}`,
+        passportFile: null,
+        passportUploaded:
+          Boolean(travelerPassportSuccesses[`${index + 1}-passport`]),
+      }))
+    );
+    setUploadModalDriveLink(
+      String(summaryData?.sharedDriveLink || application?.gdriveLink || firstDriveLink || "").trim()
+    );
+    setUploadModalErrors({});
+    setUploadModalUploading({});
+    setUploadDocumentsModalOpen(true);
+  };
+
+  const handleUploadModalPassportChange = async (index, file) => {
+    if (!file) return;
+    if (!ALLOWED_PASSPORT_MIME_TYPES.has(String(file.type || "").toLowerCase())) {
+      setUploadModalErrors((prev) => ({
+        ...prev,
+        [index]: INVALID_PASSPORT_TYPE_ERROR,
+      }));
+      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
+      return;
+    }
+    if (file.size > SUMMARY_UPLOAD_MAX_BYTES) {
+      setUploadModalErrors((prev) => ({
+        ...prev,
+        [index]: PASSPORT_FILE_SIZE_ERROR,
+      }));
+      showToast(PASSPORT_FILE_SIZE_ERROR, "error");
+      return;
+    }
+    const { file: optimizedFile, error } = await optimizeUploadFile(file, {
+      targetBytes: SUMMARY_UPLOAD_MAX_BYTES,
+    });
+    if (error || !optimizedFile) {
+      setUploadModalErrors((prev) => ({
+        ...prev,
+        [index]: error || "Could not prepare this passport file for upload.",
+      }));
+      showToast(error || "Could not prepare this passport file for upload.", "error");
+      return;
+    }
+    if (optimizedFile.size > SUMMARY_UPLOAD_MAX_BYTES) {
+      setUploadModalErrors((prev) => ({
+        ...prev,
+        [index]: PASSPORT_FILE_SIZE_ERROR,
+      }));
+      showToast(PASSPORT_FILE_SIZE_ERROR, "error");
+      return;
+    }
+    setUploadModalErrors((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    setUploadModalUploading((prev) => ({ ...prev, [index]: true }));
+    try {
+      const { appId } = await ensureApplicationDraft();
+      const travelerNo = index + 1;
+      const travelerName = travelerNames[index] || `Traveler ${travelerNo}`;
+      const formData = new FormData();
+      const ext = (optimizedFile.name.split(".").pop() || "").toLowerCase();
+      const safeExt = ext ? `.${ext}` : "";
+      formData.append(
+        "documents",
+        new File([optimizedFile], `traveler-${travelerNo}_passport${safeExt}`, { type: optimizedFile.type })
+      );
+      formData.append("travelerNo", String(travelerNo));
+      formData.append("travelerName", travelerName);
+      formData.append("documentsMeta", JSON.stringify([{ docType: "passport", kind: "required" }]));
+
+      const { data } = await api.post(`/users/applications/${appId}/documents`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      if (!data?.success || !data?.application) {
+        throw new Error(data?.message || "Could not upload passport.");
+      }
+
+      setApplication(data.application);
+      setUploadSuccesses((prev) => {
+        const next = { ...prev, [`${travelerNo}-passport`]: true };
+        setStoredApplicationDocSuccesses(appId, next);
+        return next;
+      });
+      setUploadModalTravelers((prev) =>
+        prev.map((traveler, travelerIndex) => (
+          travelerIndex === index
+            ? {
+                ...traveler,
+                passportFile: null,
+                passportUploaded: true,
+              }
+            : traveler
+        ))
+      );
+      showToast("Passport uploaded successfully.", "success");
+    } catch (err) {
+      setUploadModalErrors((prev) => ({
+        ...prev,
+        [index]: err?.response?.data?.message || err?.message || "Could not upload passport.",
+      }));
+      showToast(err?.response?.data?.message || err?.message || "Could not upload passport.", "error");
+    } finally {
+      setUploadModalUploading((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+    }
+  };
+
+  const handleSaveUploadDocuments = async () => {
+    const sharedLink = String(uploadModalDriveLink || "").trim();
+    try {
+      const { appId } = await ensureApplicationDraft();
+      if (sharedLink) {
+        const { data } = await api.put(`/users/applications/${appId}`, { gdriveLink: sharedLink });
+        if (data?.success && data.application) {
+          setApplication(data.application);
+        }
+      }
+      setUploadDocumentsModalOpen(false);
+      showToast("Upload details saved.", "success");
+    } catch (err) {
+      showToast(err?.response?.data?.message || err?.message || "Could not save upload details.", "error");
+    }
+  };
+
+  const handleDriveLinkBlurSave = async () => {
+    const sharedLink = String(uploadModalDriveLink || "").trim();
+    if (!sharedLink) return;
+    try {
+      const { appId } = await ensureApplicationDraft();
+      const { data } = await api.put(`/users/applications/${appId}`, { gdriveLink: sharedLink });
+      if (data?.success && data.application) {
+        setApplication(data.application);
+        showToast("Google Drive link saved.", "success");
+      }
+    } catch (err) {
+      showToast(err?.response?.data?.message || err?.message || "Could not save Drive link.", "error");
+    }
   };
 
   const handleBack = () => {
@@ -248,6 +652,8 @@ const ApplicationSummaryPage = () => {
       travelDateFrom: formatDateToYmd(summaryData?.travelDateFrom ?? application?.travelDate),
       travelDateTo: formatDateToYmd(summaryData?.travelDateTo ?? application?.returnDate),
       visaOption: summaryData?.visaType || application?.visaType,
+      sharedDriveLink: String(summaryData?.sharedDriveLink || application?.gdriveLink || "").trim(),
+      applicationDraftId: id || applicationIdForUploads || null,
       travelers: Array.isArray(summaryData?.travelers) && summaryData.travelers.length
         ? summaryData.travelers.map((traveler) => ({
             ...traveler,
@@ -299,41 +705,31 @@ const ApplicationSummaryPage = () => {
     if (exactBackPath || countryRoute) {
       const draftCountryKey = exactBackPath ? exactBackPath.split('/').pop() : countryRoute;
       try {
-        const draftKey = `travelDraft_${draftCountryKey}`;
-        const existingRaw = localStorage.getItem(draftKey);
-        const existingDraft = existingRaw ? JSON.parse(existingRaw) : null;
-
         const hasNewData =
           restoreTravelDetails.travelers &&
           restoreTravelDetails.travelers.length > 0 &&
           restoreTravelDetails.travelers.some((t) => String(t.name || "").trim().length > 0);
 
-        if (hasNewData || !existingDraft) {
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({
-              travelDateFrom: restoreTravelDetails.travelDateFrom,
-              travelDateTo: restoreTravelDetails.travelDateTo,
-              visaOption: restoreTravelDetails.visaOption,
-              travelers: restoreTravelDetails.travelers,
-              showTravelDetails: true,
-            })
-          );
-        } else if (existingDraft) {
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({
-              ...existingDraft,
-              showTravelDetails: true,
-            })
-          );
+        if (hasNewData) {
+          saveTravelDraft(draftCountryKey, {
+            applicationId: restoreTravelDetails.applicationDraftId,
+            travelDateFrom: restoreTravelDetails.travelDateFrom,
+            travelDateTo: restoreTravelDetails.travelDateTo,
+            visaOption: restoreTravelDetails.visaOption,
+            sharedDriveLink: restoreTravelDetails.sharedDriveLink,
+            travelers: restoreTravelDetails.travelers,
+            showTravelDetails: true,
+          });
         }
       } catch (err) {
         console.error("Failed to write fallback travel draft", err);
       }
 
       navigate(exactBackPath || `/destination/${encodeURIComponent(countryRoute)}`, {
-        state: { restoreTravelDetails },
+        state: {
+          restoreTravelDetails,
+          applicationDraftId: restoreTravelDetails.applicationDraftId,
+        },
         replace: true,
       });
       return;
@@ -346,41 +742,31 @@ const ApplicationSummaryPage = () => {
 
     if (countryId) {
       try {
-        const draftKey = `travelDraft_${countryId}`;
-        const existingRaw = localStorage.getItem(draftKey);
-        const existingDraft = existingRaw ? JSON.parse(existingRaw) : null;
-
         const hasNewData =
           restoreTravelDetails.travelers &&
           restoreTravelDetails.travelers.length > 0 &&
           restoreTravelDetails.travelers.some((t) => String(t.name || "").trim().length > 0);
 
-        if (hasNewData || !existingDraft) {
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({
-              travelDateFrom: restoreTravelDetails.travelDateFrom,
-              travelDateTo: restoreTravelDetails.travelDateTo,
-              visaOption: restoreTravelDetails.visaOption,
-              travelers: restoreTravelDetails.travelers,
-              showTravelDetails: true,
-            })
-          );
-        } else if (existingDraft) {
-          localStorage.setItem(
-            draftKey,
-            JSON.stringify({
-              ...existingDraft,
-              showTravelDetails: true,
-            })
-          );
+        if (hasNewData) {
+          saveTravelDraft(countryId, {
+            applicationId: restoreTravelDetails.applicationDraftId,
+            travelDateFrom: restoreTravelDetails.travelDateFrom,
+            travelDateTo: restoreTravelDetails.travelDateTo,
+            visaOption: restoreTravelDetails.visaOption,
+            sharedDriveLink: restoreTravelDetails.sharedDriveLink,
+            travelers: restoreTravelDetails.travelers,
+            showTravelDetails: true,
+          });
         }
       } catch (err) {
         console.error("Failed to write fallback travel draft", err);
       }
 
       navigate(`/destination/${encodeURIComponent(countryId)}`, {
-        state: { restoreTravelDetails },
+        state: {
+          restoreTravelDetails,
+          applicationDraftId: restoreTravelDetails.applicationDraftId,
+        },
         replace: true,
       });
       return;
@@ -408,37 +794,9 @@ const ApplicationSummaryPage = () => {
       return;
     }
 
-    let app = application;
-    let appId = app?._id;
-
     setPaying(true);
     try {
-      if (!appId && summaryData?.countryId) {
-        const { data } = await api.post("/users/application/checkout-draft", {
-          countryId: summaryData.countryId,
-          countryName: summaryData.countryName,
-          flagEmoji: summaryData.flagEmoji || "🛂",
-          visaType: summaryData.visaType || "e-Visa",
-          travelDateFrom: summaryData.travelDateFrom ?? null,
-          travelDateTo: summaryData.travelDateTo ?? null,
-          travellerCount: summaryData.travellerCount || 1,
-          travelerNames: Array.isArray(summaryData.travelerNames) ? summaryData.travelerNames : [],
-          travelers: Array.isArray(summaryData.travelers) ? summaryData.travelers : [],
-          processingDays: normalizeProcessingDays(summaryData.processingDays),
-        });
-        if (!data?.success || !data.application?._id) {
-          showToast(data?.message || "Could not start application for payment.", "error");
-          return;
-        }
-        app = data.application;
-        appId = data.application._id;
-        setApplication(data.application);
-      }
-
-      if (!appId) {
-        showToast("Application not found. Go back and continue from the document step.", "error");
-        return;
-      }
+      const { app, appId } = await ensureApplicationDraft();
 
       const amountRupees = resolvePayAmountRupees(app);
 
@@ -520,15 +878,30 @@ const ApplicationSummaryPage = () => {
           </p>
         </div>
 
-        {/* Travelers */}
+        {/* Travel Details */}
         <div className="rounded-2xl border border-border bg-surface p-5 space-y-2">
-          <h3 className="text-sm font-semibold text-text-primary mb-3">Traveler Details</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Travel Details</h3>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-text-secondary">Visa type</span>
+            <span className="font-medium text-text-primary">{summaryVisaType}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-text-secondary">Travel dates</span>
+            <span className="font-medium text-text-primary text-right">{summaryTravelRange}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-text-secondary">Travelers</span>
+            <span className="font-medium text-text-primary">{travelerCount}</span>
+          </div>
+          <div className="border-t border-border pt-3 mt-3">
+            <h4 className="text-sm font-semibold text-text-primary mb-3">Traveler Details</h4>
           {travelerNames.map((name, idx) => (
             <div key={idx} className="flex items-center justify-between text-sm">
               <span className="text-text-secondary">Traveler {idx + 1}</span>
               <span className="font-medium text-text-primary">{name}</span>
             </div>
           ))}
+          </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-5">
@@ -536,7 +909,7 @@ const ApplicationSummaryPage = () => {
             variant="secondary"
             size="md"
             fullWidth
-            onClick={handleGoToUploadForm}
+            onClick={openUploadDocumentsModal}
           >
             Upload your documents now
           </Button>
@@ -548,10 +921,10 @@ const ApplicationSummaryPage = () => {
               <Info size={18} className="text-cyan mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-text-primary">
-                  Documents can be uploaded after payment
+                  No worries — you can upload documents later!
                 </p>
-                <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-                  Complete payment now, then upload required traveler documents from your dashboard application section.
+                <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
+                  Complete your payment first. After that, go to <span className="text-text-primary font-medium">My Dashboard → click your application → upload documents</span> for each traveler at any time.
                 </p>
               </div>
             </div>
@@ -635,6 +1008,125 @@ const ApplicationSummaryPage = () => {
         </div>
 
       </main>
+
+      <Modal
+        isOpen={uploadDocumentsModalOpen}
+        onClose={() => { handleSaveUploadDocuments(); }}
+        title="Upload Documents"
+        size="xl"
+        footer={
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Button variant="secondary" size="md" onClick={() => { handleSaveUploadDocuments(); }}>
+              Skip, I'll upload later
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-cyan/20 bg-cyan/5 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-text-secondary">
+              <ShieldCheck size={16} className="text-cyan shrink-0" />
+              <span>Your documents are safe and secure with us.</span>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-2xl font-bold text-text-primary">Travelers ({travelerCount})</h3>
+            <p className="mt-2 text-sm text-text-secondary">
+              Add a single Google Drive link for all travelers if needed.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {uploadModalTravelers.map((traveler, index) => (
+              <div
+                key={`summary-upload-${traveler.id}`}
+                className="rounded-2xl border border-border bg-surface p-5 shadow-[0_12px_35px_rgba(15,23,42,0.05)]"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan/10 text-cyan font-bold">
+                    {String(traveler.id).padStart(2, "0")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-lg font-semibold text-text-primary">Traveler {traveler.id}</h4>
+                      {traveler.passportUploaded ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                          <CheckCircle size={12} />
+                          Passport uploaded
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {traveler.name || `Traveler ${traveler.id}`} (Name as on passport)
+                    </p>
+
+                    <div className="mt-5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-text-primary">Passport Upload</p>
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                          Optional
+                        </span>
+                        <span className="group relative inline-flex align-middle">
+                          <span
+                            className="inline-flex rounded-full p-0.5 text-text-muted transition-all duration-150 hover:bg-cyan/10 hover:text-cyan"
+                            aria-label="Optional passport upload info"
+                          >
+                            <Info size={12} />
+                          </span>
+                          <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-border bg-surface px-3 py-2 text-[11px] font-normal leading-relaxed text-text-secondary shadow-lg group-hover:block">
+                            You can continue without uploading a passport here and add it later if needed.
+                          </span>
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-text-secondary">Upload clear copy of passport</p>
+
+                      <PassportUploadRow
+                        className="mt-4"
+                        inputId={`summary-passport-upload-${traveler.id}`}
+                        label="Passport Upload"
+                        file={traveler.passportFile}
+                        error={uploadModalErrors[index]}
+                        uploading={Boolean(uploadModalUploading[index])}
+                        saved={Boolean(traveler.passportUploaded && !traveler.passportFile)}
+                        helperText={
+                          traveler.passportFile
+                            ? traveler.passportFile.name
+                            : "PDF, JPG, PNG - max 300 KB"
+                        }
+                        savedText="Document saved securely"
+                        reuploadLabel="Replace File"
+                        onChange={(file) => handleUploadModalPassportChange(index, file)}
+                        onReupload={() => {
+                          setUploadModalTravelers((prev) =>
+                            prev.map((item, itemIndex) => (
+                              itemIndex === index
+                                ? { ...item, passportFile: null, passportUploaded: false }
+                                : item
+                            ))
+                          );
+                          setUploadModalErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[index];
+                            return next;
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <SharedGoogleDriveLinkSection
+            value={uploadModalDriveLink}
+            onChange={setUploadModalDriveLink}
+            onSave={handleDriveLinkBlurSave}
+            showSkipHint={application?.paymentStatus !== "completed"}
+          />
+        </div>
+      </Modal>
 
       <Modal
         isOpen={termsModalOpen}
