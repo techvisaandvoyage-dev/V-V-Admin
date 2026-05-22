@@ -247,7 +247,7 @@ const Navbar = () => {
                   {isAuthenticated ? (
                     <>
                       <button
-                        onClick={() => navigate(user?.role === "admin" ? "/admin" : "/dashboard")}
+                        onClick={() => navigate(user?.role === "admin" ? "/" : "/dashboard")}
                         className="flex items-center gap-2 px-4 py-2.5 text-sm text-cyan hover:bg-cyan/10 rounded-lg transition-colors"
                       >
                         <LayoutDashboard size={15} />

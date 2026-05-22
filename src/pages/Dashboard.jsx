@@ -1328,6 +1328,13 @@ const Dashboard = () => {
   const navigate       = useNavigate();
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
+  const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
+
+  useEffect(() => {
+    if (!tabParam) return;
+    if (validAdminTabIds.has(tabParam)) return;
+    navigate("/", { replace: true });
+  }, [navigate, tabParam, validAdminTabIds]);
 
   // ── Global Data Store ──────────────────────────────────────
   const { bookings, countries, fetchAllApplications, fetchCountries, fetchPages, updateCountry } = useDataStore();
@@ -1425,8 +1432,24 @@ const Dashboard = () => {
     showVisaRequirements: true,
     maintenanceModeEnabled: false,
   });
-  const [visaTypePicker, setVisaTypePicker] = useState("");
+  const controlSections = [
+    { key: "upload-methods", label: "Document Upload Methods" },
+    { key: "landing-highlights", label: "Landing Highlights" },
+    { key: "base-price", label: "Update Fee (universal)" },
+    { key: "visa-type", label: "Update Visa Type (universal)" },
+    { key: "length-of-stay", label: "Update Length of Stay (universal)" },
+    { key: "entry-type", label: "Update Entry (universal)" },
+    { key: "validity", label: "Update Validity (universal)" },
+    { key: "processing-days", label: "Update Processing Days (universal)" },
+    { key: "required-docs", label: "Required Documents (universal)" },
+    { key: "other-docs", label: "Other Documents Catalog (global)" },
+    { key: "maintenance-mode", label: "Site maintenance mode" },
+    { key: "customer-support", label: "Customer Support Widget" },
+    { key: "destination-pages", label: "Destination pages (all countries)" },
+  ];
+  const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
   const [basePriceCustom, setBasePriceCustom] = useState("");
+  const [visaTypePicker, setVisaTypePicker] = useState("");
   const [visaTypeCustom, setVisaTypeCustom] = useState("");
   const [validityPicker, setValidityPicker] = useState("");
   const [validityCustom, setValidityCustom] = useState("");
@@ -1446,6 +1469,9 @@ const Dashboard = () => {
   const [newCustomDocIcon, setNewCustomDocIcon] = useState("");
   const [savingCustomDoc, setSavingCustomDoc] = useState(false);
   const [savingDocumentMetaKey, setSavingDocumentMetaKey] = useState("");
+  const [editingDocKey, setEditingDocKey] = useState(null);
+  const [editingCatalogDocKey, setEditingCatalogDocKey] = useState(null);
+  const [selectedCatalogDocs, setSelectedCatalogDocs] = useState([]);
   const [showCustomDocCreator, setShowCustomDocCreator] = useState(true);
   const [savingControlKey, setSavingControlKey] = useState(null);
   const [togglingDisplayKey, setTogglingDisplayKey] = useState(null);
@@ -2181,17 +2207,18 @@ const Dashboard = () => {
           });
         }
         if (Array.isArray(data.documentCatalog)) {
-          setDocumentCatalog(
-            data.documentCatalog
-              .map((d) => ({
-                key: String(d?.key ?? "").trim(),
-                label: String(d?.label ?? "").trim(),
-                description: String(d?.description ?? "").trim(),
-                icon: String(d?.icon ?? "").trim(),
-                builtIn: d?.builtIn !== false,
-              }))
-              .filter((d) => d.key && d.label)
-          );
+          const catalog = data.documentCatalog
+            .map((d) => ({
+              key: String(d?.key ?? "").trim(),
+              label: String(d?.label ?? "").trim(),
+              description: String(d?.description ?? "").trim(),
+              icon: String(d?.icon ?? "").trim(),
+              builtIn: d?.builtIn !== false,
+              deleted: !!d?.deleted,
+            }))
+            .filter((d) => d.key && d.label);
+          setDocumentCatalog(catalog);
+          setSelectedCatalogDocs(catalog.filter((d) => !d.deleted).map((d) => d.key));
         }
         // Pre-populate the required-docs draft from the live global selection so
         // the admin sees exactly what's currently applied. Falls back to just
@@ -2530,6 +2557,51 @@ const Dashboard = () => {
     }
   };
 
+  const runUpdateCatalogVisibility = async () => {
+    const activeKeys = Array.isArray(selectedCatalogDocs) ? selectedCatalogDocs.filter(Boolean) : [];
+    setSavingControlKey("catalog-visibility");
+    try {
+      const { data } = await api.post("/admin/control/custom-documents", {
+        action: "update-visibility",
+        activeKeys,
+      });
+      if (data?.success) {
+        showToast(
+          data.message || `Catalog visibility updated successfully. Only ${activeKeys.length} selected document types will be active.`,
+          "success"
+        );
+        // Update local catalog/selection from server response if provided so
+        // we don't accidentally overwrite the admin's selection with a
+        // derived default that marks everything visible.
+        if (Array.isArray(data.documentCatalog)) {
+          const catalog = data.documentCatalog
+            .map((d) => ({
+              key: String(d?.key ?? "").trim(),
+              label: String(d?.label ?? "").trim(),
+              description: String(d?.description ?? "").trim(),
+              icon: String(d?.icon ?? "").trim(),
+              builtIn: d?.builtIn !== false,
+              deleted: !!d?.deleted,
+            }))
+            .filter((d) => d.key && d.label);
+          setDocumentCatalog(catalog);
+          setSelectedCatalogDocs(catalog.filter((d) => !d.deleted).map((d) => d.key));
+        }
+        await fetchCountries();
+      } else {
+        showToast(data?.message || "Failed to update catalog visibility.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || error?.message || "Failed to update catalog visibility.", "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
   /** POST a new admin-defined document type to the catalog. */
   const runAddCustomDocument = async () => {
     const label = String(newCustomDocLabel ?? "").trim();
@@ -2556,6 +2628,21 @@ const Dashboard = () => {
         setNewCustomDocLabel("");
         setNewCustomDocDescription("");
         setNewCustomDocIcon("");
+        // Immediately update catalog from the response so the new doc is visible
+        if (Array.isArray(data.documentCatalog)) {
+          setDocumentCatalog(
+            data.documentCatalog
+              .map((d) => ({
+                key: String(d?.key ?? "").trim(),
+                label: String(d?.label ?? "").trim(),
+                description: String(d?.description ?? "").trim(),
+                icon: String(d?.icon ?? "").trim(),
+                builtIn: d?.builtIn !== false,
+                deleted: !!d?.deleted,
+              }))
+              .filter((d) => d.key && d.label)
+          );
+        }
         await loadGlobalCountryDefaults();
       } else {
         showToast(data?.message || "Failed to add custom document.", "error");
@@ -2607,6 +2694,20 @@ const Dashboard = () => {
       });
       if (data?.success) {
         showToast(data.message || `"${label}" saved.`, "success");
+        if (Array.isArray(data.documentCatalog)) {
+          setDocumentCatalog(
+            data.documentCatalog
+              .map((d) => ({
+                key: String(d?.key ?? "").trim(),
+                label: String(d?.label ?? "").trim(),
+                description: String(d?.description ?? "").trim(),
+                icon: String(d?.icon ?? "").trim(),
+                builtIn: d?.builtIn !== false,
+                deleted: !!d?.deleted,
+              }))
+              .filter((d) => d.key && d.label)
+          );
+        }
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
       } else {
         showToast(data?.message || "Failed to save document.", "error");
@@ -2639,6 +2740,20 @@ const Dashboard = () => {
       });
       if (data?.success) {
         showToast(data.message || "Custom document removed.", "success");
+        if (Array.isArray(data.documentCatalog)) {
+          setDocumentCatalog(
+            data.documentCatalog
+              .map((d) => ({
+                key: String(d?.key ?? "").trim(),
+                label: String(d?.label ?? "").trim(),
+                description: String(d?.description ?? "").trim(),
+                icon: String(d?.icon ?? "").trim(),
+                builtIn: d?.builtIn !== false,
+                deleted: !!d?.deleted,
+              }))
+              .filter((d) => d.key && d.label)
+          );
+        }
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
         // Drop the removed key from the local draft so the "Apply" payload
         // doesn't try to re-introduce a doc that no longer exists.
@@ -3340,34 +3455,77 @@ const Dashboard = () => {
               ══════════════════════════════════════ */}
           {activeTab === "controls" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <Card>
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="font-semibold text-text-primary">System Controls</h2>
-                    <p className="text-xs text-text-muted">Manage active features and modules</p>
+              <div className="space-y-4 lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-6">
+                <aside className="lg:sticky lg:top-24">
+                  <div className="hidden lg:block rounded-3xl border border-border bg-surface p-4">
+                    <h3 className="text-sm font-semibold text-text-primary mb-4">Controls</h3>
+                    <div className="space-y-2">
+                      {controlSections.map((section) => (
+                        <button
+                          key={section.key}
+                          type="button"
+                          onClick={() => setActiveControlSection(section.key)}
+                          className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
+                            activeControlSection === section.key
+                              ? "border-cyan bg-cyan/10 text-cyan"
+                              : "border-border bg-background text-text-secondary hover:border-cyan/40 hover:bg-surface"
+                          }`}
+                        >
+                          <span>{section.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <Button 
-                    variant="primary" 
-                    size="sm" 
-                    leftIcon={<Save size={15} />}
-                    loading={savingSettingsKey === "upload-controls"}
-                    onClick={() =>
-                      saveSettingsPartial(
-                        "upload-controls",
-                        {
-                          enableGDriveUpload: settingsForm.enableGDriveUpload,
-                          enableFileUpload: settingsForm.enableFileUpload,
-                          showTravelerDetails: settingsForm.showTravelerDetails,
-                        },
-                        "Document upload and traveler visibility options saved.",
-                      )
-                    }
-                  >
-                    Save controls
-                  </Button>
-                </div>
-                
+                  <div className="lg:hidden">
+                    <div className="overflow-x-auto pb-2">
+                      <div className="flex gap-2 min-w-max px-2">
+                        {controlSections.map((section) => (
+                          <button
+                            key={section.key}
+                            type="button"
+                            onClick={() => setActiveControlSection(section.key)}
+                            className={`whitespace-nowrap rounded-2xl border px-3 py-2 text-sm font-medium transition ${
+                              activeControlSection === section.key
+                                ? "border-cyan bg-cyan/10 text-cyan"
+                                : "border-border bg-background text-text-secondary hover:border-cyan/40 hover:bg-surface"
+                            }`}
+                          >
+                            {section.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </aside>
                 <div className="space-y-6">
+                  <Card className={activeControlSection === "upload-methods" ? "" : "hidden"}>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="font-semibold text-text-primary">System Controls</h2>
+                        <p className="text-xs text-text-muted">Manage active features and modules</p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Save size={15} />}
+                        loading={savingSettingsKey === "upload-controls"}
+                        onClick={() =>
+                          saveSettingsPartial(
+                            "upload-controls",
+                            {
+                              enableGDriveUpload: settingsForm.enableGDriveUpload,
+                              enableFileUpload: settingsForm.enableFileUpload,
+                              showTravelerDetails: settingsForm.showTravelerDetails,
+                            },
+                            "Document upload and traveler visibility options saved."
+                          )
+                        }
+                      >
+                        Save controls
+                      </Button>
+                    </div>
+
+                    <div className="space-y-6">
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <UploadCloud size={18} className="text-cyan" />
@@ -3438,6 +3596,7 @@ const Dashboard = () => {
                   public card / details page when switched off.
                   ══════════════════════════════════════════════════════════ */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              <div className={activeControlSection === "landing-highlights" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3506,7 +3665,9 @@ const Dashboard = () => {
                   ))}
                 </div>
               </ExpandableAdminControlCard>
+              </div>
 
+              <div className={activeControlSection === "base-price" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3557,7 +3718,10 @@ const Dashboard = () => {
                   helper="Saving this updates every country to use the global fee until a country is manually given a different amount."
                 />
               </ExpandableAdminControlCard>
+              </div>
+              </div>
 
+              <div className={activeControlSection === "visa-type" ? "" : "hidden"}>
               <ExpandableAdminControlCard expandMode="fullscreen">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3633,7 +3797,9 @@ const Dashboard = () => {
                   />
                 </div>
               </ExpandableAdminControlCard>
+              </div>
 
+              <div className={activeControlSection === "length-of-stay" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3706,7 +3872,9 @@ const Dashboard = () => {
                   />
                 </div>
               </ExpandableAdminControlCard>
+              </div>
 
+              <div className={activeControlSection === "entry-type" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3780,10 +3948,12 @@ const Dashboard = () => {
                   />
                 </div>
               </ExpandableAdminControlCard>
+              </div>
 
               {/* ══════════════════════════════════════════════════════════
                   Universal Validity control — mirror of the Visa Type card.
                   ══════════════════════════════════════════════════════════ */}
+              <div className={activeControlSection === "validity" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3857,11 +4027,13 @@ const Dashboard = () => {
                   />
                 </div>
               </ExpandableAdminControlCard>
+              </div>
 
               {/* ══════════════════════════════════════════════════════════
                   Universal Processing Days control — mirror of the other two.
                   The toggle hides the Processing tile on the public client.
                   ══════════════════════════════════════════════════════════ */}
+              <div className={activeControlSection === "processing-days" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3936,6 +4108,7 @@ const Dashboard = () => {
                   />
                 </div>
               </ExpandableAdminControlCard>
+              </div>
 
               {/* ══════════════════════════════════════════════════════════
                   Universal Required Documents control — admin picks the
@@ -3943,6 +4116,7 @@ const Dashboard = () => {
                   document types, and toggles the whole section on/off for
                   the public client.
                   ══════════════════════════════════════════════════════════ */}
+              <div className={activeControlSection === "required-docs" ? "" : "hidden"}>
               <ExpandableAdminControlCard>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -3996,110 +4170,36 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
-                {showCustomDocCreator ? (
-                  <div
-                    ref={customDocCreatorRef}
-                    className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-4"
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setRequiredDocsDraft(documentCatalog.filter((d) => !d.deleted).map((d) => d.key))}
                   >
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <p className="text-xs font-semibold text-text-primary flex items-center gap-2">
-                        <Plus size={14} className="text-cyan" />
-                        Add a custom document type
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setShowCustomDocCreator(false)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-text-muted transition-colors hover:text-text-primary hover:bg-surface"
-                        aria-label="Close custom document form"
-                        title="Close"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input
-                        placeholder='e.g. "Medical Insurance Certificate"'
-                        value={newCustomDocLabel}
-                        onChange={(e) => setNewCustomDocLabel(e.target.value)}
-                        id="control-custom-doc-label"
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="Optional short description"
-                        value={newCustomDocDescription}
-                        onChange={(e) => setNewCustomDocDescription(e.target.value)}
-                        id="control-custom-doc-description"
-                      />
-                    </div>
-                    <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-                      <div className="space-y-2">
-                        <Input
-                          placeholder="ri-passport-line"
-                          value={newCustomDocIcon}
-                          onChange={(e) => setNewCustomDocIcon(e.target.value)}
-                          id="control-custom-doc-icon"
-                          list="custom-document-icon-suggestions"
-                        />
-                        <datalist id="custom-document-icon-suggestions">
-                          {REMIX_ICON_SUGGESTIONS.map((icon) => (
-                            <option key={icon} value={icon} />
-                          ))}
-                        </datalist>
-                        <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs text-text-muted">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan/10 text-cyan">
-                            {sanitizeRemixIconClass(newCustomDocIcon) ? (
-                              <i className={`${sanitizeRemixIconClass(newCustomDocIcon)} text-lg leading-none`} aria-hidden="true" />
-                            ) : (
-                              <FileText size={16} />
-                            )}
-                          </span>
-                          <span className="truncate">
-                            {sanitizeRemixIconClass(newCustomDocIcon) || "Fallback icon"}
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        leftIcon={<Plus size={14} />}
-                        loading={savingCustomDoc}
-                        disabled={!newCustomDocLabel.trim()}
-                        onClick={runAddCustomDocument}
-                      >
-                        Add to catalog
-                      </Button>
-                    </div>
-                    <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
-                      Custom types use a <span className="font-mono text-text-primary">custom_xxx</span> key under the hood
-                      and can store a Remix Icon class like <span className="font-mono text-text-primary">ri-passport-line</span>.
-                      They appear in every country edit modal. Removing one strips it from the catalog{" "}
-                      <span className="text-text-primary font-medium">and</span> every country that referenced it.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-5">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      leftIcon={<Plus size={14} />}
-                      onClick={() => setShowCustomDocCreator(true)}
-                    >
-                      Create document
-                    </Button>
-                  </div>
-                )}                {/* Checkbox grid built from the merged catalog. Built-in rows
-                    are non-removable; custom rows expose a small "Delete" pill. */}
+                    Select All
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setRequiredDocsDraft([])}
+                  >
+                    Deselect All
+                  </Button>
+                </div>
+
+                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                {/* Checkbox grid built from the merged catalog. */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  {documentCatalog.length === 0 && (
+                  {documentCatalog.filter((d) => !d.deleted).length === 0 && (
                     <p className="col-span-full text-sm text-text-muted">
-                      Loading document catalog...
+                      No active documents available.
                     </p>
                   )}
-                  {documentCatalog.map((doc, index) => {
+                  {documentCatalog.filter((d) => !d.deleted).map((doc, index) => {
                     const { key, label, description, builtIn, icon } = doc;
                     const checked = requiredDocsDraft.includes(key);
                     const DocIcon = getDocumentIcon(key);
+                    const isEditing = editingDocKey === key;
                     return (
                       <div
                         key={key}
@@ -4116,7 +4216,7 @@ const Dashboard = () => {
                               prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
                             )
                           }
-                          className="flex w-full items-start gap-3 text-left"
+                          className="flex w-full items-start gap-3 text-left pr-8"
                           id={`control-doc-toggle-${key}`}
                         >
                           <span
@@ -4148,72 +4248,101 @@ const Dashboard = () => {
                           </span>
                         </button>
 
-                        <div className="mt-4 grid gap-3">
-                          <Input
-                            value={label}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setDocumentCatalog((prev) => {
-                                const next = [...prev];
-                                next[index] = { ...next[index], label: value };
-                                return next;
-                              });
+                        {/* Absolutely positioned Edit Toggle button */}
+                        <div className={`absolute right-3 top-3 flex items-center gap-1.5 transition-opacity duration-150 ${
+                          isEditing ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                        }`}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingDocKey((prev) => (prev === key ? null : key));
                             }}
-                            placeholder="Document name"
-                          />
-                          <Textarea
-                            rows={3}
-                            value={description}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setDocumentCatalog((prev) => {
-                                const next = [...prev];
-                                next[index] = { ...next[index], description: value };
-                                return next;
-                              });
-                            }}
-                            placeholder="Short document description"
-                          />
-                          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-start">
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border bg-background transition-colors ${
+                              isEditing
+                                ? "border-cyan/40 text-cyan bg-cyan/5"
+                                : "border-border text-text-muted hover:text-text-primary hover:bg-surface"
+                            }`}
+                            title={isEditing ? "Close Editor" : "Edit Metadata"}
+                            aria-label="Edit Document Type"
+                          >
+                            {isEditing ? <X size={12} /> : <Edit3 size={12} />}
+                          </button>
+                        </div>
+
+                        {/* Expandable Inline Editing Section */}
+                        {isEditing && (
+                          <div className="mt-4 pt-4 border-t border-border/40 grid gap-3" onClick={(e) => e.stopPropagation()}>
                             <Input
-                              value={icon}
+                              label="Document Title"
+                              value={label}
                               onChange={(e) => {
                                 const value = e.target.value;
                                 setDocumentCatalog((prev) => {
                                   const next = [...prev];
-                                  next[index] = { ...next[index], icon: value };
+                                  next[index] = { ...next[index], label: value };
                                   return next;
                                 });
                               }}
-                              placeholder="ri-passport-line"
-                              list="remix-icon-suggestions"
+                              placeholder="Document name"
                             />
-                            <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
-                              {sanitizeRemixIconClass(icon) ? <i className={`${sanitizeRemixIconClass(icon)} text-xl`} /> : <DocIcon size={18} />}
+                            <Textarea
+                              label="Description / Helper Text"
+                              rows={2}
+                              value={description}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setDocumentCatalog((prev) => {
+                                  const next = [...prev];
+                                  next[index] = { ...next[index], description: value };
+                                  return next;
+                                });
+                              }}
+                              placeholder="Short document description shown to applicants"
+                            />
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+                              <div className="w-full">
+                                <Input
+                                  label="Remix Icon Class"
+                                  value={icon}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setDocumentCatalog((prev) => {
+                                      const next = [...prev];
+                                      next[index] = { ...next[index], icon: value };
+                                      return next;
+                                    });
+                                  }}
+                                  placeholder="ri-passport-line"
+                                  list="custom-document-icon-suggestions"
+                                />
+                              </div>
+                              <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
+                                {sanitizeRemixIconClass(icon) ? <i className={`${sanitizeRemixIconClass(icon)} text-xl`} /> : <DocIcon size={18} />}
+                              </div>
+                              <div className="flex gap-2 shrink-0">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="h-[46px] px-4"
+                                  loading={savingDocumentMetaKey === key}
+                                  onClick={() => runSaveDocumentCatalogEntry(documentCatalog[index])}
+                                  leftIcon={<Save size={14} />}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  className="h-[46px] px-4"
+                                  disabled={savingCustomDoc}
+                                  onClick={() => runRemoveCustomDocument(key, label)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
                             </div>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              loading={savingDocumentMetaKey === key}
-                              onClick={() => runSaveDocumentCatalogEntry(documentCatalog[index])}
-                              leftIcon={<Save size={14} />}
-                            >
-                              Save
-                            </Button>
                           </div>
-                        </div>
-
-                        {!builtIn && (
-                          <button
-                            type="button"
-                            onClick={() => runRemoveCustomDocument(key, label)}
-                            disabled={savingCustomDoc}
-                            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-red-500/40 bg-background text-red-300 hover:bg-red-500/15 disabled:opacity-50"
-                            title={`Remove "${label}"`}
-                            aria-label={`Remove ${label}`}
-                          >
-                            <X size={11} />
-                          </button>
                         )}
                       </div>
                     );
@@ -4225,10 +4354,276 @@ const Dashboard = () => {
                   </p>
                 )}
 
+                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                <div className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-5 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                      <Plus size={16} className="text-cyan" />
+                      Add a custom document type
+                    </h4>
+                    <p className="text-xs text-text-muted mt-1 leading-relaxed">
+                      Custom document types will be added globally to the document library and can be assigned as a requirement for any country.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Input
+                      label="Document Label / Title"
+                      placeholder='e.g. "Medical Insurance Certificate"'
+                      value={newCustomDocLabel}
+                      onChange={(e) => setNewCustomDocLabel(e.target.value)}
+                      id="control-custom-doc-label"
+                      className="w-full"
+                    />
+                    <Input
+                      label="Description / Helper Text (Optional)"
+                      placeholder="Optional short description shown to applicants"
+                      value={newCustomDocDescription}
+                      onChange={(e) => setNewCustomDocDescription(e.target.value)}
+                      id="control-custom-doc-description"
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-[1fr_auto_auto] items-end">
+                    <div className="space-y-1.5 w-full">
+                      <Input
+                        label="Remix Icon Class (Optional)"
+                        placeholder="ri-passport-line"
+                        value={newCustomDocIcon}
+                        onChange={(e) => setNewCustomDocIcon(e.target.value)}
+                        id="control-custom-doc-icon"
+                        list="custom-document-icon-suggestions"
+                        className="w-full"
+                      />
+                      <datalist id="custom-document-icon-suggestions">
+                        {REMIX_ICON_SUGGESTIONS.map((icon) => (
+                          <option key={icon} value={icon} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
+                      {sanitizeRemixIconClass(newCustomDocIcon) ? (
+                        <i className={`${sanitizeRemixIconClass(newCustomDocIcon)} text-xl`} />
+                      ) : (
+                        <FileText size={18} className="text-text-muted" />
+                      )}
+                    </div>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-[46px] px-6 shrink-0"
+                      leftIcon={<Plus size={14} />}
+                      loading={savingCustomDoc}
+                      disabled={!newCustomDocLabel.trim()}
+                      onClick={runAddCustomDocument}
+                    >
+                      Add to catalog
+                    </Button>
+                  </div>
+
+                  <p className="text-[11px] text-text-muted leading-relaxed">
+                    Custom types use a <span className="font-mono text-text-primary">custom_xxx</span> key under the hood. 
+                    Removing a custom document type strips it from the catalog <span className="text-text-primary font-medium">and</span> every country referencing it.
+                  </p>
+                </div>
+              </ExpandableAdminControlCard>
+              </div>
+
+              <div className={activeControlSection === "other-docs" ? "" : "hidden"}>
+              <ExpandableAdminControlCard>
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/40 pb-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <ScrollText size={18} className="text-cyan" />
+                        Other Documents Catalog (global)
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Manage the global supporting-document library separately from required documents. Add, edit, or remove other documents here and assign a Remix icon for each item.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "catalog-visibility"}
+                    onClick={runUpdateCatalogVisibility}
+                  >
+                    Save Catalog Visibility
+                  </Button>
+                </div>
+
+
+
+                <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {documentCatalog.length === 0 && (
+                    <p className="col-span-full text-sm text-text-muted">
+                      Loading document catalog...
+                    </p>
+                  )}
+                  {documentCatalog.map((doc, index) => {
+                    const { key, label, description, builtIn, icon } = doc;
+                    const checked = selectedCatalogDocs.includes(key);
+                    const DocIcon = getDocumentIcon(key);
+                    const isEditing = editingCatalogDocKey === key;
+                    return (
+                      <div
+                        key={key}
+                        className={`group relative rounded-2xl border p-4 transition-all duration-150 ${
+                          checked
+                            ? "border-cyan/60 bg-cyan/10"
+                            : "border-border bg-surface-2 hover:border-cyan/30"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedCatalogDocs((prev) =>
+                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+                            )
+                          }
+                          className="flex w-full items-start gap-3 text-left pr-8"
+                          id={`control-catalog-doc-toggle-${key}`}
+                        >
+                          <span
+                            className={`mt-1 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors ${
+                              checked ? "bg-cyan border-cyan" : "border-border"
+                            }`}
+                          >
+                            {checked && <CheckCircle size={10} className="text-background" />}
+                          </span>
+                          <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${checked ? "bg-cyan/15 text-cyan" : "bg-background text-text-muted"}`}>
+                            {icon ? (
+                              <i className={`${icon} text-lg leading-none`} aria-hidden="true" />
+                            ) : (
+                              <DocIcon size={18} />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className={`truncate text-sm font-semibold ${checked ? "text-cyan" : "text-text-primary"}`} title={label}>
+                                {label}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${builtIn ? "bg-background text-text-muted" : "bg-cyan/12 text-cyan"}`}>
+                                {builtIn ? "built in" : "custom"}
+                              </span>
+                            </span>
+                            <span className="mt-1 block text-xs leading-relaxed text-text-muted">
+                              {description || "No helper description yet."}
+                            </span>
+                          </span>
+                        </button>
+
+                        {/* Absolutely positioned Edit Toggle button */}
+                        <div className={`absolute right-3 top-3 flex items-center gap-1.5 transition-opacity duration-150 ${
+                          isEditing ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                        }`}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCatalogDocKey((prev) => (prev === key ? null : key));
+                            }}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full border bg-background transition-colors ${
+                              isEditing
+                                ? "border-cyan/40 text-cyan bg-cyan/5"
+                                : "border-border text-text-muted hover:text-text-primary hover:bg-surface"
+                            }`}
+                            title={isEditing ? "Close Editor" : "Edit Metadata"}
+                            aria-label="Edit Document Type"
+                          >
+                            {isEditing ? <X size={12} /> : <Edit3 size={12} />}
+                          </button>
+                        </div>
+
+                        {/* Expandable Inline Editing Section */}
+                        {isEditing && (
+                          <div className="mt-4 pt-4 border-t border-border/40 grid gap-3" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              label="Document Title"
+                              value={label}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setDocumentCatalog((prev) => {
+                                  const next = [...prev];
+                                  next[index] = { ...next[index], label: value };
+                                  return next;
+                                });
+                              }}
+                              placeholder="Document name"
+                            />
+                            <Textarea
+                              label="Description / Helper Text"
+                              rows={2}
+                              value={description}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setDocumentCatalog((prev) => {
+                                  const next = [...prev];
+                                  next[index] = { ...next[index], description: value };
+                                  return next;
+                                });
+                              }}
+                              placeholder="Short document description shown to applicants"
+                            />
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+                              <div className="w-full">
+                                <Input
+                                  label="Remix Icon Class"
+                                  value={icon}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setDocumentCatalog((prev) => {
+                                      const next = [...prev];
+                                      next[index] = { ...next[index], icon: value };
+                                      return next;
+                                    });
+                                  }}
+                                  placeholder="ri-passport-line"
+                                  list="custom-document-icon-suggestions"
+                                />
+                              </div>
+                              <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
+                                {sanitizeRemixIconClass(icon) ? <i className={`${sanitizeRemixIconClass(icon)} text-xl`} /> : <DocIcon size={18} />}
+                              </div>
+                              <div className="flex gap-2 shrink-0">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="h-[46px] px-4"
+                                  loading={savingDocumentMetaKey === key}
+                                  onClick={() => runSaveDocumentCatalogEntry(documentCatalog[index])}
+                                  leftIcon={<Save size={14} />}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  className="h-[46px] px-4"
+                                  disabled={savingCustomDoc}
+                                  onClick={() => runRemoveCustomDocument(key, label)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </ExpandableAdminControlCard>
 
               </div>
 
+              <div className={activeControlSection === "maintenance-mode" ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1 min-w-0">
@@ -4261,7 +4656,9 @@ const Dashboard = () => {
                   </div>
                 </div>
               </Card>
+            </div>
 
+              <div className={activeControlSection === "customer-support" ? "" : "hidden"}>
               <SettingsSectionCard
                 title="Customer Support Widget"
                 description="Redesign and manage the floating support widget. Set custom header titles, descriptions, and link the card directly to your active WhatsApp or custom helpdesk."
@@ -4383,7 +4780,9 @@ const Dashboard = () => {
                   Connecting your active WhatsApp link enables instantaneous customer service with real-time feedback. You can customize the widget labels above at any time.
                 </div>
               </SettingsSectionCard>
+            </div>
 
+              <div className={activeControlSection === "destination-pages" ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                   <div className="flex-1 min-w-0">
@@ -4858,6 +5257,9 @@ const Dashboard = () => {
                   </ExpandableAdminControlCard>
                 </div>
               </Card>
+              </div>
+            </div>
+          </div>
             </motion.div>
           )}
 
@@ -6016,7 +6418,7 @@ const Dashboard = () => {
                 // the hardcoded `DOC_OPTIONS` shipped with the admin so this
                 // block still renders before the API responds on first load.
                 const rows = documentCatalog.length
-                  ? documentCatalog
+                  ? documentCatalog.filter((d) => !d.deleted)
                   : DOC_OPTIONS.map((o) => ({ ...o, builtIn: true }));
                 return rows.map(({ key, label, builtIn, icon }) => {
                   const checked = countryForm.requiredDocuments.includes(key);

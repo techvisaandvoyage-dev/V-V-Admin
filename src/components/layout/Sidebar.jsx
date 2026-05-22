@@ -17,11 +17,11 @@ import { useUIStore } from "../../store/uiStore";
 
 // ── Nav item groups per role ───────────────────────────────
 const USER_NAV = [
-  { label: "Overview",         icon: LayoutDashboard,  to: "/dashboard",         id: "nav-overview" },
-  { label: "My Applications",  icon: FileText,          to: "/dashboard/apps",    id: "nav-my-apps" },
-  { label: "New Application",  icon: PlusCircle,        to: "/apply",             id: "nav-new-app" },
-  { label: "Destinations",     icon: Globe,             to: "/dashboard/countries", id: "nav-countries" },
-  { label: "Settings",         icon: Settings,          to: "/dashboard/settings", id: "nav-settings" },
+  { label: "Overview",         icon: LayoutDashboard,  to: "/dashboard",          id: "nav-overview" },
+  { label: "My Applications",  icon: FileText,         to: "/dashboard/apps",     id: "nav-my-apps" },
+  { label: "New Application",  icon: PlusCircle,       to: "/apply",              id: "nav-new-app" },
+  { label: "Destinations",     icon: Globe,            to: "/dashboard/countries", id: "nav-countries" },
+  { label: "Settings",         icon: Settings,         to: "/dashboard/settings", id: "nav-settings" },
 ];
 
 const ADMIN_NAV = [

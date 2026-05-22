@@ -93,6 +93,7 @@ const Details = () => {
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [visaFileUploading, setVisaFileUploading] = useState(false);
+  const [updatingOtherDocs, setUpdatingOtherDocs] = useState({});
   const visaFileInputRef = useRef(null);
   const [expandedTravelerDocs, setExpandedTravelerDocs] = useState({});
   const [uploadSettings, setUploadSettings] = useState({
@@ -119,6 +120,44 @@ const Details = () => {
       ...prev,
       [travelerNo]: !prev[travelerNo],
     }));
+  };
+
+  const handleDeleteTravelerOtherDoc = async (travelerNo, docIndex) => {
+    if (!application) return;
+    const travelerNoNum = Number(travelerNo);
+    const traveler = (Array.isArray(application.travellerDocuments) ? application.travellerDocuments : []).find(
+      (t) => Number(t.travelerNo) === travelerNoNum
+    );
+    if (!traveler) {
+      showToast('Traveler not found.', 'error');
+      return;
+    }
+
+    const savedOtherDocs = Array.isArray(traveler.otherDocuments)
+      ? traveler.otherDocuments.filter(Boolean)
+      : [];
+    const updatedOtherDocs = savedOtherDocs.filter((_, idx) => idx !== docIndex);
+
+    setUpdatingOtherDocs((prev) => ({ ...prev, [travelerNoNum]: true }));
+    try {
+      const { data } = await api.put(`/admin/applications/${id}`, {
+        travelerUpdate: {
+          travelerNo: travelerNoNum,
+          otherDocuments: updatedOtherDocs,
+        },
+      });
+
+      if (data?.success && data.application) {
+        setApplication(data.application);
+        showToast('Other document deleted successfully.', 'success');
+      } else {
+        showToast(data?.message || 'Failed to delete other document.', 'error');
+      }
+    } catch (error) {
+      showToast(error?.response?.data?.message || 'Could not delete other document.', 'error');
+    } finally {
+      setUpdatingOtherDocs((prev) => ({ ...prev, [travelerNoNum]: false }));
+    }
   };
 
   useEffect(() => {
@@ -682,6 +721,16 @@ const Details = () => {
                                     aria-label={`Download other document ${docIdx + 1}`}
                                   >
                                     <Download size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={Boolean(updatingOtherDocs[travelerNo])}
+                                    onClick={() => handleDeleteTravelerOtherDoc(travelerNo, docIdx)}
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={`Delete other document ${docIdx + 1}`}
+                                    aria-label={`Delete other document ${docIdx + 1}`}
+                                  >
+                                    <span className="text-[10px] font-semibold">×</span>
                                   </button>
                                 </div>
                               );
