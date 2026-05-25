@@ -197,6 +197,7 @@ const settingsSchema = new mongoose.Schema({
   /** Universal "Processing Days" (free text e.g. "5-10", "2-3 weeks") applied the same way. */
   globalProcessingDays: { type: String, default: '', trim: true },
   globalBasePrice: { type: Number, default: null },
+  globalGovernmentFee: { type: Number, default: null },
 
   /**
    * Universal "Required Documents" — applied to every country whose

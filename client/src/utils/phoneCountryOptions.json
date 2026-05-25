@@ -1,0 +1,3497 @@
+﻿[
+    {
+        "value":  "+93",
+        "label":  "Afghanistan (+93)",
+        "country":  "Afghanistan"
+    },
+    {
+        "value":  "+35818",
+        "label":  "Åland Islands (+35818)",
+        "country":  "Åland Islands"
+    },
+    {
+        "value":  "+355",
+        "label":  "Albania (+355)",
+        "country":  "Albania"
+    },
+    {
+        "value":  "+213",
+        "label":  "Algeria (+213)",
+        "country":  "Algeria"
+    },
+    {
+        "value":  "+1684",
+        "label":  "American Samoa (+1684)",
+        "country":  "American Samoa"
+    },
+    {
+        "value":  "+376",
+        "label":  "Andorra (+376)",
+        "country":  "Andorra"
+    },
+    {
+        "value":  "+244",
+        "label":  "Angola (+244)",
+        "country":  "Angola"
+    },
+    {
+        "value":  "+1264",
+        "label":  "Anguilla (+1264)",
+        "country":  "Anguilla"
+    },
+    {
+        "value":  "+1268",
+        "label":  "Antigua and Barbuda (+1268)",
+        "country":  "Antigua and Barbuda"
+    },
+    {
+        "value":  "+54",
+        "label":  "Argentina (+54)",
+        "country":  "Argentina"
+    },
+    {
+        "value":  "+374",
+        "label":  "Armenia (+374)",
+        "country":  "Armenia"
+    },
+    {
+        "value":  "+297",
+        "label":  "Aruba (+297)",
+        "country":  "Aruba"
+    },
+    {
+        "value":  "+61",
+        "label":  "Australia (+61)",
+        "country":  "Australia"
+    },
+    {
+        "value":  "+43",
+        "label":  "Austria (+43)",
+        "country":  "Austria"
+    },
+    {
+        "value":  "+994",
+        "label":  "Azerbaijan (+994)",
+        "country":  "Azerbaijan"
+    },
+    {
+        "value":  "+1242",
+        "label":  "Bahamas (+1242)",
+        "country":  "Bahamas"
+    },
+    {
+        "value":  "+973",
+        "label":  "Bahrain (+973)",
+        "country":  "Bahrain"
+    },
+    {
+        "value":  "+880",
+        "label":  "Bangladesh (+880)",
+        "country":  "Bangladesh"
+    },
+    {
+        "value":  "+1246",
+        "label":  "Barbados (+1246)",
+        "country":  "Barbados"
+    },
+    {
+        "value":  "+375",
+        "label":  "Belarus (+375)",
+        "country":  "Belarus"
+    },
+    {
+        "value":  "+32",
+        "label":  "Belgium (+32)",
+        "country":  "Belgium"
+    },
+    {
+        "value":  "+501",
+        "label":  "Belize (+501)",
+        "country":  "Belize"
+    },
+    {
+        "value":  "+229",
+        "label":  "Benin (+229)",
+        "country":  "Benin"
+    },
+    {
+        "value":  "+1441",
+        "label":  "Bermuda (+1441)",
+        "country":  "Bermuda"
+    },
+    {
+        "value":  "+975",
+        "label":  "Bhutan (+975)",
+        "country":  "Bhutan"
+    },
+    {
+        "value":  "+591",
+        "label":  "Bolivia (+591)",
+        "country":  "Bolivia"
+    },
+    {
+        "value":  "+387",
+        "label":  "Bosnia and Herzegovina (+387)",
+        "country":  "Bosnia and Herzegovina"
+    },
+    {
+        "value":  "+267",
+        "label":  "Botswana (+267)",
+        "country":  "Botswana"
+    },
+    {
+        "value":  "+47",
+        "label":  "Bouvet Island (+47)",
+        "country":  "Bouvet Island"
+    },
+    {
+        "value":  "+55",
+        "label":  "Brazil (+55)",
+        "country":  "Brazil"
+    },
+    {
+        "value":  "+246",
+        "label":  "British Indian Ocean Territory (+246)",
+        "country":  "British Indian Ocean Territory"
+    },
+    {
+        "value":  "+1284",
+        "label":  "British Virgin Islands (+1284)",
+        "country":  "British Virgin Islands"
+    },
+    {
+        "value":  "+673",
+        "label":  "Brunei (+673)",
+        "country":  "Brunei"
+    },
+    {
+        "value":  "+359",
+        "label":  "Bulgaria (+359)",
+        "country":  "Bulgaria"
+    },
+    {
+        "value":  "+226",
+        "label":  "Burkina Faso (+226)",
+        "country":  "Burkina Faso"
+    },
+    {
+        "value":  "+257",
+        "label":  "Burundi (+257)",
+        "country":  "Burundi"
+    },
+    {
+        "value":  "+855",
+        "label":  "Cambodia (+855)",
+        "country":  "Cambodia"
+    },
+    {
+        "value":  "+237",
+        "label":  "Cameroon (+237)",
+        "country":  "Cameroon"
+    },
+    {
+        "value":  "+1204",
+        "label":  "Canada (+1204)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1226",
+        "label":  "Canada (+1226)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1236",
+        "label":  "Canada (+1236)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1249",
+        "label":  "Canada (+1249)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1250",
+        "label":  "Canada (+1250)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1263",
+        "label":  "Canada (+1263)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1289",
+        "label":  "Canada (+1289)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1306",
+        "label":  "Canada (+1306)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1343",
+        "label":  "Canada (+1343)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1354",
+        "label":  "Canada (+1354)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1365",
+        "label":  "Canada (+1365)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1367",
+        "label":  "Canada (+1367)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1368",
+        "label":  "Canada (+1368)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1382",
+        "label":  "Canada (+1382)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1387",
+        "label":  "Canada (+1387)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1403",
+        "label":  "Canada (+1403)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1416",
+        "label":  "Canada (+1416)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1418",
+        "label":  "Canada (+1418)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1428",
+        "label":  "Canada (+1428)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1431",
+        "label":  "Canada (+1431)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1437",
+        "label":  "Canada (+1437)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1438",
+        "label":  "Canada (+1438)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1450",
+        "label":  "Canada (+1450)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1468",
+        "label":  "Canada (+1468)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1474",
+        "label":  "Canada (+1474)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1506",
+        "label":  "Canada (+1506)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1514",
+        "label":  "Canada (+1514)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1519",
+        "label":  "Canada (+1519)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1548",
+        "label":  "Canada (+1548)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1579",
+        "label":  "Canada (+1579)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1581",
+        "label":  "Canada (+1581)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1584",
+        "label":  "Canada (+1584)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1587",
+        "label":  "Canada (+1587)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1600",
+        "label":  "Canada (+1600)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1604",
+        "label":  "Canada (+1604)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1613",
+        "label":  "Canada (+1613)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1622",
+        "label":  "Canada (+1622)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1633",
+        "label":  "Canada (+1633)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1639",
+        "label":  "Canada (+1639)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1644",
+        "label":  "Canada (+1644)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1647",
+        "label":  "Canada (+1647)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1655",
+        "label":  "Canada (+1655)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1672",
+        "label":  "Canada (+1672)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1677",
+        "label":  "Canada (+1677)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1683",
+        "label":  "Canada (+1683)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1688",
+        "label":  "Canada (+1688)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1705",
+        "label":  "Canada (+1705)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1709",
+        "label":  "Canada (+1709)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1742",
+        "label":  "Canada (+1742)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1753",
+        "label":  "Canada (+1753)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1778",
+        "label":  "Canada (+1778)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1780",
+        "label":  "Canada (+1780)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1782",
+        "label":  "Canada (+1782)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1807",
+        "label":  "Canada (+1807)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1819",
+        "label":  "Canada (+1819)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1825",
+        "label":  "Canada (+1825)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1867",
+        "label":  "Canada (+1867)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1873",
+        "label":  "Canada (+1873)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1879",
+        "label":  "Canada (+1879)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1902",
+        "label":  "Canada (+1902)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1905",
+        "label":  "Canada (+1905)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+1942",
+        "label":  "Canada (+1942)",
+        "country":  "Canada"
+    },
+    {
+        "value":  "+238",
+        "label":  "Cape Verde (+238)",
+        "country":  "Cape Verde"
+    },
+    {
+        "value":  "+599",
+        "label":  "Caribbean Netherlands (+599)",
+        "country":  "Caribbean Netherlands"
+    },
+    {
+        "value":  "+1345",
+        "label":  "Cayman Islands (+1345)",
+        "country":  "Cayman Islands"
+    },
+    {
+        "value":  "+236",
+        "label":  "Central African Republic (+236)",
+        "country":  "Central African Republic"
+    },
+    {
+        "value":  "+235",
+        "label":  "Chad (+235)",
+        "country":  "Chad"
+    },
+    {
+        "value":  "+56",
+        "label":  "Chile (+56)",
+        "country":  "Chile"
+    },
+    {
+        "value":  "+86",
+        "label":  "China (+86)",
+        "country":  "China"
+    },
+    {
+        "value":  "+61",
+        "label":  "Christmas Island (+61)",
+        "country":  "Christmas Island"
+    },
+    {
+        "value":  "+61",
+        "label":  "Cocos (Keeling) Islands (+61)",
+        "country":  "Cocos (Keeling) Islands"
+    },
+    {
+        "value":  "+57",
+        "label":  "Colombia (+57)",
+        "country":  "Colombia"
+    },
+    {
+        "value":  "+269",
+        "label":  "Comoros (+269)",
+        "country":  "Comoros"
+    },
+    {
+        "value":  "+242",
+        "label":  "Congo (+242)",
+        "country":  "Congo"
+    },
+    {
+        "value":  "+682",
+        "label":  "Cook Islands (+682)",
+        "country":  "Cook Islands"
+    },
+    {
+        "value":  "+506",
+        "label":  "Costa Rica (+506)",
+        "country":  "Costa Rica"
+    },
+    {
+        "value":  "+385",
+        "label":  "Croatia (+385)",
+        "country":  "Croatia"
+    },
+    {
+        "value":  "+53",
+        "label":  "Cuba (+53)",
+        "country":  "Cuba"
+    },
+    {
+        "value":  "+599",
+        "label":  "Curaçao (+599)",
+        "country":  "Curaçao"
+    },
+    {
+        "value":  "+357",
+        "label":  "Cyprus (+357)",
+        "country":  "Cyprus"
+    },
+    {
+        "value":  "+420",
+        "label":  "Czechia (+420)",
+        "country":  "Czechia"
+    },
+    {
+        "value":  "+45",
+        "label":  "Denmark (+45)",
+        "country":  "Denmark"
+    },
+    {
+        "value":  "+253",
+        "label":  "Djibouti (+253)",
+        "country":  "Djibouti"
+    },
+    {
+        "value":  "+1767",
+        "label":  "Dominica (+1767)",
+        "country":  "Dominica"
+    },
+    {
+        "value":  "+1809",
+        "label":  "Dominican Republic (+1809)",
+        "country":  "Dominican Republic"
+    },
+    {
+        "value":  "+1829",
+        "label":  "Dominican Republic (+1829)",
+        "country":  "Dominican Republic"
+    },
+    {
+        "value":  "+1849",
+        "label":  "Dominican Republic (+1849)",
+        "country":  "Dominican Republic"
+    },
+    {
+        "value":  "+243",
+        "label":  "DR Congo (+243)",
+        "country":  "DR Congo"
+    },
+    {
+        "value":  "+593",
+        "label":  "Ecuador (+593)",
+        "country":  "Ecuador"
+    },
+    {
+        "value":  "+20",
+        "label":  "Egypt (+20)",
+        "country":  "Egypt"
+    },
+    {
+        "value":  "+503",
+        "label":  "El Salvador (+503)",
+        "country":  "El Salvador"
+    },
+    {
+        "value":  "+240",
+        "label":  "Equatorial Guinea (+240)",
+        "country":  "Equatorial Guinea"
+    },
+    {
+        "value":  "+291",
+        "label":  "Eritrea (+291)",
+        "country":  "Eritrea"
+    },
+    {
+        "value":  "+372",
+        "label":  "Estonia (+372)",
+        "country":  "Estonia"
+    },
+    {
+        "value":  "+268",
+        "label":  "Eswatini (+268)",
+        "country":  "Eswatini"
+    },
+    {
+        "value":  "+251",
+        "label":  "Ethiopia (+251)",
+        "country":  "Ethiopia"
+    },
+    {
+        "value":  "+500",
+        "label":  "Falkland Islands (+500)",
+        "country":  "Falkland Islands"
+    },
+    {
+        "value":  "+298",
+        "label":  "Faroe Islands (+298)",
+        "country":  "Faroe Islands"
+    },
+    {
+        "value":  "+679",
+        "label":  "Fiji (+679)",
+        "country":  "Fiji"
+    },
+    {
+        "value":  "+358",
+        "label":  "Finland (+358)",
+        "country":  "Finland"
+    },
+    {
+        "value":  "+33",
+        "label":  "France (+33)",
+        "country":  "France"
+    },
+    {
+        "value":  "+594",
+        "label":  "French Guiana (+594)",
+        "country":  "French Guiana"
+    },
+    {
+        "value":  "+689",
+        "label":  "French Polynesia (+689)",
+        "country":  "French Polynesia"
+    },
+    {
+        "value":  "+262",
+        "label":  "French Southern and Antarctic Lands (+262)",
+        "country":  "French Southern and Antarctic Lands"
+    },
+    {
+        "value":  "+241",
+        "label":  "Gabon (+241)",
+        "country":  "Gabon"
+    },
+    {
+        "value":  "+220",
+        "label":  "Gambia (+220)",
+        "country":  "Gambia"
+    },
+    {
+        "value":  "+995",
+        "label":  "Georgia (+995)",
+        "country":  "Georgia"
+    },
+    {
+        "value":  "+49",
+        "label":  "Germany (+49)",
+        "country":  "Germany"
+    },
+    {
+        "value":  "+233",
+        "label":  "Ghana (+233)",
+        "country":  "Ghana"
+    },
+    {
+        "value":  "+350",
+        "label":  "Gibraltar (+350)",
+        "country":  "Gibraltar"
+    },
+    {
+        "value":  "+30",
+        "label":  "Greece (+30)",
+        "country":  "Greece"
+    },
+    {
+        "value":  "+299",
+        "label":  "Greenland (+299)",
+        "country":  "Greenland"
+    },
+    {
+        "value":  "+1473",
+        "label":  "Grenada (+1473)",
+        "country":  "Grenada"
+    },
+    {
+        "value":  "+590",
+        "label":  "Guadeloupe (+590)",
+        "country":  "Guadeloupe"
+    },
+    {
+        "value":  "+1671",
+        "label":  "Guam (+1671)",
+        "country":  "Guam"
+    },
+    {
+        "value":  "+502",
+        "label":  "Guatemala (+502)",
+        "country":  "Guatemala"
+    },
+    {
+        "value":  "+44",
+        "label":  "Guernsey (+44)",
+        "country":  "Guernsey"
+    },
+    {
+        "value":  "+224",
+        "label":  "Guinea (+224)",
+        "country":  "Guinea"
+    },
+    {
+        "value":  "+245",
+        "label":  "Guinea-Bissau (+245)",
+        "country":  "Guinea-Bissau"
+    },
+    {
+        "value":  "+592",
+        "label":  "Guyana (+592)",
+        "country":  "Guyana"
+    },
+    {
+        "value":  "+509",
+        "label":  "Haiti (+509)",
+        "country":  "Haiti"
+    },
+    {
+        "value":  "+504",
+        "label":  "Honduras (+504)",
+        "country":  "Honduras"
+    },
+    {
+        "value":  "+852",
+        "label":  "Hong Kong (+852)",
+        "country":  "Hong Kong"
+    },
+    {
+        "value":  "+36",
+        "label":  "Hungary (+36)",
+        "country":  "Hungary"
+    },
+    {
+        "value":  "+354",
+        "label":  "Iceland (+354)",
+        "country":  "Iceland"
+    },
+    {
+        "value":  "+91",
+        "label":  "India (+91)",
+        "country":  "India"
+    },
+    {
+        "value":  "+62",
+        "label":  "Indonesia (+62)",
+        "country":  "Indonesia"
+    },
+    {
+        "value":  "+98",
+        "label":  "Iran (+98)",
+        "country":  "Iran"
+    },
+    {
+        "value":  "+964",
+        "label":  "Iraq (+964)",
+        "country":  "Iraq"
+    },
+    {
+        "value":  "+353",
+        "label":  "Ireland (+353)",
+        "country":  "Ireland"
+    },
+    {
+        "value":  "+44",
+        "label":  "Isle of Man (+44)",
+        "country":  "Isle of Man"
+    },
+    {
+        "value":  "+972",
+        "label":  "Israel (+972)",
+        "country":  "Israel"
+    },
+    {
+        "value":  "+39",
+        "label":  "Italy (+39)",
+        "country":  "Italy"
+    },
+    {
+        "value":  "+225",
+        "label":  "Ivory Coast (+225)",
+        "country":  "Ivory Coast"
+    },
+    {
+        "value":  "+1876",
+        "label":  "Jamaica (+1876)",
+        "country":  "Jamaica"
+    },
+    {
+        "value":  "+81",
+        "label":  "Japan (+81)",
+        "country":  "Japan"
+    },
+    {
+        "value":  "+44",
+        "label":  "Jersey (+44)",
+        "country":  "Jersey"
+    },
+    {
+        "value":  "+962",
+        "label":  "Jordan (+962)",
+        "country":  "Jordan"
+    },
+    {
+        "value":  "+76",
+        "label":  "Kazakhstan (+76)",
+        "country":  "Kazakhstan"
+    },
+    {
+        "value":  "+77",
+        "label":  "Kazakhstan (+77)",
+        "country":  "Kazakhstan"
+    },
+    {
+        "value":  "+254",
+        "label":  "Kenya (+254)",
+        "country":  "Kenya"
+    },
+    {
+        "value":  "+686",
+        "label":  "Kiribati (+686)",
+        "country":  "Kiribati"
+    },
+    {
+        "value":  "+383",
+        "label":  "Kosovo (+383)",
+        "country":  "Kosovo"
+    },
+    {
+        "value":  "+965",
+        "label":  "Kuwait (+965)",
+        "country":  "Kuwait"
+    },
+    {
+        "value":  "+996",
+        "label":  "Kyrgyzstan (+996)",
+        "country":  "Kyrgyzstan"
+    },
+    {
+        "value":  "+856",
+        "label":  "Laos (+856)",
+        "country":  "Laos"
+    },
+    {
+        "value":  "+371",
+        "label":  "Latvia (+371)",
+        "country":  "Latvia"
+    },
+    {
+        "value":  "+961",
+        "label":  "Lebanon (+961)",
+        "country":  "Lebanon"
+    },
+    {
+        "value":  "+266",
+        "label":  "Lesotho (+266)",
+        "country":  "Lesotho"
+    },
+    {
+        "value":  "+231",
+        "label":  "Liberia (+231)",
+        "country":  "Liberia"
+    },
+    {
+        "value":  "+218",
+        "label":  "Libya (+218)",
+        "country":  "Libya"
+    },
+    {
+        "value":  "+423",
+        "label":  "Liechtenstein (+423)",
+        "country":  "Liechtenstein"
+    },
+    {
+        "value":  "+370",
+        "label":  "Lithuania (+370)",
+        "country":  "Lithuania"
+    },
+    {
+        "value":  "+352",
+        "label":  "Luxembourg (+352)",
+        "country":  "Luxembourg"
+    },
+    {
+        "value":  "+853",
+        "label":  "Macau (+853)",
+        "country":  "Macau"
+    },
+    {
+        "value":  "+261",
+        "label":  "Madagascar (+261)",
+        "country":  "Madagascar"
+    },
+    {
+        "value":  "+265",
+        "label":  "Malawi (+265)",
+        "country":  "Malawi"
+    },
+    {
+        "value":  "+60",
+        "label":  "Malaysia (+60)",
+        "country":  "Malaysia"
+    },
+    {
+        "value":  "+960",
+        "label":  "Maldives (+960)",
+        "country":  "Maldives"
+    },
+    {
+        "value":  "+223",
+        "label":  "Mali (+223)",
+        "country":  "Mali"
+    },
+    {
+        "value":  "+356",
+        "label":  "Malta (+356)",
+        "country":  "Malta"
+    },
+    {
+        "value":  "+692",
+        "label":  "Marshall Islands (+692)",
+        "country":  "Marshall Islands"
+    },
+    {
+        "value":  "+596",
+        "label":  "Martinique (+596)",
+        "country":  "Martinique"
+    },
+    {
+        "value":  "+222",
+        "label":  "Mauritania (+222)",
+        "country":  "Mauritania"
+    },
+    {
+        "value":  "+230",
+        "label":  "Mauritius (+230)",
+        "country":  "Mauritius"
+    },
+    {
+        "value":  "+262",
+        "label":  "Mayotte (+262)",
+        "country":  "Mayotte"
+    },
+    {
+        "value":  "+52",
+        "label":  "Mexico (+52)",
+        "country":  "Mexico"
+    },
+    {
+        "value":  "+691",
+        "label":  "Micronesia (+691)",
+        "country":  "Micronesia"
+    },
+    {
+        "value":  "+373",
+        "label":  "Moldova (+373)",
+        "country":  "Moldova"
+    },
+    {
+        "value":  "+377",
+        "label":  "Monaco (+377)",
+        "country":  "Monaco"
+    },
+    {
+        "value":  "+976",
+        "label":  "Mongolia (+976)",
+        "country":  "Mongolia"
+    },
+    {
+        "value":  "+382",
+        "label":  "Montenegro (+382)",
+        "country":  "Montenegro"
+    },
+    {
+        "value":  "+1664",
+        "label":  "Montserrat (+1664)",
+        "country":  "Montserrat"
+    },
+    {
+        "value":  "+212",
+        "label":  "Morocco (+212)",
+        "country":  "Morocco"
+    },
+    {
+        "value":  "+258",
+        "label":  "Mozambique (+258)",
+        "country":  "Mozambique"
+    },
+    {
+        "value":  "+95",
+        "label":  "Myanmar (+95)",
+        "country":  "Myanmar"
+    },
+    {
+        "value":  "+264",
+        "label":  "Namibia (+264)",
+        "country":  "Namibia"
+    },
+    {
+        "value":  "+674",
+        "label":  "Nauru (+674)",
+        "country":  "Nauru"
+    },
+    {
+        "value":  "+977",
+        "label":  "Nepal (+977)",
+        "country":  "Nepal"
+    },
+    {
+        "value":  "+31",
+        "label":  "Netherlands (+31)",
+        "country":  "Netherlands"
+    },
+    {
+        "value":  "+687",
+        "label":  "New Caledonia (+687)",
+        "country":  "New Caledonia"
+    },
+    {
+        "value":  "+64",
+        "label":  "New Zealand (+64)",
+        "country":  "New Zealand"
+    },
+    {
+        "value":  "+505",
+        "label":  "Nicaragua (+505)",
+        "country":  "Nicaragua"
+    },
+    {
+        "value":  "+227",
+        "label":  "Niger (+227)",
+        "country":  "Niger"
+    },
+    {
+        "value":  "+234",
+        "label":  "Nigeria (+234)",
+        "country":  "Nigeria"
+    },
+    {
+        "value":  "+683",
+        "label":  "Niue (+683)",
+        "country":  "Niue"
+    },
+    {
+        "value":  "+672",
+        "label":  "Norfolk Island (+672)",
+        "country":  "Norfolk Island"
+    },
+    {
+        "value":  "+850",
+        "label":  "North Korea (+850)",
+        "country":  "North Korea"
+    },
+    {
+        "value":  "+389",
+        "label":  "North Macedonia (+389)",
+        "country":  "North Macedonia"
+    },
+    {
+        "value":  "+1670",
+        "label":  "Northern Mariana Islands (+1670)",
+        "country":  "Northern Mariana Islands"
+    },
+    {
+        "value":  "+47",
+        "label":  "Norway (+47)",
+        "country":  "Norway"
+    },
+    {
+        "value":  "+968",
+        "label":  "Oman (+968)",
+        "country":  "Oman"
+    },
+    {
+        "value":  "+92",
+        "label":  "Pakistan (+92)",
+        "country":  "Pakistan"
+    },
+    {
+        "value":  "+680",
+        "label":  "Palau (+680)",
+        "country":  "Palau"
+    },
+    {
+        "value":  "+970",
+        "label":  "Palestine (+970)",
+        "country":  "Palestine"
+    },
+    {
+        "value":  "+507",
+        "label":  "Panama (+507)",
+        "country":  "Panama"
+    },
+    {
+        "value":  "+675",
+        "label":  "Papua New Guinea (+675)",
+        "country":  "Papua New Guinea"
+    },
+    {
+        "value":  "+595",
+        "label":  "Paraguay (+595)",
+        "country":  "Paraguay"
+    },
+    {
+        "value":  "+51",
+        "label":  "Peru (+51)",
+        "country":  "Peru"
+    },
+    {
+        "value":  "+63",
+        "label":  "Philippines (+63)",
+        "country":  "Philippines"
+    },
+    {
+        "value":  "+64",
+        "label":  "Pitcairn Islands (+64)",
+        "country":  "Pitcairn Islands"
+    },
+    {
+        "value":  "+48",
+        "label":  "Poland (+48)",
+        "country":  "Poland"
+    },
+    {
+        "value":  "+351",
+        "label":  "Portugal (+351)",
+        "country":  "Portugal"
+    },
+    {
+        "value":  "+1787",
+        "label":  "Puerto Rico (+1787)",
+        "country":  "Puerto Rico"
+    },
+    {
+        "value":  "+1939",
+        "label":  "Puerto Rico (+1939)",
+        "country":  "Puerto Rico"
+    },
+    {
+        "value":  "+974",
+        "label":  "Qatar (+974)",
+        "country":  "Qatar"
+    },
+    {
+        "value":  "+262",
+        "label":  "Réunion (+262)",
+        "country":  "Réunion"
+    },
+    {
+        "value":  "+40",
+        "label":  "Romania (+40)",
+        "country":  "Romania"
+    },
+    {
+        "value":  "+73",
+        "label":  "Russia (+73)",
+        "country":  "Russia"
+    },
+    {
+        "value":  "+74",
+        "label":  "Russia (+74)",
+        "country":  "Russia"
+    },
+    {
+        "value":  "+75",
+        "label":  "Russia (+75)",
+        "country":  "Russia"
+    },
+    {
+        "value":  "+78",
+        "label":  "Russia (+78)",
+        "country":  "Russia"
+    },
+    {
+        "value":  "+79",
+        "label":  "Russia (+79)",
+        "country":  "Russia"
+    },
+    {
+        "value":  "+250",
+        "label":  "Rwanda (+250)",
+        "country":  "Rwanda"
+    },
+    {
+        "value":  "+590",
+        "label":  "Saint Barthélemy (+590)",
+        "country":  "Saint Barthélemy"
+    },
+    {
+        "value":  "+247",
+        "label":  "Saint Helena, Ascension and Tristan da Cunha (+247)",
+        "country":  "Saint Helena, Ascension and Tristan da Cunha"
+    },
+    {
+        "value":  "+290",
+        "label":  "Saint Helena, Ascension and Tristan da Cunha (+290)",
+        "country":  "Saint Helena, Ascension and Tristan da Cunha"
+    },
+    {
+        "value":  "+1869",
+        "label":  "Saint Kitts and Nevis (+1869)",
+        "country":  "Saint Kitts and Nevis"
+    },
+    {
+        "value":  "+1758",
+        "label":  "Saint Lucia (+1758)",
+        "country":  "Saint Lucia"
+    },
+    {
+        "value":  "+590",
+        "label":  "Saint Martin (+590)",
+        "country":  "Saint Martin"
+    },
+    {
+        "value":  "+508",
+        "label":  "Saint Pierre and Miquelon (+508)",
+        "country":  "Saint Pierre and Miquelon"
+    },
+    {
+        "value":  "+1784",
+        "label":  "Saint Vincent and the Grenadines (+1784)",
+        "country":  "Saint Vincent and the Grenadines"
+    },
+    {
+        "value":  "+685",
+        "label":  "Samoa (+685)",
+        "country":  "Samoa"
+    },
+    {
+        "value":  "+378",
+        "label":  "San Marino (+378)",
+        "country":  "San Marino"
+    },
+    {
+        "value":  "+239",
+        "label":  "São Tomé and Príncipe (+239)",
+        "country":  "São Tomé and Príncipe"
+    },
+    {
+        "value":  "+966",
+        "label":  "Saudi Arabia (+966)",
+        "country":  "Saudi Arabia"
+    },
+    {
+        "value":  "+221",
+        "label":  "Senegal (+221)",
+        "country":  "Senegal"
+    },
+    {
+        "value":  "+381",
+        "label":  "Serbia (+381)",
+        "country":  "Serbia"
+    },
+    {
+        "value":  "+248",
+        "label":  "Seychelles (+248)",
+        "country":  "Seychelles"
+    },
+    {
+        "value":  "+232",
+        "label":  "Sierra Leone (+232)",
+        "country":  "Sierra Leone"
+    },
+    {
+        "value":  "+65",
+        "label":  "Singapore (+65)",
+        "country":  "Singapore"
+    },
+    {
+        "value":  "+1721",
+        "label":  "Sint Maarten (+1721)",
+        "country":  "Sint Maarten"
+    },
+    {
+        "value":  "+421",
+        "label":  "Slovakia (+421)",
+        "country":  "Slovakia"
+    },
+    {
+        "value":  "+386",
+        "label":  "Slovenia (+386)",
+        "country":  "Slovenia"
+    },
+    {
+        "value":  "+677",
+        "label":  "Solomon Islands (+677)",
+        "country":  "Solomon Islands"
+    },
+    {
+        "value":  "+252",
+        "label":  "Somalia (+252)",
+        "country":  "Somalia"
+    },
+    {
+        "value":  "+27",
+        "label":  "South Africa (+27)",
+        "country":  "South Africa"
+    },
+    {
+        "value":  "+500",
+        "label":  "South Georgia (+500)",
+        "country":  "South Georgia"
+    },
+    {
+        "value":  "+82",
+        "label":  "South Korea (+82)",
+        "country":  "South Korea"
+    },
+    {
+        "value":  "+211",
+        "label":  "South Sudan (+211)",
+        "country":  "South Sudan"
+    },
+    {
+        "value":  "+34",
+        "label":  "Spain (+34)",
+        "country":  "Spain"
+    },
+    {
+        "value":  "+94",
+        "label":  "Sri Lanka (+94)",
+        "country":  "Sri Lanka"
+    },
+    {
+        "value":  "+249",
+        "label":  "Sudan (+249)",
+        "country":  "Sudan"
+    },
+    {
+        "value":  "+597",
+        "label":  "Suriname (+597)",
+        "country":  "Suriname"
+    },
+    {
+        "value":  "+4779",
+        "label":  "Svalbard and Jan Mayen (+4779)",
+        "country":  "Svalbard and Jan Mayen"
+    },
+    {
+        "value":  "+46",
+        "label":  "Sweden (+46)",
+        "country":  "Sweden"
+    },
+    {
+        "value":  "+41",
+        "label":  "Switzerland (+41)",
+        "country":  "Switzerland"
+    },
+    {
+        "value":  "+963",
+        "label":  "Syria (+963)",
+        "country":  "Syria"
+    },
+    {
+        "value":  "+886",
+        "label":  "Taiwan (+886)",
+        "country":  "Taiwan"
+    },
+    {
+        "value":  "+992",
+        "label":  "Tajikistan (+992)",
+        "country":  "Tajikistan"
+    },
+    {
+        "value":  "+255",
+        "label":  "Tanzania (+255)",
+        "country":  "Tanzania"
+    },
+    {
+        "value":  "+66",
+        "label":  "Thailand (+66)",
+        "country":  "Thailand"
+    },
+    {
+        "value":  "+670",
+        "label":  "Timor-Leste (+670)",
+        "country":  "Timor-Leste"
+    },
+    {
+        "value":  "+228",
+        "label":  "Togo (+228)",
+        "country":  "Togo"
+    },
+    {
+        "value":  "+690",
+        "label":  "Tokelau (+690)",
+        "country":  "Tokelau"
+    },
+    {
+        "value":  "+676",
+        "label":  "Tonga (+676)",
+        "country":  "Tonga"
+    },
+    {
+        "value":  "+1868",
+        "label":  "Trinidad and Tobago (+1868)",
+        "country":  "Trinidad and Tobago"
+    },
+    {
+        "value":  "+216",
+        "label":  "Tunisia (+216)",
+        "country":  "Tunisia"
+    },
+    {
+        "value":  "+90",
+        "label":  "Türkiye (+90)",
+        "country":  "Türkiye"
+    },
+    {
+        "value":  "+993",
+        "label":  "Turkmenistan (+993)",
+        "country":  "Turkmenistan"
+    },
+    {
+        "value":  "+1649",
+        "label":  "Turks and Caicos Islands (+1649)",
+        "country":  "Turks and Caicos Islands"
+    },
+    {
+        "value":  "+688",
+        "label":  "Tuvalu (+688)",
+        "country":  "Tuvalu"
+    },
+    {
+        "value":  "+256",
+        "label":  "Uganda (+256)",
+        "country":  "Uganda"
+    },
+    {
+        "value":  "+380",
+        "label":  "Ukraine (+380)",
+        "country":  "Ukraine"
+    },
+    {
+        "value":  "+971",
+        "label":  "United Arab Emirates (+971)",
+        "country":  "United Arab Emirates"
+    },
+    {
+        "value":  "+44",
+        "label":  "United Kingdom (+44)",
+        "country":  "United Kingdom"
+    },
+    {
+        "value":  "+1201",
+        "label":  "United States (+1201)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1202",
+        "label":  "United States (+1202)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1203",
+        "label":  "United States (+1203)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1205",
+        "label":  "United States (+1205)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1206",
+        "label":  "United States (+1206)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1207",
+        "label":  "United States (+1207)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1208",
+        "label":  "United States (+1208)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1209",
+        "label":  "United States (+1209)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1210",
+        "label":  "United States (+1210)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1212",
+        "label":  "United States (+1212)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1213",
+        "label":  "United States (+1213)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1214",
+        "label":  "United States (+1214)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1215",
+        "label":  "United States (+1215)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1216",
+        "label":  "United States (+1216)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1217",
+        "label":  "United States (+1217)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1218",
+        "label":  "United States (+1218)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1219",
+        "label":  "United States (+1219)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1220",
+        "label":  "United States (+1220)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1223",
+        "label":  "United States (+1223)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1224",
+        "label":  "United States (+1224)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1225",
+        "label":  "United States (+1225)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1227",
+        "label":  "United States (+1227)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1228",
+        "label":  "United States (+1228)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1229",
+        "label":  "United States (+1229)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1231",
+        "label":  "United States (+1231)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1234",
+        "label":  "United States (+1234)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1239",
+        "label":  "United States (+1239)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1240",
+        "label":  "United States (+1240)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1248",
+        "label":  "United States (+1248)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1251",
+        "label":  "United States (+1251)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1252",
+        "label":  "United States (+1252)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1253",
+        "label":  "United States (+1253)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1254",
+        "label":  "United States (+1254)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1256",
+        "label":  "United States (+1256)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1260",
+        "label":  "United States (+1260)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1262",
+        "label":  "United States (+1262)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1267",
+        "label":  "United States (+1267)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1269",
+        "label":  "United States (+1269)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1270",
+        "label":  "United States (+1270)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1272",
+        "label":  "United States (+1272)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1274",
+        "label":  "United States (+1274)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1276",
+        "label":  "United States (+1276)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1279",
+        "label":  "United States (+1279)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1281",
+        "label":  "United States (+1281)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1283",
+        "label":  "United States (+1283)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1301",
+        "label":  "United States (+1301)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1302",
+        "label":  "United States (+1302)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1303",
+        "label":  "United States (+1303)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1304",
+        "label":  "United States (+1304)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1305",
+        "label":  "United States (+1305)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1307",
+        "label":  "United States (+1307)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1308",
+        "label":  "United States (+1308)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1309",
+        "label":  "United States (+1309)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1310",
+        "label":  "United States (+1310)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1312",
+        "label":  "United States (+1312)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1313",
+        "label":  "United States (+1313)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1314",
+        "label":  "United States (+1314)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1315",
+        "label":  "United States (+1315)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1316",
+        "label":  "United States (+1316)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1317",
+        "label":  "United States (+1317)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1318",
+        "label":  "United States (+1318)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1319",
+        "label":  "United States (+1319)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1320",
+        "label":  "United States (+1320)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1321",
+        "label":  "United States (+1321)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1323",
+        "label":  "United States (+1323)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1325",
+        "label":  "United States (+1325)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1326",
+        "label":  "United States (+1326)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1327",
+        "label":  "United States (+1327)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1330",
+        "label":  "United States (+1330)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1331",
+        "label":  "United States (+1331)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1332",
+        "label":  "United States (+1332)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1334",
+        "label":  "United States (+1334)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1336",
+        "label":  "United States (+1336)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1337",
+        "label":  "United States (+1337)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1339",
+        "label":  "United States (+1339)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1341",
+        "label":  "United States (+1341)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1346",
+        "label":  "United States (+1346)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1347",
+        "label":  "United States (+1347)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1351",
+        "label":  "United States (+1351)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1352",
+        "label":  "United States (+1352)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1360",
+        "label":  "United States (+1360)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1361",
+        "label":  "United States (+1361)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1364",
+        "label":  "United States (+1364)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1380",
+        "label":  "United States (+1380)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1385",
+        "label":  "United States (+1385)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1386",
+        "label":  "United States (+1386)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1401",
+        "label":  "United States (+1401)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1402",
+        "label":  "United States (+1402)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1404",
+        "label":  "United States (+1404)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1405",
+        "label":  "United States (+1405)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1406",
+        "label":  "United States (+1406)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1407",
+        "label":  "United States (+1407)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1408",
+        "label":  "United States (+1408)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1409",
+        "label":  "United States (+1409)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1410",
+        "label":  "United States (+1410)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1412",
+        "label":  "United States (+1412)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1413",
+        "label":  "United States (+1413)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1414",
+        "label":  "United States (+1414)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1415",
+        "label":  "United States (+1415)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1417",
+        "label":  "United States (+1417)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1419",
+        "label":  "United States (+1419)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1423",
+        "label":  "United States (+1423)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1424",
+        "label":  "United States (+1424)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1425",
+        "label":  "United States (+1425)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1430",
+        "label":  "United States (+1430)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1432",
+        "label":  "United States (+1432)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1434",
+        "label":  "United States (+1434)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1435",
+        "label":  "United States (+1435)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1440",
+        "label":  "United States (+1440)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1442",
+        "label":  "United States (+1442)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1443",
+        "label":  "United States (+1443)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1445",
+        "label":  "United States (+1445)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1447",
+        "label":  "United States (+1447)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1448",
+        "label":  "United States (+1448)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1458",
+        "label":  "United States (+1458)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1463",
+        "label":  "United States (+1463)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1464",
+        "label":  "United States (+1464)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1469",
+        "label":  "United States (+1469)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1470",
+        "label":  "United States (+1470)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1475",
+        "label":  "United States (+1475)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1478",
+        "label":  "United States (+1478)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1479",
+        "label":  "United States (+1479)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1480",
+        "label":  "United States (+1480)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1484",
+        "label":  "United States (+1484)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1500",
+        "label":  "United States (+1500)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1501",
+        "label":  "United States (+1501)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1502",
+        "label":  "United States (+1502)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1503",
+        "label":  "United States (+1503)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1504",
+        "label":  "United States (+1504)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1505",
+        "label":  "United States (+1505)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1507",
+        "label":  "United States (+1507)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1508",
+        "label":  "United States (+1508)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1509",
+        "label":  "United States (+1509)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1510",
+        "label":  "United States (+1510)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1512",
+        "label":  "United States (+1512)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1513",
+        "label":  "United States (+1513)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1515",
+        "label":  "United States (+1515)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1516",
+        "label":  "United States (+1516)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1517",
+        "label":  "United States (+1517)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1518",
+        "label":  "United States (+1518)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1520",
+        "label":  "United States (+1520)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1521",
+        "label":  "United States (+1521)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1522",
+        "label":  "United States (+1522)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1523",
+        "label":  "United States (+1523)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1524",
+        "label":  "United States (+1524)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1525",
+        "label":  "United States (+1525)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1526",
+        "label":  "United States (+1526)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1527",
+        "label":  "United States (+1527)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1528",
+        "label":  "United States (+1528)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1529",
+        "label":  "United States (+1529)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1530",
+        "label":  "United States (+1530)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1531",
+        "label":  "United States (+1531)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1532",
+        "label":  "United States (+1532)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1533",
+        "label":  "United States (+1533)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1534",
+        "label":  "United States (+1534)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1535",
+        "label":  "United States (+1535)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1538",
+        "label":  "United States (+1538)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1539",
+        "label":  "United States (+1539)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1540",
+        "label":  "United States (+1540)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1541",
+        "label":  "United States (+1541)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1542",
+        "label":  "United States (+1542)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1543",
+        "label":  "United States (+1543)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1544",
+        "label":  "United States (+1544)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1545",
+        "label":  "United States (+1545)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1546",
+        "label":  "United States (+1546)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1547",
+        "label":  "United States (+1547)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1549",
+        "label":  "United States (+1549)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1550",
+        "label":  "United States (+1550)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1551",
+        "label":  "United States (+1551)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1552",
+        "label":  "United States (+1552)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1553",
+        "label":  "United States (+1553)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1554",
+        "label":  "United States (+1554)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1556",
+        "label":  "United States (+1556)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1557",
+        "label":  "United States (+1557)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1558",
+        "label":  "United States (+1558)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1559",
+        "label":  "United States (+1559)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1561",
+        "label":  "United States (+1561)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1562",
+        "label":  "United States (+1562)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1563",
+        "label":  "United States (+1563)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1564",
+        "label":  "United States (+1564)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1566",
+        "label":  "United States (+1566)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1567",
+        "label":  "United States (+1567)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1569",
+        "label":  "United States (+1569)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1570",
+        "label":  "United States (+1570)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1571",
+        "label":  "United States (+1571)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1572",
+        "label":  "United States (+1572)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1573",
+        "label":  "United States (+1573)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1574",
+        "label":  "United States (+1574)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1575",
+        "label":  "United States (+1575)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1577",
+        "label":  "United States (+1577)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1578",
+        "label":  "United States (+1578)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1580",
+        "label":  "United States (+1580)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1582",
+        "label":  "United States (+1582)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1585",
+        "label":  "United States (+1585)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1586",
+        "label":  "United States (+1586)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1588",
+        "label":  "United States (+1588)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1589",
+        "label":  "United States (+1589)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1601",
+        "label":  "United States (+1601)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1602",
+        "label":  "United States (+1602)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1603",
+        "label":  "United States (+1603)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1605",
+        "label":  "United States (+1605)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1606",
+        "label":  "United States (+1606)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1607",
+        "label":  "United States (+1607)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1608",
+        "label":  "United States (+1608)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1609",
+        "label":  "United States (+1609)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1610",
+        "label":  "United States (+1610)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1612",
+        "label":  "United States (+1612)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1614",
+        "label":  "United States (+1614)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1615",
+        "label":  "United States (+1615)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1616",
+        "label":  "United States (+1616)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1617",
+        "label":  "United States (+1617)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1618",
+        "label":  "United States (+1618)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1619",
+        "label":  "United States (+1619)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1620",
+        "label":  "United States (+1620)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1623",
+        "label":  "United States (+1623)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1626",
+        "label":  "United States (+1626)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1628",
+        "label":  "United States (+1628)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1629",
+        "label":  "United States (+1629)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1630",
+        "label":  "United States (+1630)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1631",
+        "label":  "United States (+1631)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1636",
+        "label":  "United States (+1636)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1640",
+        "label":  "United States (+1640)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1641",
+        "label":  "United States (+1641)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1646",
+        "label":  "United States (+1646)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1650",
+        "label":  "United States (+1650)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1651",
+        "label":  "United States (+1651)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1656",
+        "label":  "United States (+1656)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1657",
+        "label":  "United States (+1657)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1659",
+        "label":  "United States (+1659)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1660",
+        "label":  "United States (+1660)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1661",
+        "label":  "United States (+1661)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1662",
+        "label":  "United States (+1662)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1667",
+        "label":  "United States (+1667)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1669",
+        "label":  "United States (+1669)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1678",
+        "label":  "United States (+1678)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1679",
+        "label":  "United States (+1679)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1680",
+        "label":  "United States (+1680)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1681",
+        "label":  "United States (+1681)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1682",
+        "label":  "United States (+1682)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1689",
+        "label":  "United States (+1689)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1700",
+        "label":  "United States (+1700)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1701",
+        "label":  "United States (+1701)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1702",
+        "label":  "United States (+1702)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1703",
+        "label":  "United States (+1703)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1704",
+        "label":  "United States (+1704)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1706",
+        "label":  "United States (+1706)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1707",
+        "label":  "United States (+1707)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1708",
+        "label":  "United States (+1708)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1710",
+        "label":  "United States (+1710)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1712",
+        "label":  "United States (+1712)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1713",
+        "label":  "United States (+1713)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1714",
+        "label":  "United States (+1714)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1715",
+        "label":  "United States (+1715)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1716",
+        "label":  "United States (+1716)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1717",
+        "label":  "United States (+1717)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1718",
+        "label":  "United States (+1718)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1719",
+        "label":  "United States (+1719)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1720",
+        "label":  "United States (+1720)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1724",
+        "label":  "United States (+1724)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1725",
+        "label":  "United States (+1725)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1726",
+        "label":  "United States (+1726)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1727",
+        "label":  "United States (+1727)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1730",
+        "label":  "United States (+1730)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1731",
+        "label":  "United States (+1731)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1732",
+        "label":  "United States (+1732)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1734",
+        "label":  "United States (+1734)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1737",
+        "label":  "United States (+1737)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1740",
+        "label":  "United States (+1740)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1743",
+        "label":  "United States (+1743)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1747",
+        "label":  "United States (+1747)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1754",
+        "label":  "United States (+1754)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1757",
+        "label":  "United States (+1757)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1760",
+        "label":  "United States (+1760)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1762",
+        "label":  "United States (+1762)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1763",
+        "label":  "United States (+1763)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1765",
+        "label":  "United States (+1765)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1769",
+        "label":  "United States (+1769)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1770",
+        "label":  "United States (+1770)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1771",
+        "label":  "United States (+1771)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1772",
+        "label":  "United States (+1772)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1773",
+        "label":  "United States (+1773)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1774",
+        "label":  "United States (+1774)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1775",
+        "label":  "United States (+1775)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1779",
+        "label":  "United States (+1779)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1781",
+        "label":  "United States (+1781)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1785",
+        "label":  "United States (+1785)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1786",
+        "label":  "United States (+1786)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1801",
+        "label":  "United States (+1801)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1802",
+        "label":  "United States (+1802)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1803",
+        "label":  "United States (+1803)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1804",
+        "label":  "United States (+1804)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1805",
+        "label":  "United States (+1805)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1806",
+        "label":  "United States (+1806)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1808",
+        "label":  "United States (+1808)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1810",
+        "label":  "United States (+1810)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1812",
+        "label":  "United States (+1812)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1813",
+        "label":  "United States (+1813)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1814",
+        "label":  "United States (+1814)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1815",
+        "label":  "United States (+1815)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1816",
+        "label":  "United States (+1816)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1817",
+        "label":  "United States (+1817)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1818",
+        "label":  "United States (+1818)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1820",
+        "label":  "United States (+1820)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1826",
+        "label":  "United States (+1826)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1828",
+        "label":  "United States (+1828)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1830",
+        "label":  "United States (+1830)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1831",
+        "label":  "United States (+1831)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1832",
+        "label":  "United States (+1832)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1838",
+        "label":  "United States (+1838)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1839",
+        "label":  "United States (+1839)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1840",
+        "label":  "United States (+1840)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1843",
+        "label":  "United States (+1843)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1845",
+        "label":  "United States (+1845)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1847",
+        "label":  "United States (+1847)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1848",
+        "label":  "United States (+1848)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1850",
+        "label":  "United States (+1850)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1854",
+        "label":  "United States (+1854)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1856",
+        "label":  "United States (+1856)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1857",
+        "label":  "United States (+1857)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1858",
+        "label":  "United States (+1858)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1859",
+        "label":  "United States (+1859)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1860",
+        "label":  "United States (+1860)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1862",
+        "label":  "United States (+1862)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1863",
+        "label":  "United States (+1863)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1864",
+        "label":  "United States (+1864)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1865",
+        "label":  "United States (+1865)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1870",
+        "label":  "United States (+1870)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1872",
+        "label":  "United States (+1872)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1878",
+        "label":  "United States (+1878)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1901",
+        "label":  "United States (+1901)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1903",
+        "label":  "United States (+1903)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1904",
+        "label":  "United States (+1904)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1906",
+        "label":  "United States (+1906)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1907",
+        "label":  "United States (+1907)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1908",
+        "label":  "United States (+1908)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1909",
+        "label":  "United States (+1909)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1910",
+        "label":  "United States (+1910)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1912",
+        "label":  "United States (+1912)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1913",
+        "label":  "United States (+1913)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1914",
+        "label":  "United States (+1914)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1915",
+        "label":  "United States (+1915)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1916",
+        "label":  "United States (+1916)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1917",
+        "label":  "United States (+1917)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1918",
+        "label":  "United States (+1918)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1919",
+        "label":  "United States (+1919)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1920",
+        "label":  "United States (+1920)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1925",
+        "label":  "United States (+1925)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1928",
+        "label":  "United States (+1928)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1929",
+        "label":  "United States (+1929)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1930",
+        "label":  "United States (+1930)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1931",
+        "label":  "United States (+1931)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1934",
+        "label":  "United States (+1934)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1936",
+        "label":  "United States (+1936)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1937",
+        "label":  "United States (+1937)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1938",
+        "label":  "United States (+1938)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1940",
+        "label":  "United States (+1940)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1941",
+        "label":  "United States (+1941)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1943",
+        "label":  "United States (+1943)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1945",
+        "label":  "United States (+1945)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1947",
+        "label":  "United States (+1947)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1948",
+        "label":  "United States (+1948)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1949",
+        "label":  "United States (+1949)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1951",
+        "label":  "United States (+1951)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1952",
+        "label":  "United States (+1952)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1954",
+        "label":  "United States (+1954)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1956",
+        "label":  "United States (+1956)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1959",
+        "label":  "United States (+1959)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1970",
+        "label":  "United States (+1970)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1971",
+        "label":  "United States (+1971)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1972",
+        "label":  "United States (+1972)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1973",
+        "label":  "United States (+1973)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1975",
+        "label":  "United States (+1975)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1978",
+        "label":  "United States (+1978)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1979",
+        "label":  "United States (+1979)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1980",
+        "label":  "United States (+1980)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1983",
+        "label":  "United States (+1983)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1984",
+        "label":  "United States (+1984)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1985",
+        "label":  "United States (+1985)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1986",
+        "label":  "United States (+1986)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+1989",
+        "label":  "United States (+1989)",
+        "country":  "United States"
+    },
+    {
+        "value":  "+268",
+        "label":  "United States Minor Outlying Islands (+268)",
+        "country":  "United States Minor Outlying Islands"
+    },
+    {
+        "value":  "+1340",
+        "label":  "United States Virgin Islands (+1340)",
+        "country":  "United States Virgin Islands"
+    },
+    {
+        "value":  "+598",
+        "label":  "Uruguay (+598)",
+        "country":  "Uruguay"
+    },
+    {
+        "value":  "+998",
+        "label":  "Uzbekistan (+998)",
+        "country":  "Uzbekistan"
+    },
+    {
+        "value":  "+678",
+        "label":  "Vanuatu (+678)",
+        "country":  "Vanuatu"
+    },
+    {
+        "value":  "+379",
+        "label":  "Vatican City (+379)",
+        "country":  "Vatican City"
+    },
+    {
+        "value":  "+3906698",
+        "label":  "Vatican City (+3906698)",
+        "country":  "Vatican City"
+    },
+    {
+        "value":  "+58",
+        "label":  "Venezuela (+58)",
+        "country":  "Venezuela"
+    },
+    {
+        "value":  "+84",
+        "label":  "Vietnam (+84)",
+        "country":  "Vietnam"
+    },
+    {
+        "value":  "+681",
+        "label":  "Wallis and Futuna (+681)",
+        "country":  "Wallis and Futuna"
+    },
+    {
+        "value":  "+2125288",
+        "label":  "Western Sahara (+2125288)",
+        "country":  "Western Sahara"
+    },
+    {
+        "value":  "+2125289",
+        "label":  "Western Sahara (+2125289)",
+        "country":  "Western Sahara"
+    },
+    {
+        "value":  "+967",
+        "label":  "Yemen (+967)",
+        "country":  "Yemen"
+    },
+    {
+        "value":  "+260",
+        "label":  "Zambia (+260)",
+        "country":  "Zambia"
+    },
+    {
+        "value":  "+263",
+        "label":  "Zimbabwe (+263)",
+        "country":  "Zimbabwe"
+    }
+]

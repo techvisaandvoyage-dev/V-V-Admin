@@ -816,8 +816,46 @@ const UserDashboard = () => {
                           </div>
 
                           <div className="text-right flex-shrink-0 self-start sm:self-center">
-                            <div className="text-sm font-bold text-text-primary">
-                              ₹{Number(booking.fee || 0).toLocaleString("en-IN")}
+                            <div className="group relative inline-flex flex-col items-end">
+                              <div className="text-sm font-bold text-text-primary cursor-default">
+                                ₹{Number(booking.totalAmount ?? booking.fee ?? 0).toLocaleString("en-IN")}
+                              </div>
+                              <div className="pointer-events-none invisible absolute right-0 top-full z-30 mt-2 w-64 translate-y-1 rounded-2xl border border-cyan/20 bg-surface px-3 py-3 text-left opacity-0 shadow-[0_18px_40px_-20px_rgba(0,212,255,0.28)] transition duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                                <div className="space-y-2 text-xs">
+                                  <div className="flex items-center justify-between gap-3 text-text-secondary">
+                                    <span>
+                                      Government Fee
+                                      {Number(booking.travellerCount || 1) > 1 ? ` x${Number(booking.travellerCount || 1)}` : ""}
+                                    </span>
+                                    <span className="font-semibold text-text-primary">
+                                      ₹{Number(booking.governmentFeeTotal || 0).toLocaleString("en-IN")}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 text-text-secondary">
+                                    <span>
+                                      Our Service Fee
+                                      {Number(booking.travellerCount || 1) > 1 ? ` x${Number(booking.travellerCount || 1)}` : ""}
+                                    </span>
+                                    <span className="font-semibold text-text-primary">
+                                      ₹{Number(booking.serviceFeeTotal || 0).toLocaleString("en-IN")}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 text-text-secondary">
+                                    <span>GST</span>
+                                    <span className="font-semibold text-text-primary">
+                                      ₹{Number(booking.gstAmount || 0).toLocaleString("en-IN")}
+                                    </span>
+                                  </div>
+                                  <div className="border-t border-border pt-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-semibold text-text-primary">Total Amount</span>
+                                      <span className="font-bold text-cyan">
+                                        ₹{Number(booking.totalAmount ?? booking.fee ?? 0).toLocaleString("en-IN")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                             <button
                               type="button"

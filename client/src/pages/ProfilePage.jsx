@@ -27,27 +27,14 @@ import Button from "../components/ui/Button";
 import Input, { Select } from "../components/ui/Input";
 import { useNavigate } from "react-router-dom";
 import { formatOrdinalDate } from "../utils/dateUtils";
-
-const PHONE_COUNTRY_OPTIONS = [
-  { value: "+91", label: "India (+91)" },
-  { value: "+1", label: "United States (+1)" },
-  { value: "+44", label: "United Kingdom (+44)" },
-  { value: "+61", label: "Australia (+61)" },
-  { value: "+971", label: "UAE (+971)" },
-  { value: "+966", label: "Saudi Arabia (+966)" },
-  { value: "+65", label: "Singapore (+65)" },
-  { value: "+60", label: "Malaysia (+60)" },
-];
-
-const DEFAULT_PHONE_COUNTRY_CODE = "+91";
-
-const parseProfilePhone = (value) => {
-  const digits = String(value || "").replace(/\D/g, "");
-  return {
-    countryCode: DEFAULT_PHONE_COUNTRY_CODE,
-    phone: digits.slice(-10),
-  };
-};
+import {
+  DEFAULT_PHONE_COUNTRY_CODE,
+  filterPhoneCountryOptions,
+  findPhoneCountryOption,
+  getPhoneCountryOptions,
+  loadPhoneCountryOptions,
+  parsePhoneWithCountryCode,
+} from "../utils/phoneCountryCodes";
 
 const formatMemberSince = (value) => {
   if (!value) return "Recently joined";
@@ -119,6 +106,7 @@ const ProfilePage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [countryCodeOpen, setCountryCodeOpen] = useState(false);
   const [countryCodeSearch, setCountryCodeSearch] = useState("");
+  const [phoneCountryOptions, setPhoneCountryOptions] = useState(() => getPhoneCountryOptions());
   const [showSecurityForm, setShowSecurityForm] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -178,8 +166,20 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
+    let mounted = true;
+    loadPhoneCountryOptions().then((options) => {
+      if (mounted && Array.isArray(options) && options.length) {
+        setPhoneCountryOptions(options);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (user) {
-      const parsedPhone = parseProfilePhone(user.phone);
+      const parsedPhone = parsePhoneWithCountryCode(user.phone, phoneCountryOptions);
       setFormData({
         name: user.name || "",
         age: user.age || "",
@@ -189,7 +189,7 @@ const ProfilePage = () => {
         phoneCountryCode: parsedPhone.countryCode,
       });
     }
-  }, [user]);
+  }, [phoneCountryOptions, user]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -230,7 +230,7 @@ const ProfilePage = () => {
   const handleCancel = () => {
     setIsEditing(false);
     if (user) {
-      const parsedPhone = parseProfilePhone(user.phone);
+      const parsedPhone = parsePhoneWithCountryCode(user.phone, phoneCountryOptions);
       setFormData({
         name: user.name || "",
         age: user.age || "",
@@ -297,17 +297,14 @@ const ProfilePage = () => {
   if (!user) return null;
 
   const displayPhoneDigits = String(user.phone || formData.phone || "").replace(/\D/g, "");
+  const displayPhoneCountryCode = formData.phoneCountryCode || DEFAULT_PHONE_COUNTRY_CODE;
   const displayPhone =
     displayPhoneDigits.length === 10
-      ? `+91 ${displayPhoneDigits.slice(0, 5)} ${displayPhoneDigits.slice(5)}`
+      ? `${displayPhoneCountryCode} ${displayPhoneDigits.slice(0, 5)} ${displayPhoneDigits.slice(5)}`
       : (user.phone || formData.phone || "Not added");
 
-  const filteredCountryOptions = PHONE_COUNTRY_OPTIONS.filter((option) =>
-    option.label.toLowerCase().includes(countryCodeSearch.trim().toLowerCase())
-  );
-  const selectedCountryOption =
-    PHONE_COUNTRY_OPTIONS.find((option) => option.value === formData.phoneCountryCode) ||
-    PHONE_COUNTRY_OPTIONS[0];
+  const filteredCountryOptions = filterPhoneCountryOptions(countryCodeSearch, phoneCountryOptions);
+  const selectedCountryOption = findPhoneCountryOption(formData.phoneCountryCode, phoneCountryOptions);
 
   const memberSince = formatMemberSince(user.createdAt);
 
@@ -488,7 +485,7 @@ const ProfilePage = () => {
                           {filteredCountryOptions.length ? (
                             filteredCountryOptions.map((option) => (
                               <button
-                                key={option.value}
+                                key={option.label}
                                 type="button"
                                 onClick={() => {
                                   setFormData((prev) => ({ ...prev, phoneCountryCode: option.value }));

@@ -28,6 +28,7 @@ const { protect, requireAdmin } = require('./middleware/authMiddleware');
 const {
   getGlobalCountryDefaults,
   updateGlobalBasePrice,
+  updateGlobalGovernmentFee,
   updateGlobalVisaType,
   updateGlobalValidity,
   updateGlobalLengthOfStay,
@@ -39,6 +40,7 @@ const {
 } = require('./controllers/countryController');
 app.get('/api/admin/control/country-defaults', protect, requireAdmin, getGlobalCountryDefaults);
 app.post('/api/admin/control/base-price', protect, requireAdmin, updateGlobalBasePrice);
+app.post('/api/admin/control/government-fee', protect, requireAdmin, updateGlobalGovernmentFee);
 app.post('/api/admin/control/visa-type', protect, requireAdmin, updateGlobalVisaType);
 app.post('/api/admin/control/validity', protect, requireAdmin, updateGlobalValidity);
 app.post('/api/admin/control/length-of-stay', protect, requireAdmin, updateGlobalLengthOfStay);

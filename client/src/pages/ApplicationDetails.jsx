@@ -1373,6 +1373,8 @@ const ApplicationDetails = () => {
   };
 
   const resolvePayAmountRupees = (appDoc) => {
+    const fromTotal = Number(appDoc?.totalAmount);
+    if (Number.isFinite(fromTotal) && fromTotal > 0) return fromTotal;
     const count = Math.max(1, Number(appDoc?.travellerCount || 1));
     const service = SERVICE_FEE_PER_TRAVELLER * count;
     const gst = Math.round(service * GST_RATE);
@@ -1585,7 +1587,45 @@ const ApplicationDetails = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-muted">Amount</span>
-                <span className="font-semibold text-text-primary">{"\u20B9"}{Number(booking.fee || 0).toLocaleString("en-IN")}</span>
+                <div className="group relative inline-flex flex-col items-end">
+                  <span className="font-semibold text-text-primary cursor-default">{"\u20B9"}{Number(booking.totalAmount ?? booking.fee ?? 0).toLocaleString("en-IN")}</span>
+                  <div className="pointer-events-none invisible absolute right-0 top-full z-30 mt-2 w-64 translate-y-1 rounded-2xl border border-cyan/20 bg-surface px-3 py-3 text-left opacity-0 shadow-[0_18px_40px_-20px_rgba(0,212,255,0.28)] transition duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between gap-3 text-text-secondary">
+                        <span>
+                          Government Fee
+                          {Number(booking.travellerCount || 1) > 1 ? ` x${Number(booking.travellerCount || 1)}` : ""}
+                        </span>
+                        <span className="font-semibold text-text-primary">
+                          {"\u20B9"}{Number(booking.governmentFeeTotal || 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-text-secondary">
+                        <span>
+                          Our Service Fee
+                          {Number(booking.travellerCount || 1) > 1 ? ` x${Number(booking.travellerCount || 1)}` : ""}
+                        </span>
+                        <span className="font-semibold text-text-primary">
+                          {"\u20B9"}{Number(booking.serviceFeeTotal || 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-text-secondary">
+                        <span>GST</span>
+                        <span className="font-semibold text-text-primary">
+                          {"\u20B9"}{Number(booking.gstAmount || 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="border-t border-border pt-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-semibold text-text-primary">Total Amount</span>
+                          <span className="font-bold text-cyan">
+                            {"\u20B9"}{Number(booking.totalAmount ?? booking.fee ?? 0).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-muted">Transaction ID</span>

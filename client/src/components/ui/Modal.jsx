@@ -23,6 +23,7 @@ const Modal = ({
   hideCloseButton = false,
   closeOnBackdropClick = true,
   footer,
+  allowOverflow = false,
 }) => {
   // ── Lock body scroll when modal is open ──────────────────
   useEffect(() => {
@@ -79,7 +80,7 @@ const Modal = ({
             className={`
               w-full ${sizes[size]}
               bg-surface border border-border rounded-2xl shadow-modal
-              flex flex-col max-h-[90vh] overflow-hidden
+              flex flex-col max-h-[90vh] ${allowOverflow ? "overflow-visible" : "overflow-hidden"}
             `}
             onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside
           >
@@ -103,7 +104,7 @@ const Modal = ({
             )}
 
             {/* ── Body ── */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
+            <div className={`flex-1 min-h-0 px-6 py-5 ${allowOverflow ? "overflow-visible" : "overflow-y-auto"}`}>
               {children}
             </div>
 

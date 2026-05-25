@@ -10,8 +10,22 @@ function getCardVisaTypeLabel(visaTypeValue) {
 
 function getProcessingDaysLabel(value) {
   const v = String(value ?? "").trim();
-  if (!v) return "—";
+  if (!v) return "-";
   return /^\d+(\s*-\s*\d+)?$/.test(v) ? `${v} days` : v;
+}
+
+function getGovernmentFeeValue(country) {
+  const candidates = [
+    country?.governmentFee,
+    country?.governmentFeeOverride,
+    country?.governmentFees,
+    country?.govtFee,
+    country?.govFee,
+    country?.embassyFee,
+    country?.visaFee,
+  ];
+  const match = candidates.find((value) => Number.isFinite(Number(value)) && Number(value) >= 0);
+  return Number.isFinite(Number(match)) ? Number(match) : 0;
 }
 
 function buildCountryTiles(country, display) {
@@ -20,7 +34,7 @@ function buildCountryTiles(country, display) {
     tiles.push({ key: "visaType", label: "VISA TYPE", value: getCardVisaTypeLabel(country.visaType) });
   }
   if (display?.showValidity !== false) {
-    tiles.push({ key: "validity", label: "VALIDITY", value: country.validity || "—" });
+    tiles.push({ key: "validity", label: "VALIDITY", value: country.validity || "-" });
   }
   if (display?.showProcessingDays !== false && tiles.length + 1 < 3) {
     tiles.push({
@@ -29,7 +43,7 @@ function buildCountryTiles(country, display) {
       value: getProcessingDaysLabel(country.processingDays),
     });
   }
-  tiles.push({ key: "fees", label: "FEES", value: `₹${country.basePrice}` });
+  tiles.push({ key: "fees", label: "GOVT FEE", value: `₹${getGovernmentFeeValue(country)}` });
   return tiles;
 }
 
@@ -235,7 +249,10 @@ const DestinationCard = ({
                 {allDocs.length > 0 ? (
                   <ul className="grid grid-cols-2 gap-x-3 gap-y-3.5">
                     {allDocs.map((key, idx) => (
-                      <li key={idx} className="flex items-start gap-1.5 text-[11px] font-semibold leading-tight text-white/95 drop-shadow-lg">
+                      <li
+                        key={idx}
+                        className="flex items-start gap-1.5 text-[11px] font-semibold leading-tight text-white/95 drop-shadow-lg"
+                      >
                         <Check size={11} className="mt-0.5 shrink-0 text-cyan" strokeWidth={3} />
                         <span className="line-clamp-2" title={getDocumentLabel(key, documentCatalog)}>
                           {getDocumentLabel(key, documentCatalog)}

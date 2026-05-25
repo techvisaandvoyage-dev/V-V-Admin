@@ -2,14 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  CalendarDays,
   Building2,
   CheckCircle,
   CreditCard,
   FileText,
   Image as ImageIcon,
+  Landmark,
   Minus,
   Plane,
   Plus,
+  Tag,
   X,
   ShieldCheck,
   Upload,
@@ -124,6 +127,17 @@ const normalizeProcessingDays = (value) => {
   const matches = String(value || "").match(/\d+/g);
   if (!matches?.length) return 0;
   return Number(matches[matches.length - 1]);
+};
+
+const formatSummaryDate = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 const DOCUMENT_META = {
@@ -275,6 +289,7 @@ const ApplicationForm = () => {
   const [checkoutStarting, setCheckoutStarting] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalMode, setContactModalMode] = useState("phone");
+  const [contactGateDismissed, setContactGateDismissed] = useState(false);
   const continueAfterContactRef = useRef(null);
   /**
    * Toggles the "Do you want to skip document upload?" confirmation modal.
@@ -288,6 +303,7 @@ const ApplicationForm = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !localStorage.getItem("token")) return;
+    if (contactGateDismissed) return;
     const method = sessionAuthMethod ?? useAuthStore.getState().sessionAuthMethod;
     if (needsPhoneContactGate(method, user)) {
       setContactModalMode("phone");
@@ -296,7 +312,7 @@ const ApplicationForm = () => {
       setContactModalMode("email");
       setContactModalOpen(true);
     }
-  }, [isAuthenticated, user, sessionAuthMethod]);
+  }, [contactGateDismissed, isAuthenticated, user, sessionAuthMethod]);
 
   useEffect(() => {
     let alive = true;
@@ -920,6 +936,33 @@ const ApplicationForm = () => {
     [travelerComplete, travelers]
   );
 
+  const summaryVisaType = flowVisaOption || country?.visaType || "e-Visa";
+  const governmentFeePerTraveler = useMemo(() => {
+    const candidates = [
+      country?.governmentFee,
+      country?.governmentFeeOverride,
+      country?.governmentFees,
+      country?.govtFee,
+      country?.govFee,
+      country?.embassyFee,
+      country?.visaFee,
+    ];
+    const matched = candidates.find((value) => Number.isFinite(Number(value)) && Number(value) >= 0);
+    return Number.isFinite(Number(matched)) ? Number(matched) : 0;
+  }, [country]);
+  const serviceFeePerTraveler = Number.isFinite(Number(country?.basePrice)) ? Number(country.basePrice) : 0;
+  const summaryTravelerCount = Math.max(1, travelers.length);
+  const effectiveGstEnabled = country?.gstEnabled !== false;
+  const effectiveGstRate = Number.isFinite(Number(country?.gstRate)) ? Number(country.gstRate) : 18;
+  const serviceFeeTotal = serviceFeePerTraveler * summaryTravelerCount;
+  const gstAmount = effectiveGstEnabled ? Math.round(serviceFeeTotal * (effectiveGstRate / 100)) : 0;
+  const payableNowAmount = serviceFeeTotal + gstAmount;
+  const governmentFeeTotal = governmentFeePerTraveler * summaryTravelerCount;
+  const overallTotal = governmentFeeTotal + payableNowAmount;
+  const summaryTravelRange = flowDateFrom || flowDateTo
+    ? `${formatSummaryDate(flowDateFrom)} - ${formatSummaryDate(flowDateTo)}`
+    : "Dates not selected";
+
   const persistTravelerUploads = async (appId) => {
     const sharedLink = String(sharedDriveLink || "").trim();
 
@@ -1112,6 +1155,8 @@ const ApplicationForm = () => {
             travellerCount: travelers.length,
             fee: Number(data.application?.fee || 0),
             baseFee: Number(country?.basePrice || 0) * travelers.length,
+            governmentFeePerTraveler: Number(country?.governmentFee || 0),
+            governmentFeeTotal: Number(country?.governmentFee || 0) * travelers.length,
             gstEnabled: country?.gstEnabled !== false,
             gstRate: Number.isFinite(Number(country?.gstRate)) ? Number(country.gstRate) : 18,
             travelerNames,
@@ -1165,6 +1210,10 @@ const ApplicationForm = () => {
     const submit = () => handleContinueSubmit({ skipped });
     const token = localStorage.getItem("token");
     if (token && user) {
+      if (contactGateDismissed) {
+        await submit();
+        return;
+      }
       const method = sessionAuthMethod ?? useAuthStore.getState().sessionAuthMethod;
       if (needsPhoneContactGate(method, user)) {
         continueAfterContactRef.current = submit;
@@ -1201,7 +1250,7 @@ const ApplicationForm = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col pb-20">
       <Navbar />
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
         <button
           type="button"
           onClick={() => {
@@ -1233,45 +1282,47 @@ const ApplicationForm = () => {
           <ArrowLeft size={18} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
         </button>
 
-        <div>
-          <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-1">
-            {country.flagEmoji} {country.name}
-          </p>
-          <h1 className="text-2xl font-bold text-text-primary">Traveler Document Upload</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            {uploadSettings.enableFileUpload && uploadSettings.enableGDriveUpload
-              ? "Add each traveler and optionally share one Google Drive folder for all."
-              : uploadSettings.enableFileUpload
-                ? "Add each traveler and continue with the application."
-                : uploadSettings.enableGDriveUpload
-                  ? "Add each traveler and share one Google Drive folder link for all travelers."
-                  : "Add each traveler and continue with the application."}
-          </p>
-        </div>
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-5 xl:gap-6">
+          <div className="space-y-6 lg:col-span-8">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-cyan font-semibold mb-1">
+                {country.flagEmoji} {country.name}
+              </p>
+              <h1 className="text-2xl font-bold text-text-primary">Traveler Document Upload</h1>
+              <p className="text-sm text-text-secondary mt-1">
+                {uploadSettings.enableFileUpload && uploadSettings.enableGDriveUpload
+                  ? "Add each traveler and optionally share one Google Drive folder for all."
+                  : uploadSettings.enableFileUpload
+                    ? "Add each traveler and continue with the application."
+                    : uploadSettings.enableGDriveUpload
+                      ? "Add each traveler and share one Google Drive folder link for all travelers."
+                      : "Add each traveler and continue with the application."}
+              </p>
+            </div>
 
-        <div className="rounded-2xl border border-border bg-surface p-4 flex items-center justify-between">
-          <p className="text-sm font-medium text-text-primary">No. of Travelers</p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={removeTraveler}
-              className="w-8 h-8 rounded-full border border-border bg-background text-text-primary flex items-center justify-center disabled:opacity-40"
-              disabled={travelers.length <= 1}
-            >
-              <Minus size={14} />
-            </button>
-            <span className="w-6 text-center font-semibold text-text-primary">{travelers.length}</span>
-            <button
-              type="button"
-              onClick={addTraveler}
-              className="w-8 h-8 rounded-full border border-border bg-background text-text-primary flex items-center justify-center"
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
+            <div className="rounded-2xl border border-border bg-surface p-4 flex items-center justify-between">
+              <p className="text-sm font-medium text-text-primary">No. of Travelers</p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={removeTraveler}
+                  className="w-8 h-8 rounded-full border border-border bg-background text-text-primary flex items-center justify-center disabled:opacity-40"
+                  disabled={travelers.length <= 1}
+                >
+                  <Minus size={14} />
+                </button>
+                <span className="w-6 text-center font-semibold text-text-primary">{travelers.length}</span>
+                <button
+                  type="button"
+                  onClick={addTraveler}
+                  className="w-8 h-8 rounded-full border border-border bg-background text-text-primary flex items-center justify-center"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            </div>
 
-        <section id="document-upload-section" className="space-y-4 scroll-mt-28">
+            <section id="document-upload-section" className="space-y-4 scroll-mt-28">
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {travelers.map((traveler, index) => (
@@ -1611,25 +1662,161 @@ const ApplicationForm = () => {
               />
             )}
           </>
-        </section>
+            </section>
 
-        <Button
-          variant="primary"
-          size="lg"
-          fullWidth
-          loading={checkoutStarting}
-          disabled={checkoutStarting}
-          onClick={handleContinue}
-        >
-          Continue
-        </Button>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={checkoutStarting}
+              disabled={checkoutStarting}
+              onClick={handleContinue}
+            >
+              Continue
+            </Button>
+          </div>
+
+          <aside className="lg:col-span-4">
+            <div className="rounded-[2rem] border border-border bg-surface p-4 shadow-[0_25px_60px_-30px_rgba(15,23,42,0.16)] lg:sticky lg:top-24">
+              <div className="mb-4">
+                <h2 className="text-[2rem] font-bold tracking-tight text-text-primary">Apply for {country.name}</h2>
+              </div>
+
+              <div className="overflow-hidden rounded-[1.8rem] border border-white/65 bg-white shadow-[0_28px_80px_-46px_rgba(88,28,135,0.34)]">
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,#3b0764_0%,#6d28d9_48%,#7c3aed_78%,#8b5cf6_100%)] px-5 pb-6 pt-5 text-white">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.20),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.12),transparent_28%)]" />
+                  <div className="absolute -right-8 top-8 h-40 w-40 rounded-full border border-white/10" />
+                  <div className="absolute -right-2 top-16 h-28 w-28 rounded-full border border-white/10" />
+
+                  <div className="relative z-10">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/74">Amount To Be Paid Now</p>
+                    <p className="mt-3 text-[2.7rem] font-extrabold tracking-tight text-white">₹{payableNowAmount.toLocaleString("en-IN")}</p>
+
+                    <div className="mt-5 grid gap-3">
+                      <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 text-white/86">
+                          <Plane size={15} />
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Visa Type</span>
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-white">{summaryVisaType}</p>
+                      </div>
+
+                      <div className="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 text-white/86">
+                          <CalendarDays size={15} />
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Travel Dates</span>
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-white">{summaryTravelRange}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3.5 bg-[linear-gradient(180deg,#ffffff_0%,#faf7ff_100%)] p-5">
+                  <div className="rounded-[1.3rem] border border-violet-100 bg-white/90 p-4 shadow-[0_18px_40px_-34px_rgba(88,28,135,0.22)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Travellers</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {travelers.map((traveler, index) => (
+                            <span
+                              key={`summary-traveler-${index}`}
+                              className="rounded-full border border-violet-100 bg-violet-50/80 px-3 py-1.5 text-xs font-medium text-slate-700"
+                            >
+                              {String(traveler.name || "").trim() || `Traveler ${index + 1}`}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-700">
+                        {summaryTravelerCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-[1.3rem] border border-violet-100 bg-white/90 p-4 shadow-[0_18px_40px_-34px_rgba(88,28,135,0.22)]">
+                    <div className="flex items-center gap-3 rounded-[1rem] bg-slate-50/85 px-2 py-2">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] bg-blue-50 text-blue-600">
+                        <Landmark size={20} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-semibold tracking-tight text-slate-950">Government Fee</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {summaryTravelerCount > 1
+                            ? `₹${governmentFeePerTraveler.toLocaleString("en-IN")} x ${summaryTravelerCount} travellers`
+                            : "Shown separately for destination rules"}
+                        </p>
+                      </div>
+                      <span className="text-lg font-extrabold tracking-tight text-slate-950">
+                        ₹{governmentFeeTotal.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 rounded-[1rem] bg-slate-50/85 px-2 py-2">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] bg-violet-50 text-violet-600">
+                        <Tag size={20} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-semibold tracking-tight text-slate-950">Our Service Fee</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {summaryTravelerCount > 1
+                            ? `₹${serviceFeePerTraveler.toLocaleString("en-IN")} x ${summaryTravelerCount} travellers`
+                            : "Support, review and application handling"}
+                        </p>
+                      </div>
+                      <span className="text-lg font-extrabold tracking-tight text-slate-950">
+                        ₹{serviceFeeTotal.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+
+                    {effectiveGstEnabled && (
+                      <div className="flex items-center justify-between gap-3 rounded-[1rem] bg-slate-50/85 px-4 py-3">
+                        <p className="text-sm font-medium text-slate-950">GST</p>
+                        <span className="text-base font-semibold text-slate-950">
+                          ₹{gstAmount.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="rounded-[1rem] border border-violet-100 bg-[linear-gradient(180deg,#faf5ff_0%,#ffffff_100%)] px-4 py-3 shadow-[0_18px_30px_-28px_rgba(88,28,135,0.28)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-base font-semibold tracking-tight text-slate-950">Total Amount</p>
+                          <p className="mt-0.5 text-xs text-slate-500">Government fee + service fee + GST</p>
+                        </div>
+                        <span className="text-2xl font-extrabold tracking-tight text-violet-700">
+                          ₹{overallTotal.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-[1.1rem] border border-blue-100 bg-blue-50/70 px-4 py-3 text-slate-600">
+                      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-cyan" />
+                      <p className="text-sm leading-tight">
+                        Secure & trusted payment. Your payment is 100% secure and encrypted.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
       </main>
 
       <ContactVerificationModal
         isOpen={contactModalOpen}
         mode={contactModalMode}
+        allowSkip
+        skipLabel="Add it later"
+        onSkip={() => {
+          continueAfterContactRef.current = null;
+          setContactGateDismissed(true);
+          setContactModalOpen(false);
+        }}
         onClose={() => {
           continueAfterContactRef.current = null;
+          setContactGateDismissed(true);
           setContactModalOpen(false);
         }}
         onCompleted={() => {

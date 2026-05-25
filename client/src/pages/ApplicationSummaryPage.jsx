@@ -363,7 +363,34 @@ const ApplicationSummaryPage = () => {
       ? Number(country.gstRate)
       : 18;
 
-  const { serviceFee, taxes, totalAmount } = useMemo(() => {
+  const governmentFeePerTraveler = useMemo(() => {
+    const candidates = [
+      summaryData?.governmentFeePerTraveler,
+      summaryData?.governmentFee,
+      country?.governmentFee,
+      country?.governmentFeeOverride,
+      country?.governmentFees,
+      country?.govtFee,
+      country?.govFee,
+      country?.embassyFee,
+      country?.visaFee,
+    ];
+
+    const resolved = candidates.find((value) => Number.isFinite(Number(value)));
+    return Number.isFinite(Number(resolved)) ? Number(resolved) : 0;
+  }, [
+    summaryData?.governmentFeePerTraveler,
+    summaryData?.governmentFee,
+    country?.governmentFee,
+    country?.governmentFeeOverride,
+    country?.governmentFees,
+    country?.govtFee,
+    country?.govFee,
+    country?.embassyFee,
+    country?.visaFee,
+  ]);
+
+  const { serviceFee, taxes, governmentFeeTotal, totalAmount } = useMemo(() => {
     const service = Number.isFinite(Number(summaryData?.baseFee))
       ? Number(summaryData.baseFee)
       : Number.isFinite(Number(country?.basePrice))
@@ -374,19 +401,34 @@ const ApplicationSummaryPage = () => {
       : effectiveGstEnabled
         ? Math.round(service * (effectiveGstRate / 100))
         : 0;
+    const governmentFee = Number.isFinite(Number(summaryData?.governmentFeeTotal))
+      ? Number(summaryData.governmentFeeTotal)
+      : governmentFeePerTraveler * travelerCount;
     const fromServer = Number(application?.fee);
     const fromState = Number(summaryData?.fee);
     return {
       serviceFee: service,
       taxes: gst,
+      governmentFeeTotal: governmentFee,
       totalAmount:
         Number.isFinite(fromServer) && fromServer > 0
-          ? fromServer
+          ? fromServer + governmentFee
           : Number.isFinite(fromState) && fromState > 0
-            ? fromState
-            : service + gst,
+            ? fromState + governmentFee
+            : governmentFee + service + gst,
     };
-  }, [application?.fee, summaryData?.fee, summaryData?.baseFee, summaryData?.gstAmount, country?.basePrice, travelerCount, effectiveGstEnabled, effectiveGstRate]);
+  }, [
+    application?.fee,
+    summaryData?.fee,
+    summaryData?.baseFee,
+    summaryData?.gstAmount,
+    summaryData?.governmentFeeTotal,
+    country?.basePrice,
+    travelerCount,
+    effectiveGstEnabled,
+    effectiveGstRate,
+    governmentFeePerTraveler,
+  ]);
 
   /**
    * Compute the "documents uploaded" status for the status tile + step pill.
@@ -789,10 +831,6 @@ const ApplicationSummaryPage = () => {
   };
 
   const resolvePayAmountRupees = (appDoc) => {
-    const fromServer = Number(appDoc?.fee);
-    if (Number.isFinite(fromServer) && fromServer > 0) return fromServer;
-    const fromState = Number(summaryData?.fee);
-    if (Number.isFinite(fromState) && fromState > 0) return fromState;
     return totalAmount;
   };
 
@@ -815,7 +853,7 @@ const ApplicationSummaryPage = () => {
       await openRazorpayForApplication({
         applicationId: appId,
         amountRupees,
-        description: `${app.countryName || "Visa"} — service fee`,
+        description: `${app.countryName || "Visa"} — total payment`,
         applicantName: user?.name || "Applicant",
         applicantEmail: user?.email || "",
         onSuccess: () => {
@@ -933,10 +971,10 @@ const ApplicationSummaryPage = () => {
               <Info size={18} className="text-cyan mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-text-primary">
-                  No worries — you can upload documents later!
+                  No worries — you can upload your documents anytime later.
                 </p>
                 <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
-                  Complete your payment first. After that, go to <span className="text-text-primary font-medium">My Dashboard → click your application → upload documents</span> for each traveler at any time.
+                  After payment, your application will remain available in <span className="text-text-primary font-medium">My Dashboard → Open Your Application → Upload Documents</span>, where you can upload documents for each traveler whenever it’s convenient for you.
                 </p>
               </div>
             </div>
@@ -948,24 +986,47 @@ const ApplicationSummaryPage = () => {
           <h3 className="text-sm font-semibold text-text-primary mb-1">Billing</h3>
 
           <div className="flex justify-between text-sm">
-            <span className="text-text-secondary">
-              Service Fee {travelerCount > 1 ? `(${travelerCount} x ₹${Number(country?.basePrice || 0).toLocaleString("en-IN")})` : ""}
-            </span>
-            <span className="text-text-primary">₹{serviceFee.toLocaleString("en-IN")}</span>
-          </div>
-          {effectiveGstEnabled && (
-            <div className="flex justify-between text-sm">
-              <span className="text-text-secondary">GST ({effectiveGstRate}%)</span>
-              <span className="text-text-primary">₹{taxes.toLocaleString("en-IN")}</span>
+            <div>
+              <span className="text-text-secondary">Government Fee</span>
+              {travelerCount > 1 && (
+                <p className="text-xs text-text-muted mt-0.5">x{travelerCount}</p>
+              )}
             </div>
-          )}
+            <span className="text-text-primary">₹{governmentFeeTotal.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="group relative flex justify-between text-sm">
+            <div>
+              <span className="text-text-secondary">Our Service Fee</span>
+              {travelerCount > 1 && (
+                <p className="text-xs text-text-muted mt-0.5">x{travelerCount}</p>
+              )}
+            </div>
+            <span className="text-text-primary">₹{(effectiveGstEnabled ? serviceFee + taxes : serviceFee).toLocaleString("en-IN")}</span>
+            {effectiveGstEnabled && (
+              <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 w-64 rounded-2xl border border-cyan/20 bg-surface px-3 py-3 opacity-0 shadow-lg transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-3 text-text-secondary">
+                    <span>Our Service Fee</span>
+                    <span className="font-semibold text-text-primary">₹{serviceFee.toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-text-secondary">
+                    <span>GST</span>
+                    <span className="font-semibold text-text-primary">₹{taxes.toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="border-t border-border pt-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-text-primary">Our Service + GST</span>
+                      <span className="font-bold text-cyan">₹{(serviceFee + taxes).toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="border-t border-border pt-3 flex justify-between text-base font-semibold">
-            <span className="text-text-primary">Total</span>
+            <span className="text-text-primary">Total Amount</span>
             <span className="text-cyan">₹{totalAmount.toLocaleString("en-IN")}</span>
           </div>
-          <p className="text-xs text-text-muted">
-            Government / embassy fees (if any) are shown separately at payment.
-          </p>
         </div>
 
         {/* T&C + Pay */}
@@ -990,7 +1051,7 @@ const ApplicationSummaryPage = () => {
               >
                 terms and conditions
               </button>{" "}
-              and understand that the amount above covers service charges only.
+              and understand that the amount above is the total payment shown in this summary.
             </span>
           </label>
 
@@ -1149,7 +1210,14 @@ const ApplicationSummaryPage = () => {
         size="md"
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="md" onClick={() => setTermsModalOpen(false)}>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                setTermsAccepted(false);
+                setTermsModalOpen(false);
+              }}
+            >
               Deny
             </Button>
             <Button
@@ -1187,3 +1255,4 @@ const ApplicationSummaryPage = () => {
 };
 
 export default ApplicationSummaryPage;
+

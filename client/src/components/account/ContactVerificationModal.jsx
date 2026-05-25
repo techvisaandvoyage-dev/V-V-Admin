@@ -7,25 +7,28 @@ import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import { isValidEmail } from "../../utils/authIdentifier";
 import { normalizePhoneInputTo10 } from "../../utils/contactVerificationGate";
-
-const PHONE_COUNTRY_OPTIONS = [
-  { value: "+91", label: "India (+91)" },
-  { value: "+1", label: "United States (+1)" },
-  { value: "+44", label: "United Kingdom (+44)" },
-  { value: "+61", label: "Australia (+61)" },
-  { value: "+971", label: "UAE (+971)" },
-  { value: "+966", label: "Saudi Arabia (+966)" },
-  { value: "+65", label: "Singapore (+65)" },
-  { value: "+60", label: "Malaysia (+60)" },
-];
-
-const DEFAULT_PHONE_COUNTRY_CODE = "+91";
+import {
+  DEFAULT_PHONE_COUNTRY_CODE,
+  filterPhoneCountryOptions,
+  findPhoneCountryOption,
+  getPhoneCountryOptions,
+  loadPhoneCountryOptions,
+  parsePhoneWithCountryCode,
+} from "../../utils/phoneCountryCodes";
 
 /**
  * Inline phone or email capture (saved via profile API). No redirect.
  * @param {"phone"|"email"} mode
  */
-const ContactVerificationModal = ({ isOpen, mode, onClose, onCompleted, allowSkip = false, onSkip }) => {
+const ContactVerificationModal = ({
+  isOpen,
+  mode,
+  onClose,
+  onCompleted,
+  allowSkip = false,
+  onSkip,
+  skipLabel = "Remind me later",
+}) => {
   const { user, updateProfile, refreshUserFromServer, isLoading } = useAuthStore();
   const { showToast } = useUIStore();
   const countryCodeDropdownRef = useRef(null);
@@ -33,18 +36,34 @@ const ContactVerificationModal = ({ isOpen, mode, onClose, onCompleted, allowSki
   const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY_CODE);
   const [countryCodeOpen, setCountryCodeOpen] = useState(false);
   const [countryCodeSearch, setCountryCodeSearch] = useState("");
+  const [phoneCountryOptions, setPhoneCountryOptions] = useState(() => getPhoneCountryOptions());
+  const [phoneError, setPhoneError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    loadPhoneCountryOptions().then((options) => {
+      if (mounted && Array.isArray(options) && options.length) {
+        setPhoneCountryOptions(options);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
     if (mode === "phone") {
-      setValue(String(user?.phone || "").replace(/\D/g, "").slice(-10) || "");
-      setPhoneCountryCode(DEFAULT_PHONE_COUNTRY_CODE);
+      const parsedPhone = parsePhoneWithCountryCode(user?.phone, phoneCountryOptions);
+      setValue(parsedPhone.phone);
+      setPhoneCountryCode(parsedPhone.countryCode);
+      setPhoneError("");
       setCountryCodeOpen(false);
       setCountryCodeSearch("");
     } else {
       setValue(String(user?.email || "").trim());
     }
-  }, [isOpen, mode, user?.phone, user?.email]);
+  }, [isOpen, mode, phoneCountryOptions, user?.phone, user?.email]);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -59,11 +78,18 @@ const ContactVerificationModal = ({ isOpen, mode, onClose, onCompleted, allowSki
 
   const handleSave = async () => {
     if (mode === "phone") {
+      if (String(value || "").length < 10) {
+        setPhoneError("Number is incomplete.");
+        showToast("Number is incomplete.", "error");
+        return;
+      }
       const key = normalizePhoneInputTo10(value);
       if (!key) {
+        setPhoneError("Enter a valid 10-digit mobile number.");
         showToast("Enter a valid 10-digit mobile number.", "error");
         return;
       }
+      setPhoneError("");
       const { success, message } = await updateProfile({ phone: key });
       if (!success) {
         showToast(message || "Could not save phone.", "error");
@@ -92,27 +118,24 @@ const ContactVerificationModal = ({ isOpen, mode, onClose, onCompleted, allowSki
     mode === "phone"
       ? "We use this for SMS updates and to reach you about your visa application. You can change it later in Profile."
       : "We use this for receipts and important updates about your application. You can change it later in Profile.";
-  const filteredCountryOptions = PHONE_COUNTRY_OPTIONS.filter((option) =>
-    option.label.toLowerCase().includes(countryCodeSearch.trim().toLowerCase())
-  );
-  const selectedCountryOption =
-    PHONE_COUNTRY_OPTIONS.find((option) => option.value === phoneCountryCode) ||
-    PHONE_COUNTRY_OPTIONS[0];
+  const filteredCountryOptions = filterPhoneCountryOptions(countryCodeSearch, phoneCountryOptions);
+  const selectedCountryOption = findPhoneCountryOption(phoneCountryCode, phoneCountryOptions);
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={allowSkip ? onClose : () => {}}
+      onClose={onClose}
       title={title}
       size="md"
-      hideCloseButton={!allowSkip}
+      hideCloseButton={false}
       closeOnBackdropClick={allowSkip}
+      allowOverflow={mode === "phone"}
       footer={
-        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
-          {allowSkip && (
-            <Button type="button" variant="ghost" className="sm:min-w-[120px]" onClick={onSkip}>
-              Remind me later
-            </Button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            {allowSkip && (
+              <Button type="button" variant="ghost" className="sm:min-w-[120px]" onClick={onSkip}>
+                {skipLabel}
+              </Button>
           )}
           <Button type="button" variant="primary" className="sm:min-w-[140px]" loading={isLoading} onClick={handleSave}>
             Save &amp; continue
@@ -157,7 +180,7 @@ const ContactVerificationModal = ({ isOpen, mode, onClose, onCompleted, allowSki
                     {filteredCountryOptions.length ? (
                       filteredCountryOptions.map((option) => (
                         <button
-                          key={option.value}
+                          key={option.label}
                           type="button"
                           onClick={() => {
                             setPhoneCountryCode(option.value);
@@ -188,7 +211,17 @@ const ContactVerificationModal = ({ isOpen, mode, onClose, onCompleted, allowSki
             autoComplete="tel"
             placeholder="Enter phone number"
             value={value}
-            onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            error={phoneError}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+              setValue(digits);
+              if (!digits.length || digits.length === 10) {
+                setPhoneError("");
+              } else {
+                setPhoneError("Number is incomplete.");
+              }
+            }}
+            helper={!phoneError ? "Enter a 10-digit mobile number." : ""}
           />
         </div>
       ) : (

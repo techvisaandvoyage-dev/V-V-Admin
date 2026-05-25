@@ -82,7 +82,7 @@ const appendApplicantNotes = (existingValue, incomingValue) => {
 
 const resolveCheckoutPricing = async (countryId, travelerCount = 1) => {
   const country = await Country.findOne({ slug: String(countryId) }).select(
-    'requiredDocuments useGlobalRequiredDocuments basePrice useGlobalBasePrice useGlobalGst gstEnabled gstRate'
+    'requiredDocuments useGlobalRequiredDocuments basePrice useGlobalBasePrice governmentFee useGlobalGovernmentFee useGlobalGst gstEnabled gstRate'
   );
   const settings = await loadSettingsDocument();
   
@@ -122,19 +122,61 @@ const resolveCheckoutPricing = async (countryId, travelerCount = 1) => {
         ? globalGstRate
         : 18;
   const count = Math.max(1, Number(travelerCount) || 1);
+  const globalGovernmentFee = Number(settings?.globalGovernmentFee);
+  const countryGovernmentFee = Number(country?.governmentFee);
+  const governmentFeePerTraveler =
+    country?.useGlobalGovernmentFee === true &&
+    Number.isFinite(globalGovernmentFee) &&
+    globalGovernmentFee >= 0
+      ? globalGovernmentFee
+      : Number.isFinite(countryGovernmentFee) && countryGovernmentFee >= 0
+        ? countryGovernmentFee
+        : 0;
   const serviceAmount = baseFee * count;
   const gstAmount = gstEnabled ? Math.round(serviceAmount * (gstRate / 100)) : 0;
+  const governmentFeeTotal = governmentFeePerTraveler * count;
   const fee = serviceAmount + gstAmount;
+  const totalAmount = governmentFeeTotal + fee;
 
   return {
     requiredDocuments,
     baseFee,
+    governmentFeePerTraveler,
+    governmentFeeTotal,
     serviceAmount,
     gstEnabled,
     gstRate,
     gstAmount,
     fee,
+    totalAmount,
   };
+};
+
+const serializeApplicationWithPricing = async (application) => {
+  if (!application) return application;
+
+  const source = typeof application.toObject === 'function'
+    ? application.toObject()
+    : { ...application };
+
+  try {
+    const pricing = await resolveCheckoutPricing(source.countryId, source.travellerCount || 1);
+    return {
+      ...source,
+      serviceFeeTotal: pricing.serviceAmount,
+      gstEnabled: pricing.gstEnabled,
+      gstRate: pricing.gstRate,
+      gstAmount: pricing.gstAmount,
+      governmentFeePerTraveler: pricing.governmentFeePerTraveler,
+      governmentFeeTotal: pricing.governmentFeeTotal,
+      totalAmount: pricing.totalAmount,
+    };
+  } catch {
+    return {
+      ...source,
+      totalAmount: Number(source.fee) || 0,
+    };
+  }
 };
 
 const travelerSnapshotHasRequiredFields = (snapshot) => {
@@ -680,7 +722,7 @@ const getUserApplicationById = async (req, res) => {
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
-    res.json({ success: true, application });
+    res.json({ success: true, application: await serializeApplicationWithPricing(application) });
   } catch (error) {
     console.error('getUserApplicationById:', error);
     res.status(500).json({ success: false, message: 'Server error fetching application' });
@@ -759,7 +801,10 @@ const submitApplication = async (req, res) => {
 const getUserApplications = async (req, res) => {
   try {
     const applications = await Application.find({ user: req.user.id }).sort({ createdAt: -1 });
-    res.json({ success: true, applications });
+    res.json({
+      success: true,
+      applications: await Promise.all(applications.map((application) => serializeApplicationWithPricing(application))),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error fetching applications' });
@@ -776,7 +821,10 @@ const getAllApplications = async (req, res) => {
     const applications = await Application.find()
       .populate('user', 'name email phone age gender')
       .sort({ createdAt: -1 });
-    res.json({ success: true, applications });
+    res.json({
+      success: true,
+      applications: await Promise.all(applications.map((application) => serializeApplicationWithPricing(application))),
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error fetching applications' });
@@ -794,7 +842,7 @@ const getApplicationById = async (req, res) => {
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
-    res.json({ success: true, application });
+    res.json({ success: true, application: await serializeApplicationWithPricing(application) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server error fetching application' });

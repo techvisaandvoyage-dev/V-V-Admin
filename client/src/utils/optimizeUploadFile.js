@@ -31,6 +31,16 @@ const normalizeFileName = (file, nextType) => {
   return `${original}${extensionMap[nextType] || ""}`;
 };
 
+const createFileFromBlob = (sourceFile, blob, fallbackType) =>
+  new File(
+    [blob],
+    normalizeFileName(sourceFile, blob.type || fallbackType || sourceFile.type),
+    {
+      type: blob.type || fallbackType || sourceFile.type,
+      lastModified: Date.now(),
+    }
+  );
+
 /**
  * Aggressively compresses a PDF by rendering each page to a compressed JPEG 
  * and rebuilding a new PDF from those images.
@@ -124,6 +134,48 @@ const optimizePdf = async (file, targetBytes = FINAL_UPLOAD_TARGET_BYTES) => {
   }
 };
 
+const optimizeImage = async (file, targetBytes) => {
+  const attempts = [
+    {
+      maxSizeMB: Math.max(targetBytes / (1024 * 1024), 0.08),
+      maxWidthOrHeight: targetBytes <= 300 * 1024 ? 1280 : 1600,
+      initialQuality: targetBytes <= 300 * 1024 ? 0.6 : 0.75,
+      fileType: file.type === "image/png" ? "image/jpeg" : file.type,
+    },
+    {
+      maxSizeMB: Math.max(targetBytes / (1024 * 1024), 0.06),
+      maxWidthOrHeight: targetBytes <= 300 * 1024 ? 1024 : 1280,
+      initialQuality: 0.45,
+      fileType: "image/jpeg",
+    },
+    {
+      maxSizeMB: Math.max(targetBytes / (1024 * 1024), 0.05),
+      maxWidthOrHeight: 900,
+      initialQuality: 0.32,
+      fileType: "image/jpeg",
+    },
+  ];
+
+  let bestFile = file;
+
+  for (const attempt of attempts) {
+    const compressedBlob = await imageCompression(bestFile, {
+      ...attempt,
+      useWebWorker: true,
+    });
+
+    const compressedFile = createFileFromBlob(file, compressedBlob, attempt.fileType);
+    if (compressedFile.size < bestFile.size) {
+      bestFile = compressedFile;
+    }
+    if (bestFile.size <= targetBytes) {
+      break;
+    }
+  }
+
+  return bestFile;
+};
+
 
 export const optimizeUploadFile = async (file, options = {}) => {
   if (!(file instanceof File)) return { file: null };
@@ -153,22 +205,7 @@ export const optimizeUploadFile = async (file, options = {}) => {
   }
 
   try {
-    const compressed = await imageCompression(file, {
-      maxSizeMB: Math.max(targetBytes / (1024 * 1024), 0.1),
-      maxWidthOrHeight: targetBytes <= 300 * 1024 ? 1280 : 1600,
-      useWebWorker: true,
-      initialQuality: targetBytes <= 300 * 1024 ? 0.65 : 0.8,
-      fileType: file.type === "image/png" ? "image/png" : file.type,
-    });
-
-    const optimizedFile = new File(
-      [compressed],
-      normalizeFileName(file, compressed.type || file.type),
-      {
-        type: compressed.type || file.type,
-        lastModified: Date.now(),
-      }
-    );
+    const optimizedFile = await optimizeImage(file, targetBytes);
 
     return {
       file: optimizedFile,

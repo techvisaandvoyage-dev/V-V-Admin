@@ -70,6 +70,8 @@ const countrySchema = new mongoose.Schema({
   flagEmoji: { type: String, default: '🌍' },
   basePrice: { type: Number, required: true, default: 0 },
   useGlobalBasePrice: { type: Boolean, default: false },
+  governmentFee: { type: Number, default: 0 },
+  useGlobalGovernmentFee: { type: Boolean, default: true },
   processingDays: { type: String, default: '5-10' },
   difficulty: {
     type: String,

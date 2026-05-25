@@ -51,8 +51,10 @@ import PassportUploadRow from "../components/application/PassportUploadRow";
 import {
   optimizeUploadFile,
   PASSPORT_UPLOAD_MAX_BYTES,
+  RAW_UPLOAD_LIMIT_BYTES,
 } from "../utils/optimizeUploadFile";
 import VisaInformationSection from "../components/country/VisaInformationSection";
+import CountryFeeSummaryCard from "../components/country/CountryFeeSummaryCard";
 import {
   needsPhoneContactGate,
   needsEmailContactGate,
@@ -369,6 +371,7 @@ const CountryDetails = () => {
   const [destinationPageContent, setDestinationPageContent] = useState(null);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalMode, setContactModalMode] = useState("phone");
+  const [contactGateDismissed, setContactGateDismissed] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
   const [activeSubNav, setActiveSubNav] = useState("how-it-works");
   const pendingContactAction = useRef(null);
@@ -433,6 +436,29 @@ const CountryDetails = () => {
     const gst = isGstResolved && effectiveGstEnabled ? Math.round(service * (effectiveGstRate / 100)) : 0;
     return { serviceAmount: service, gstAmount: gst, payableToUs: service + gst };
   }, [country?.basePrice, travellerCount, effectiveGstEnabled, effectiveGstRate, isGstResolved]);
+
+  const governmentFeePerTraveler = useMemo(() => {
+    const candidates = [
+      country?.governmentFee,
+      country?.governmentFees,
+      country?.govtFee,
+      country?.govFee,
+      country?.embassyFee,
+      country?.visaFee,
+    ];
+    const matched = candidates.find((value) => Number.isFinite(Number(value)));
+    return Number.isFinite(Number(matched)) ? Number(matched) : 0;
+  }, [country]);
+
+  const feeCardGstRate = effectiveGstEnabled
+    ? (Number.isFinite(Number(effectiveGstRate)) ? Number(effectiveGstRate) : 18)
+    : 0;
+  const serviceFeePerTraveler = Number.isFinite(Number(country?.basePrice)) ? Number(country.basePrice) : 0;
+  const gstPerTraveler = effectiveGstEnabled ? Math.round(serviceFeePerTraveler * (feeCardGstRate / 100)) : 0;
+  const totalServiceFeePerTraveler = serviceFeePerTraveler + gstPerTraveler;
+  const governmentFeeTotal = governmentFeePerTraveler * travellerCount;
+  const totalServiceFeeTotal = totalServiceFeePerTraveler * travellerCount;
+  const finalTotal = (governmentFeePerTraveler + totalServiceFeePerTraveler) * travellerCount;
 
   /**
    * Destination-page copy:
@@ -1042,6 +1068,10 @@ const CountryDetails = () => {
     setTravelers((prev) => [...prev, createTravelerState()]);
   };
 
+  const incrementTravelerCount = () => {
+    addTraveler();
+  };
+
   const removeTravelerAt = (indexToRemove) => {
     setTravelers((prev) => (prev.length > 1
       ? prev.filter((_, index) => index !== indexToRemove)
@@ -1066,6 +1096,11 @@ const CountryDetails = () => {
       delete next[indexToRemove + 1];
       return next;
     });
+  };
+
+  const decrementTravelerCount = () => {
+    if (travelers.length <= 1) return;
+    removeTravelerAt(travelers.length - 1);
   };
 
   const updateTravelerName = (index, name) => {
@@ -1096,9 +1131,10 @@ const CountryDetails = () => {
       showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
       return;
     }
-    if (rawFile.size > PASSPORT_UPLOAD_MAX_BYTES) {
-      setPassportErrors((prev) => ({ ...prev, [travelerNo]: PASSPORT_FILE_SIZE_ERROR }));
-      showToast(PASSPORT_FILE_SIZE_ERROR, "error");
+    if (rawFile.size > RAW_UPLOAD_LIMIT_BYTES) {
+      const message = "File must be below 8 MB.";
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: message }));
+      showToast(message, "error");
       return;
     }
     const { file: optimizedFile, error } = await optimizeUploadFile(rawFile, {
@@ -1337,6 +1373,7 @@ const CountryDetails = () => {
 
   const clearContactGate = () => {
     pendingContactAction.current = null;
+    setContactGateDismissed(true);
     setContactModalOpen(false);
   };
 
@@ -1357,6 +1394,10 @@ const CountryDetails = () => {
   const gateContactOrRun = (after) => {
     const token = localStorage.getItem("token");
     if (!isAuthenticated || !token || !user) {
+      after();
+      return;
+    }
+    if (contactGateDismissed) {
       after();
       return;
     }
@@ -2237,13 +2278,13 @@ const CountryDetails = () => {
           </button>
         )}
 
-        <div className="mx-auto w-full lg:max-w-6xl">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start lg:gap-12">
+        <div className="mx-auto w-full max-w-[1400px]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-start lg:gap-1 xl:gap-2">
             {!showTravelDetails && (
               <motion.section
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0, transition: { duration: 0.5, ease } }}
-                className="order-1 w-full lg:col-span-8"
+                className="order-1 w-full lg:col-span-8 lg:pl-4 xl:pl-6"
               >
                 <VisaInformationSection
                   visaInformation={country?.visaInformation}
@@ -2252,13 +2293,13 @@ const CountryDetails = () => {
               </motion.section>
             )}
 
-          <div
-            className={
-              showTravelDetails
-                ? "lg:col-span-8 space-y-8"
-                : "hidden"
-            }
-          >
+            <div
+              className={
+                showTravelDetails
+                  ? "lg:col-span-8 space-y-8"
+                  : "hidden"
+              }
+            >
             {false && (
               <motion.div initial="initial" animate="animate" variants={fadeUp} className="w-full">
                 <div className="relative mx-auto w-full max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-3xl border border-border sm:max-w-[calc(100vw-3rem)] lg:max-w-[calc(100vw-4rem)]">
@@ -2609,99 +2650,180 @@ const CountryDetails = () => {
           </div>
 
           <div
-            className={
-              showTravelDetails
-                ? "lg:col-span-4"
-                : "order-2 w-full lg:col-span-4"
-            }
+              className={
+                showTravelDetails
+                ? "lg:col-span-4 lg:pr-4 xl:pr-6"
+                : "order-2 w-full lg:col-span-4 lg:pr-4 xl:pr-6"
+              }
           >
             <motion.div
               ref={showTravelDetails ? undefined : startApplicationCardRef}
-              className="bg-surface border border-border rounded-2xl p-4 sm:p-6 lg:h-full"
+              className="w-full bg-surface border border-border rounded-2xl p-4 sm:p-6 lg:sticky lg:top-24 lg:ml-auto lg:max-w-[32rem] xl:max-w-[34rem]"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0, transition: { duration: 0.5, ease } }}
             >
               {showTravelDetails ? (
                 <>
-                  <div className="mb-6">
+                  <div className="mb-3">
                     <div className="max-w-xl">
                       <h3 className="text-3xl font-bold tracking-tight text-slate-950">Apply for {country.name}</h3>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        Take the next step towards your journey to {country.name}. Simple, secure and fast.
-                      </p>
                     </div>
                   </div>
-                  <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_25px_60px_-30px_rgba(15,23,42,0.2)] mb-7">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount to be paid</p>
-                      <p className="mt-3 text-5xl font-extrabold tracking-tight text-slate-950">₹{payableToUs.toLocaleString("en-IN")}</p>
-                    </div>
-                    <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                      {isGstResolved && effectiveGstEnabled && (
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({effectiveGstRate}%)</span>
-                          <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
+                  <div className="mb-7 overflow-hidden rounded-[2rem] border border-sky-100 bg-white shadow-[0_30px_80px_-36px_rgba(14,116,144,0.32)]">
+                    <div className="relative overflow-hidden bg-[linear-gradient(135deg,#0f3ecf_0%,#214cf2_38%,#3d7bff_100%)] px-5 pb-5 pt-5 text-white sm:px-6 sm:pb-6">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.26),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.18),transparent_30%)]" />
+                      <div className="relative flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/16 ring-1 ring-white/18 backdrop-blur">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[0.95rem] font-semibold">Travel Summary</p>
+                            <p className="text-[0.72rem] uppercase tracking-[0.3em] text-white/72">Traveller details</p>
+                          </div>
                         </div>
-                      )}
-                      <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
-                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">Total Amount</span>
-                        <span className="text-lg font-semibold text-slate-900">₹{payableToUs.toLocaleString("en-IN")}</span>
+                        <div className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-center backdrop-blur">
+                          <p className="text-[0.62rem] uppercase tracking-[0.26em] text-white/70">Travellers</p>
+                          <p className="mt-1 text-xl font-bold leading-none">{travellerCount}</p>
+                        </div>
+                      </div>
+                      <div className="relative mt-5">
+                        <p className="text-[0.7rem] uppercase tracking-[0.34em] text-white/72">Amount to be paid now</p>
+                        <p className="mt-2 text-4xl font-extrabold tracking-tight sm:text-[2.8rem]">₹{finalTotal.toLocaleString("en-IN")}</p>
                       </div>
                     </div>
-                    <div className="mt-6 flex items-center gap-3 rounded-3xl border border-slate-200 bg-cyan/5 px-4 py-4 text-slate-600">
-                      <ShieldCheck className="h-5 w-5 text-cyan" />
-                      <div className="text-sm leading-tight">
-                        Secure & trusted payment. Your payment is 100% secure and encrypted.
+
+                    <div className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
+                      <div className="rounded-[1.35rem] border border-slate-200 bg-slate-50/90 px-4 py-3.5">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sky-600 shadow-sm">
+                            <Receipt className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div>
+                              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-slate-500">Visa Type</p>
+                              <p className="mt-1 text-[0.95rem] font-semibold text-slate-900">{visaOption || "Tourist Visa"}</p>
+                            </div>
+                            <div className="mt-3 border-t border-slate-200 pt-3">
+                              <div className="flex items-center gap-2 text-slate-500">
+                                <CalendarDays className="h-4 w-4 text-sky-600" />
+                                <span className="text-[0.7rem] font-semibold uppercase tracking-[0.24em]">Travel Dates</span>
+                              </div>
+                              <p className="mt-1.5 text-[0.88rem] font-semibold text-slate-900">{formatTravelRange()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.35rem] border border-slate-200 bg-white px-4 py-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-slate-500">Traveler Names</p>
+                            <p className="mt-1 text-sm text-slate-600">Added in your application form</p>
+                          </div>
+                          <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                            {travellerCount} total
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {travelers.map((traveler, idx) => (
+                            <span
+                              key={`travel-summary-name-${idx}`}
+                              className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-medium text-slate-700"
+                            >
+                              {traveler.name?.trim() || `Traveler ${idx + 1}`}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/95 p-4">
+                        <div className="space-y-3 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-slate-900">Government Fee</p>
+                              {travellerCount > 1 && (
+                                <p className="text-xs text-slate-500">
+                                  x{travellerCount}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-base font-bold text-slate-900">₹{governmentFeeTotal.toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className="group relative flex items-center justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-slate-900">Our Service Fee</p>
+                              {travellerCount > 1 && (
+                                <p className="text-xs text-slate-500">
+                                  x{travellerCount}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-base font-bold text-slate-900">
+                              ₹{(isGstResolved && effectiveGstEnabled ? payableToUs : serviceAmount).toLocaleString("en-IN")}
+                            </span>
+                            {isGstResolved && effectiveGstEnabled && (
+                              <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 w-64 rounded-2xl border border-sky-100 bg-white p-3 opacity-0 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.45)] transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                                <div className="space-y-2 text-xs">
+                                  <div className="flex items-center justify-between gap-3 text-slate-600">
+                                    <span>Our Service Fee</span>
+                                    <span className="font-semibold text-slate-900">₹{serviceAmount.toLocaleString("en-IN")}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 text-slate-600">
+                                    <span>GST</span>
+                                    <span className="font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
+                                  </div>
+                                  <div className="border-t border-slate-200 pt-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-semibold text-slate-900">Total</span>
+                                      <span className="font-bold text-sky-700">₹{payableToUs.toLocaleString("en-IN")}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-4 border-t border-slate-200 pt-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-500">Total Amount</p>
+                            <span className="text-2xl font-extrabold tracking-tight text-sky-700">₹{finalTotal.toLocaleString("en-IN")}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-[1.35rem] border border-sky-100 bg-sky-50 px-4 py-3.5 text-slate-700">
+                        <ShieldCheck className="h-5 w-5 shrink-0 text-sky-600" />
+                        <div className="text-sm leading-tight">
+                          Secure & trusted payment. Your payment is 100% encrypted.
+                        </div>
                       </div>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="space-y-7">
+                <div className="space-y-3">
                   <div>
                     <div className="max-w-xl">
                       <h3 className="text-3xl font-bold tracking-tight text-slate-950">Apply for {country.name}</h3>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        Take the next step towards your journey to {country.name}. Simple, secure and fast.
-                      </p>
                     </div>
                   </div>
-                  <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_25px_60px_-30px_rgba(15,23,42,0.2)]">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount to be paid</p>
-                      <p className="mt-3 text-5xl font-extrabold tracking-tight text-slate-950">₹{payableToUs.toLocaleString("en-IN")}</p>
-                    </div>
-
-                    <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                      {isGstResolved && effectiveGstEnabled && (
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-xs uppercase tracking-[0.24em] text-slate-500">GST ({effectiveGstRate}%)</span>
-                          <span className="text-lg font-semibold text-slate-900">₹{gstAmount.toLocaleString("en-IN")}</span>
-                        </div>
-                      )}
-                      <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
-                        <span className="text-xs uppercase tracking-[0.24em] text-slate-500">Total Amount</span>
-                        <span className="text-lg font-semibold text-slate-900">₹{payableToUs.toLocaleString("en-IN")}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex items-center gap-3 rounded-3xl border border-slate-200 bg-cyan/5 px-4 py-4 text-slate-600">
-                      <ShieldCheck className="h-5 w-5 text-cyan" />
-                      <p className="text-sm leading-tight">
-                        Secure & trusted payment. Your payment is 100% secure and encrypted.
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    size="lg"
-                    onClick={handleStartApplication}
-                    id="country-details-start-application-btn"
-                  >
-                    Start Application
-                  </Button>
+                  <CountryFeeSummaryCard
+                    travelerCount={travellerCount}
+                    onIncrementTraveler={incrementTravelerCount}
+                    onDecrementTraveler={decrementTravelerCount}
+                    governmentFeePerTraveler={governmentFeePerTraveler}
+                    serviceFeePerTraveler={serviceFeePerTraveler}
+                    gstEnabled={effectiveGstEnabled}
+                    gstRate={feeCardGstRate}
+                    governmentFeeTotal={governmentFeeTotal}
+                    gstPerTraveler={gstPerTraveler}
+                    totalServiceFeePerTraveler={totalServiceFeePerTraveler}
+                    totalServiceFeeTotal={totalServiceFeeTotal}
+                    finalTotal={finalTotal}
+                    onStartApplication={handleStartApplication}
+                    startButtonId="country-details-start-application-btn"
+                  />
                 </div>
               )}
             </motion.div>
@@ -2788,7 +2910,7 @@ const CountryDetails = () => {
                 </div>
                 {isGstResolved && effectiveGstEnabled && (
                   <div className="flex items-center justify-between">
-                    <span className="text-text-muted">GST ({effectiveGstRate}%)</span>
+                    <span className="text-text-muted">GST</span>
                     <span className="font-medium text-text-primary">
                       ₹{gstAmount.toLocaleString("en-IN")}
                     </span>
@@ -2851,6 +2973,9 @@ const CountryDetails = () => {
       <ContactVerificationModal
         isOpen={contactModalOpen}
         mode={contactModalMode}
+        allowSkip
+        skipLabel="Add it later"
+        onSkip={clearContactGate}
         onClose={clearContactGate}
         onCompleted={completeContactGate}
       />

@@ -25,7 +25,7 @@ const withBlankImageUrl = (country) => ({
  * is instant — without it, mobile users open a link and see blank cards until the
  * Render API responds (cold start can take 30–60s on the free tier).
  */
-const COUNTRIES_CACHE_KEY = "vb_countries_api_v17";
+const COUNTRIES_CACHE_KEY = "vb_countries_api_v18";
 const COUNTRIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_DISPLAY = Object.freeze({
@@ -246,6 +246,13 @@ export function normalizeCountryFromApi(c) {
     basePrice: c.basePrice,
     useGlobalBasePrice: c.useGlobalBasePrice === true,
     basePriceOverride: Number.isFinite(Number(c.basePriceOverride)) ? Number(c.basePriceOverride) : c.basePrice,
+    governmentFee: Number.isFinite(Number(c.governmentFee)) ? Number(c.governmentFee) : 0,
+    useGlobalGovernmentFee: c.useGlobalGovernmentFee !== false,
+    governmentFeeOverride: Number.isFinite(Number(c.governmentFeeOverride))
+      ? Number(c.governmentFeeOverride)
+      : Number.isFinite(Number(c.governmentFee))
+        ? Number(c.governmentFee)
+        : 0,
     processingDays: c.processingDays || "5-10",
     difficulty: c.difficulty || "moderate",
     /**

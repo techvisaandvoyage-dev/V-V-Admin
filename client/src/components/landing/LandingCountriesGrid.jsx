@@ -46,6 +46,18 @@ const LandingCountriesGrid = memo(
             />
           ))}
         </div>
+
+        <div className="mt-10 flex justify-center">
+          <Button
+            variant="primary"
+            rightIcon={<ArrowRight size={16} />}
+            onClick={onNavigateAll}
+            id="explore-more-countries-btn"
+            className="min-w-[220px]"
+          >
+            Explore More Countries
+          </Button>
+        </div>
       </section>
     );
   },
