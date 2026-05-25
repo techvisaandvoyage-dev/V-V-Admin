@@ -1397,6 +1397,7 @@ const Dashboard = () => {
    */
   const [globalDefaults, setGlobalDefaults] = useState({
     globalBasePrice: null,
+    globalGovernmentFee: null,
     globalVisaType: "",
     globalValidity: "",
     globalLengthOfStay: "",
@@ -1407,6 +1408,7 @@ const Dashboard = () => {
   const [globalDefaultStats, setGlobalDefaultStats] = useState({
     totalCountries: 0,
     usingGlobalBasePrice: 0,
+    usingGlobalGovernmentFee: 0,
     usingGlobalVisaType: 0,
     usingGlobalValidity: 0,
     usingGlobalLengthOfStay: 0,
@@ -1414,6 +1416,7 @@ const Dashboard = () => {
     usingGlobalProcessingDays: 0,
     usingGlobalRequiredDocuments: 0,
     overridingBasePrice: 0,
+    overridingGovernmentFee: 0,
     overridingVisaType: 0,
     overridingValidity: 0,
     overridingLengthOfStay: 0,
@@ -1436,6 +1439,7 @@ const Dashboard = () => {
     { key: "upload-methods", label: "Document Upload Methods" },
     { key: "landing-highlights", label: "Landing Highlights" },
     { key: "base-price", label: "Update Fee (universal)" },
+    { key: "government-fee", label: "Update Government Fee (universal)" },
     { key: "visa-type", label: "Update Visa Type (universal)" },
     { key: "length-of-stay", label: "Update Length of Stay (universal)" },
     { key: "entry-type", label: "Update Entry (universal)" },
@@ -1449,6 +1453,7 @@ const Dashboard = () => {
   ];
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
   const [basePriceCustom, setBasePriceCustom] = useState("");
+  const [governmentFeeCustom, setGovernmentFeeCustom] = useState("");
   const [visaTypePicker, setVisaTypePicker] = useState("");
   const [visaTypeCustom, setVisaTypeCustom] = useState("");
   const [validityPicker, setValidityPicker] = useState("");
@@ -1695,7 +1700,7 @@ const Dashboard = () => {
 
   // Country form state
   const [countryForm, setCountryForm] = useState({
-    name: "", flagEmoji: "🌍", basePrice: "", processingDays: "", difficulty: "moderate",
+    name: "", flagEmoji: "🌍", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
     visaType: "", validity: "", lengthOfStay: "", entryType: "", continent: "", description: "", requirements: [""], imageUrl: "",
     requiredDocuments: ["passport"], successRate: "80", trending: false,
     visaInformation: createVisaInformationState({}),
@@ -1893,6 +1898,7 @@ const Dashboard = () => {
     setCountryForm({
       ...country,
       basePrice: String(country.basePrice),
+      governmentFee: String(country.governmentFee ?? 0),
       successRate: String(country.successRate ?? 80),
       trending: Boolean(country.trending),
       validity: String(country.validity ?? ""),
@@ -1951,6 +1957,7 @@ const Dashboard = () => {
     const payload = {
       ...countryForm,
       basePrice: Number(countryForm.basePrice),
+      governmentFee: Number(countryForm.governmentFee || 0),
       // Sent raw (no "5-10" fallback) so the server can auto-flip
       // `useGlobalProcessingDays = true` when the admin clears the field or
       // re-matches the global default. The DB-level default already supplies
@@ -2165,6 +2172,10 @@ const Dashboard = () => {
             Number.isFinite(Number(data.defaults?.globalBasePrice)) && Number(data.defaults?.globalBasePrice) >= 0
               ? Number(data.defaults.globalBasePrice)
               : null,
+          globalGovernmentFee:
+            Number.isFinite(Number(data.defaults?.globalGovernmentFee)) && Number(data.defaults?.globalGovernmentFee) >= 0
+              ? Number(data.defaults.globalGovernmentFee)
+              : null,
           globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
           globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
           globalLengthOfStay: String(data.defaults?.globalLengthOfStay ?? "").trim(),
@@ -2180,6 +2191,7 @@ const Dashboard = () => {
         setGlobalDefaultStats({
           totalCountries: data.stats?.totalCountries ?? 0,
           usingGlobalBasePrice: data.stats?.usingGlobalBasePrice ?? 0,
+          usingGlobalGovernmentFee: data.stats?.usingGlobalGovernmentFee ?? 0,
           usingGlobalVisaType: data.stats?.usingGlobalVisaType ?? 0,
           usingGlobalValidity: data.stats?.usingGlobalValidity ?? 0,
           usingGlobalLengthOfStay: data.stats?.usingGlobalLengthOfStay ?? 0,
@@ -2187,6 +2199,7 @@ const Dashboard = () => {
           usingGlobalProcessingDays: data.stats?.usingGlobalProcessingDays ?? 0,
           usingGlobalRequiredDocuments: data.stats?.usingGlobalRequiredDocuments ?? 0,
           overridingBasePrice: data.stats?.overridingBasePrice ?? 0,
+          overridingGovernmentFee: data.stats?.overridingGovernmentFee ?? 0,
           overridingVisaType: data.stats?.overridingVisaType ?? 0,
           overridingValidity: data.stats?.overridingValidity ?? 0,
           overridingLengthOfStay: data.stats?.overridingLengthOfStay ?? 0,
@@ -2227,6 +2240,7 @@ const Dashboard = () => {
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
         setBasePriceCustom(next.globalBasePrice ?? "");
+        setGovernmentFeeCustom(next.globalGovernmentFee ?? "");
         // Pre-fill the dropdowns with whatever the global currently is so admins can
         // see at a glance what's live without first clicking around.
         if (next.globalVisaType && VISA_TYPE_SUGGESTIONS.includes(next.globalVisaType)) {
@@ -2508,6 +2522,42 @@ const Dashboard = () => {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
       console.error("Update global fee failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  const runUpdateGlobalGovernmentFee = async () => {
+    const parsedGovernmentFee = Number(governmentFeeCustom);
+    if (!Number.isFinite(parsedGovernmentFee) || parsedGovernmentFee < 0) {
+      showToast("Enter a valid global government fee.", "error");
+      return;
+    }
+    setSavingControlKey("government-fee");
+    try {
+      const { data } = await api.post("/admin/control/government-fee", { governmentFee: parsedGovernmentFee });
+      if (data?.success) {
+        showToast(data.message || `Government fee set to ${formatPriceINR(parsedGovernmentFee)}.`, "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+      } else {
+        showToast(data?.message || "Failed to update global government fee.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update global government fee.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found - restart the API locally or redeploy the server so /api/admin/control/government-fee is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Update global government fee failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -3716,6 +3766,59 @@ const Dashboard = () => {
                   placeholder="e.g. 4999"
                   id="control-base-price"
                   helper="Saving this updates every country to use the global fee until a country is manually given a different amount."
+                />
+              </ExpandableAdminControlCard>
+              </div>
+
+              <div className={activeControlSection === "government-fee" ? "" : "hidden"}>
+              <ExpandableAdminControlCard>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <IndianRupee size={18} className="text-cyan" />
+                        Update Government Fee (universal)
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Sets one global <span className="text-text-primary font-medium">Government Fee</span> for every country.
+                      Per-country government fees in <span className="text-text-primary font-medium">Country Manager</span> can still
+                      override it manually, and matching the same amount again switches that country back to the global government fee.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current global:{" "}
+                      <span className="text-text-primary font-medium">
+                        {formatPriceINR(globalDefaults.globalGovernmentFee)}
+                      </span>
+                      {globalDefaultStats.totalCountries > 0 && (
+                        <>
+                          {" "}� {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          <span className="text-amber-400/90">{globalDefaultStats.overridingGovernmentFee}</span> override it.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingControlKey === "government-fee"}
+                    disabled={!String(governmentFeeCustom).trim()}
+                    onClick={runUpdateGlobalGovernmentFee}
+                  >
+                    Update All Government Fees
+                  </Button>
+                </div>
+
+                <Input
+                  label="Global Government Fee (INR)"
+                  type="number"
+                  value={governmentFeeCustom}
+                  onChange={(e) => setGovernmentFeeCustom(e.target.value)}
+                  placeholder="e.g. 2500"
+                  id="control-government-fee"
+                  helper="Landing page and destination cards will show this government fee unless a country has its own override."
                 />
               </ExpandableAdminControlCard>
               </div>
@@ -6105,6 +6208,33 @@ const Dashboard = () => {
             </div>
             <div>
               <Input
+                label="Government Fee (INR)"
+                type="number"
+                value={countryForm.governmentFee}
+                onChange={(e) => setCountryForm((p) => ({ ...p, governmentFee: e.target.value }))}
+                id="country-government-fee"
+                placeholder="2500"
+              />
+              {!selectedCountry ? null : selectedCountry?.useGlobalGovernmentFee !== false ? (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Using global value
+                  {Number.isFinite(Number(globalDefaults.globalGovernmentFee))
+                    ? ` (${formatPriceINR(globalDefaults.globalGovernmentFee)})`
+                    : ""}. Type a different amount to override.
+                </p>
+              ) : (
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Custom override - match the global
+                  {Number.isFinite(Number(globalDefaults.globalGovernmentFee))
+                    ? ` (${formatPriceINR(globalDefaults.globalGovernmentFee)})`
+                    : " government fee"} to use global again.
+                </p>
+              )}
+            </div>
+            <div>
+              <Input
                 label="Processing Days"
                 value={countryForm.processingDays}
                 onChange={(e) => setCountryForm((p) => ({ ...p, processingDays: e.target.value }))}
@@ -7384,3 +7514,9 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+
+
+
+
