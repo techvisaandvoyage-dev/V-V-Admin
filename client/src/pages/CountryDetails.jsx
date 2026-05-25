@@ -294,7 +294,10 @@ const DOCUMENT_DESCRIPTIONS = {
 
 
 
+let travelerStateCounter = 0;
+
 const createTravelerState = () => ({
+  id: `traveler-${Date.now()}-${travelerStateCounter += 1}`,
   name: "",
   passportFile: null,
 });
@@ -951,8 +954,8 @@ const CountryDetails = () => {
           nextDetails[travelerNo] = detail;
         }
 
-        setPassportSuccesses(nextSuccesses);
-        setPassportDetails(nextDetails);
+        setPassportSuccesses((prev) => ({ ...prev, ...nextSuccesses }));
+        setPassportDetails((prev) => ({ ...prev, ...nextDetails }));
       } catch {
         /* Restoring upload status should not block the travel form. */
       }
@@ -2415,7 +2418,7 @@ const CountryDetails = () => {
                 <div className="space-y-4">
                   {travelers.map((traveler, index) => (
                     <div
-                      key={`traveler-${index}`}
+                      key={traveler.id}
                       className="rounded-2xl border border-border bg-surface-2 p-4 space-y-3"
                     >
                       <div className="flex items-center justify-between gap-3">
