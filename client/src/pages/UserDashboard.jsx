@@ -380,7 +380,7 @@ const UserDashboard = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
 
-      <main className="flex-1 overflow-auto min-w-0">
+      <main className="flex-1 min-w-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -709,9 +709,10 @@ const UserDashboard = () => {
                     return (
                       <motion.div
                         key={booking._id || booking.id || i}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.08 }}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(i * 0.04, 0.3) }}
+                        className="relative z-0 hover:z-50"
                       >
                         <Card
                           hoverable
@@ -818,7 +819,7 @@ const UserDashboard = () => {
                           </div>
 
                           <div className="text-right flex-shrink-0 self-start sm:self-center">
-                            <div className="group relative inline-flex flex-col items-end">
+                            <div className="group relative inline-flex flex-col items-end z-10 hover:z-50">
                               <div className="text-sm font-bold text-text-primary cursor-default">
                                 ₹{Number(booking.totalAmount ?? booking.fee ?? 0).toLocaleString("en-IN")}
                               </div>
