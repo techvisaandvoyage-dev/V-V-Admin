@@ -32,7 +32,14 @@ const loadServiceAccountSources = (sources = {}) => {
   let raw = normalizeJsonInput(fromEnv || sources.rawFromEnv || '');
   if (!raw && fromDb) raw = normalizeJsonInput(fromDb);
 
-  const filePath = String(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '').trim();
+  let filePath = String(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '').trim();
+  if (!raw && !filePath) {
+    const defaultPath = path.resolve(process.cwd(), 'firebase-key.json');
+    if (fs.existsSync(defaultPath)) {
+      filePath = defaultPath;
+    }
+  }
+
   if (!raw && filePath) {
     const abs = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
     try {
