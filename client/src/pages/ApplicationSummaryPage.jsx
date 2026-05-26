@@ -15,6 +15,7 @@ import { useCountries, useMergedCountry } from "../hooks/useCountries";
 import { optimizeUploadFile } from "../utils/optimizeUploadFile";
 import { formatOrdinalDate } from "../utils/dateUtils";
 import { saveTravelDraft } from "../utils/travelDraftStorage";
+import { getFileValidationRules } from "../utils/fileValidation";
 
 const SUMMARY_UPLOAD_MAX_BYTES = 300 * 1024;
 const ALLOWED_PASSPORT_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
@@ -211,8 +212,24 @@ const ApplicationSummaryPage = () => {
   const [uploadModalUploading, setUploadModalUploading] = useState({});
   const [uploadModalOptimizing, setUploadModalOptimizing] = useState({});
   const [uploadSuccesses, setUploadSuccesses] = useState({});
+  const [uploadSettings, setUploadSettings] = useState({ allowedFileFormats: ["pdf", "jpg", "jpeg", "png"] });
   const [razorpayReady, setRazorpayReady] = useState(false);
   const [razorpayMessage, setRazorpayMessage] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await api.get("/config/upload-settings");
+        if (alive && data?.success && data.config) {
+          setUploadSettings(data.config);
+        }
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
   const countryIdForPricing = summaryData?.countryId || application?.countryId || "";
   const { countries: allCountries } = useCountries();
   const listCountry = allCountries.find((c) => c.id === countryIdForPricing);
@@ -586,12 +603,14 @@ const ApplicationSummaryPage = () => {
 
   const handleUploadModalPassportChange = async (index, file) => {
     if (!file) return;
-    if (!ALLOWED_PASSPORT_MIME_TYPES.has(String(file.type || "").toLowerCase())) {
+    const rules = getFileValidationRules(uploadSettings?.allowedFileFormats);
+    if (!rules.isValidFile(file)) {
+      const err = `Only ${rules.displayLabel} files are allowed.`;
       setUploadModalErrors((prev) => ({
         ...prev,
-        [index]: INVALID_PASSPORT_TYPE_ERROR,
+        [index]: err,
       }));
-      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
+      showToast(err, "error");
       return;
     }
     setUploadModalUploading((prev) => ({ ...prev, [index]: true }));
@@ -1233,10 +1252,11 @@ const ApplicationSummaryPage = () => {
                         uploading={Boolean(uploadModalUploading[index])}
                         optimizing={Boolean(uploadModalOptimizing[index])}
                         saved={Boolean(traveler.passportUploaded && !traveler.passportFile)}
+                        accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                         helperText={
                           traveler.passportFile
                             ? traveler.passportFile.name
-                            : "JPG, JPEG, PNG - max 300 KB"
+                            : `${getFileValidationRules(uploadSettings?.allowedFileFormats).displayLabel} - max 300 KB`
                         }
                         fileSizeText={traveler.passportFile ? formatFileSize(traveler.passportFile.size) : ""}
                         savedText="Passport uploaded"

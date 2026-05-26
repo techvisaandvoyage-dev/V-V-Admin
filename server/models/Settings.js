@@ -92,6 +92,10 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  allowedFileFormats: {
+    type: [String],
+    default: ["pdf", "jpg", "jpeg", "png"]
+  },
   customerChatEnabled: {
     type: Boolean,
     default: true

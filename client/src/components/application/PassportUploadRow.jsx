@@ -16,6 +16,7 @@ const PassportUploadRow = ({
   onChange,
   onReupload,
   className = "",
+  accept = "image/jpeg,image/png",
 }) => {
   const normalizeHelperText = (text) => String(text || "")
     .replace(/Ãƒâ€šÃ‚Â·/g, " - ")
@@ -98,7 +99,7 @@ const PassportUploadRow = ({
         <input
           id={inputId}
           type="file"
-          accept="image/jpeg,image/png"
+          accept={accept}
           className="sr-only"
           disabled={disabled}
           onChange={(e) => {

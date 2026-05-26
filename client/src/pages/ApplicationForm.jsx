@@ -51,6 +51,7 @@ import {
   FINAL_UPLOAD_TARGET_BYTES,
   getUploadLimitForDocType,
 } from "../utils/optimizeUploadFile";
+import { getFileValidationRules } from "../utils/fileValidation";
 
 const MAX_DOCUMENT_SIZE_BYTES = FINAL_UPLOAD_TARGET_BYTES;
 const FILE_SIZE_ERROR = "File must be below 8 MB before optimization.";
@@ -286,6 +287,7 @@ const ApplicationForm = () => {
   const [uploadSettings, setUploadSettings] = useState({
     enableGDriveUpload: true,
     enableFileUpload: true,
+    allowedFileFormats: ["pdf", "jpg", "jpeg", "png"],
   });
   const [checkoutStarting, setCheckoutStarting] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -735,9 +737,11 @@ const ApplicationForm = () => {
       return;
     }
     setDocUploading((prev) => ({ ...prev, [inputKey]: true }));
-    if (key === "passport" && !ALLOWED_PASSPORT_MIME_TYPES.has(String(file.type || "").toLowerCase())) {
-      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
-      setDocErrors((prev) => ({ ...prev, [inputKey]: INVALID_PASSPORT_TYPE_ERROR }));
+    const rules = getFileValidationRules(uploadSettings?.allowedFileFormats);
+    if (!rules.isValidFile(file)) {
+      const err = `Only ${rules.displayLabel} files are allowed.`;
+      showToast(err, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: err }));
       setDocUploading((prev) => {
         const next = { ...prev };
         delete next[inputKey];
@@ -881,8 +885,13 @@ const ApplicationForm = () => {
 
   const updateTravelerOtherDocs = async (index, files) => {
     const incoming = Array.from(files || []);
+    const rules = getFileValidationRules(uploadSettings?.allowedFileFormats);
     const optimizedFiles = [];
     for (const rawFile of incoming) {
+      if (!rules.isValidFile(rawFile)) {
+        showToast(`Only ${rules.displayLabel} files are allowed.`, "error");
+        return;
+      }
       const { file: optimizedFile, error } = await optimizeUploadFile(rawFile);
       if (error || !optimizedFile) {
         showToast(error || OPTIMIZE_ERROR, "error");
@@ -1561,10 +1570,10 @@ const ApplicationForm = () => {
                           </p>
                           <p className="truncate text-[10px] text-text-muted">
                             {file
-                              ? `${file.name} Â· ${formatFileSize(file.size)}`
+                              ? `${file.name} · ${formatFileSize(file.size)}`
                               : rejectedFiles[zoneKey]
-                                ? `${rejectedFiles[zoneKey].name} Â· ${formatFileSize(rejectedFiles[zoneKey].size)}`
-                                : "PDF, JPG, PNG · max 300 KB"}
+                                ? `${rejectedFiles[zoneKey].name} · ${formatFileSize(rejectedFiles[zoneKey].size)}`
+                                : `${getFileValidationRules(uploadSettings?.allowedFileFormats).displayLabel} · max 300 KB`}
                           </p>
                         </div>
                         <label
@@ -1582,7 +1591,7 @@ const ApplicationForm = () => {
                         <input
                           id={`traveler-${index}-${field.key}`}
                           type="file"
-                          accept=".pdf,image/jpeg,image/png,image/webp"
+                          accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                           className="sr-only"
                           disabled={Boolean(docUploading[zoneKey])}
                           onChange={(e) => {
@@ -1625,7 +1634,7 @@ const ApplicationForm = () => {
                       id={`traveler-${index}-other-docs`}
                       type="file"
                       multiple
-                      accept=".pdf,image/jpeg,image/png,image/webp"
+                      accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                       onChange={(e) => {
                         updateTravelerOtherDocs(index, e.target.files || []);
                         e.target.value = "";

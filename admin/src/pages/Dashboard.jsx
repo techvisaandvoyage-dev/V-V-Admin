@@ -659,6 +659,9 @@ const mapApiSettingsToFormState = (s) => ({
   enableGDriveUpload: s.enableGDriveUpload !== false,
   enableFileUpload: s.enableFileUpload !== false,
   showTravelerDetails: s.showTravelerDetails !== false,
+  allowedFileFormats: Array.isArray(s.allowedFileFormats) && s.allowedFileFormats.length > 0
+    ? s.allowedFileFormats
+    : ["pdf", "jpg", "jpeg", "png"],
   unsplashApplicationId: s.unsplashApplicationId || "",
   unsplashAccessKey: s.unsplashAccessKey || "",
   unsplashSecretKey: s.unsplashSecretKey || "",
@@ -1370,6 +1373,7 @@ const Dashboard = () => {
     enableGDriveUpload: true,
     enableFileUpload: true,
     showTravelerDetails: true,
+    allowedFileFormats: ["pdf", "jpg", "jpeg", "png"],
     unsplashApplicationId: "",
     unsplashAccessKey: "",
     unsplashSecretKey: "",
@@ -3568,6 +3572,7 @@ const Dashboard = () => {
                               enableGDriveUpload: settingsForm.enableGDriveUpload,
                               enableFileUpload: settingsForm.enableFileUpload,
                               showTravelerDetails: settingsForm.showTravelerDetails,
+                              allowedFileFormats: settingsForm.allowedFileFormats,
                             },
                             "Document upload and traveler visibility options saved."
                           )
@@ -3635,6 +3640,45 @@ const Dashboard = () => {
                           <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${settingsForm.showTravelerDetails ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
                       </label>
+
+                      {/* Allowed File Formats */}
+                      <div className="mt-6 border-t border-border pt-6">
+                        <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                          Allowed File Formats
+                        </h4>
+                        <p className="text-[11px] text-text-muted mb-4">
+                          Select which file formats are allowed for document uploads. Checked formats will be allowed, unchecked formats will be hidden and blocked.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {["pdf", "jpg", "jpeg", "png"].map((format) => {
+                            const isChecked = settingsForm.allowedFileFormats?.includes(format);
+                            return (
+                              <label
+                                key={format}
+                                className="flex items-center gap-3 bg-background p-3 rounded-xl border border-border cursor-pointer hover:border-cyan/30 transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4 rounded border-border text-cyan focus:ring-cyan bg-surface-2 focus:ring-offset-background"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    setSettingsForm((p) => {
+                                      const current = p.allowedFileFormats || ["pdf", "jpg", "jpeg", "png"];
+                                      const next = e.target.checked
+                                        ? [...current, format]
+                                        : current.filter((x) => x !== format);
+                                      return { ...p, allowedFileFormats: next };
+                                    });
+                                  }}
+                                />
+                                <span className="text-sm font-medium text-text-primary uppercase">
+                                  {format}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

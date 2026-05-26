@@ -53,6 +53,7 @@ import {
   PASSPORT_UPLOAD_MAX_BYTES,
   RAW_UPLOAD_LIMIT_BYTES,
 } from "../utils/optimizeUploadFile";
+import { getFileValidationRules } from "../utils/fileValidation";
 import VisaInformationSection from "../components/country/VisaInformationSection";
 import CountryFeeSummaryCard from "../components/country/CountryFeeSummaryCard";
 import {
@@ -379,6 +380,7 @@ const CountryDetails = () => {
   const [razorpayCheckLoading, setRazorpayCheckLoading] = useState(false);
   const [razorpayReadyMessage, setRazorpayReadyMessage] = useState("");
   const [currentApplicationId, setCurrentApplicationId] = useState("");
+  const [uploadSettings, setUploadSettings] = useState({ allowedFileFormats: ["pdf", "jpg", "jpeg", "png"] });
   const [draftCreating, setDraftCreating] = useState(false);
   const [travelValidationAttempted, setTravelValidationAttempted] = useState(false);
   const [passportUploading, setPassportUploading] = useState({});
@@ -439,6 +441,16 @@ const CountryDetails = () => {
           gstEnabled: data.gstEnabled !== false,
           gstRate: Number.isFinite(serverRate) && serverRate >= 0 ? serverRate : 18,
         });
+      } catch {
+        /* ignore */
+      }
+    })();
+    (async () => {
+      try {
+        const { data } = await api.get("/config/upload-settings");
+        if (alive && data?.success && data.config) {
+          setUploadSettings(data.config);
+        }
       } catch {
         /* ignore */
       }
@@ -1177,9 +1189,11 @@ const CountryDetails = () => {
       });
       return;
     }
-    if (!ALLOWED_PASSPORT_MIME_TYPES.has(String(rawFile.type || "").toLowerCase())) {
-      setPassportErrors((prev) => ({ ...prev, [travelerNo]: INVALID_PASSPORT_TYPE_ERROR }));
-      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
+    const rules = getFileValidationRules(uploadSettings?.allowedFileFormats);
+    if (!rules.isValidFile(rawFile)) {
+      const err = `Only ${rules.displayLabel} files are allowed.`;
+      setPassportErrors((prev) => ({ ...prev, [travelerNo]: err }));
+      showToast(err, "error");
       return;
     }
     if (rawFile.size > RAW_UPLOAD_LIMIT_BYTES) {
@@ -2676,12 +2690,13 @@ const CountryDetails = () => {
                         uploading={Boolean(passportUploading[index + 1])}
                         optimizing={Boolean(passportOptimizing[index + 1])}
                         saved={Boolean(passportSuccesses[index + 1] && !traveler.passportFile)}
+                        accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                         helperText={
                           traveler.passportFile
                             ? `${traveler.passportFile.name} - ${formatFileSize(traveler.passportFile.size)}`
                             : passportDetails[index + 1]?.fileName
                               ? `${passportDetails[index + 1].fileName} - ${formatFileSize(passportDetails[index + 1].fileSize)}`
-                              : "JPG, JPEG, PNG - max 300 KB"
+                              : `${getFileValidationRules(uploadSettings?.allowedFileFormats).displayLabel} - max 300 KB`
                         }
                         savedText="Passport uploaded"
                         reuploadLabel="Replace File"

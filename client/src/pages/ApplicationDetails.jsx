@@ -53,6 +53,7 @@ import {
   FINAL_UPLOAD_TARGET_BYTES,
   getUploadLimitForDocType,
 } from "../utils/optimizeUploadFile";
+import { getFileValidationRules } from "../utils/fileValidation";
 import { openRazorpayForApplication, validateRazorpayCheckoutReadiness } from "../utils/razorpayCheckout";
 import SharedGoogleDriveLinkSection from "../components/application/SharedGoogleDriveLinkSection";
 
@@ -290,6 +291,7 @@ const ApplicationDetails = () => {
   const [uploadSettings, setUploadSettings] = useState({
     enableGDriveUpload: true,
     enableFileUpload: true,
+    allowedFileFormats: ["pdf", "jpg", "jpeg", "png"],
   });
   const [docErrors, setDocErrors] = useState({});
   const [applicantNotesDraft, setApplicantNotesDraft] = useState("");
@@ -722,9 +724,11 @@ const ApplicationDetails = () => {
       return;
     }
     setUploadingState(prepareStateKey, true);
-    if (docKey === "passport" && !ALLOWED_PASSPORT_MIME_TYPES.has(String(file.type || "").toLowerCase())) {
-      showToast(INVALID_PASSPORT_TYPE_ERROR, "error");
-      setDocErrors((prev) => ({ ...prev, [inputKey]: INVALID_PASSPORT_TYPE_ERROR }));
+    const rules = getFileValidationRules(uploadSettings?.allowedFileFormats);
+    if (!rules.isValidFile(file)) {
+      const err = `Only ${rules.displayLabel} files are allowed.`;
+      showToast(err, "error");
+      setDocErrors((prev) => ({ ...prev, [inputKey]: err }));
       setSelectedDocs((prev) => ({ ...prev, [inputKey]: null }));
       setUploadedDocSuccesses((prev) => {
         const next = { ...prev };
@@ -785,9 +789,15 @@ const ApplicationDetails = () => {
   const handleOtherDocsChange = async (travelerNo, files) => {
     const travelerNoStr = String(travelerNo);
     const incoming = Array.from(files || []);
+    const rules = getFileValidationRules(uploadSettings?.allowedFileFormats);
     const optimizedFiles = [];
     setOptimizingState(`traveler-prepare-other-${travelerNoStr}`, true);
     for (const rawFile of incoming) {
+      if (!rules.isValidFile(rawFile)) {
+        setOptimizingState(`traveler-prepare-other-${travelerNoStr}`, false);
+        showToast(`Only ${rules.displayLabel} files are allowed.`, "error");
+        return;
+      }
       const { file: optimizedFile, error, originalSize, compressedSize, wasCompressed } = await optimizeUploadFile(rawFile);
       if (error || !optimizedFile) {
         setOptimizingState(`traveler-prepare-other-${travelerNoStr}`, false);
@@ -1870,7 +1880,7 @@ const ApplicationDetails = () => {
                                         id={`further-other-docs-${travelerNoStr}`}
                                         type="file"
                                         multiple
-                                        accept=".pdf,image/jpeg,image/png,image/webp"
+                                        accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                                         disabled={
                                           isTravelerUploadLoading ||
                                           !canUploadDocuments
@@ -2296,7 +2306,7 @@ const ApplicationDetails = () => {
                             id={`further-other-docs-${travelerNoStr}`}
                             type="file"
                             multiple
-                            accept=".pdf,image/jpeg,image/png,image/webp"
+                            accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                             disabled={docUploading || submissionLocked}
                             onChange={(e) => {
                               handleOtherDocsChange(travelerNo, e.target.files || []);
@@ -2562,8 +2572,8 @@ const ApplicationDetails = () => {
                               <p className="text-xs font-semibold text-slate-900 truncate">{field.label}</p>
                               <p className="text-[10px] text-slate-500 truncate">
                                 {selectedFile
-                                  ? `${selectedFile.name} Ãƒâ€šÃ‚Â· ${formatFileSize(selectedFile.size)}`
-                                  : `PDF, JPG, PNG Ãƒâ€šÃ‚Â· max ${getUploadLimitForDocType(field.key).label}`}
+                                  ? `${selectedFile.name} · ${formatFileSize(selectedFile.size)}`
+                                  : `${getFileValidationRules(uploadSettings?.allowedFileFormats).displayLabel} · max ${getUploadLimitForDocType(field.key).label}`}
                               </p>
                             </div>
                             <label
@@ -2575,7 +2585,7 @@ const ApplicationDetails = () => {
                             <input
                               id={`file-${inputKey}`}
                               type="file"
-                              accept=".pdf,image/jpeg,image/png,image/webp"
+                              accept={getFileValidationRules(uploadSettings?.allowedFileFormats).acceptString}
                               className="sr-only"
                               disabled={docUploading || submissionLocked || Boolean(getSavedTravelerDocuments(travelerNo)[field.key])}
                               onChange={(e) => {

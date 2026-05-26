@@ -263,6 +263,7 @@ const updateSettings = async (req, res) => {
       enableGDriveUpload,
       enableFileUpload,
       showTravelerDetails,
+      allowedFileFormats,
       customerChatEnabled,
       customerChatMode,
       customerChatLink,
@@ -326,6 +327,11 @@ const updateSettings = async (req, res) => {
     if (enableGDriveUpload !== undefined) settings.enableGDriveUpload = Boolean(enableGDriveUpload);
     if (enableFileUpload !== undefined) settings.enableFileUpload = Boolean(enableFileUpload);
     if (showTravelerDetails !== undefined) settings.showTravelerDetails = Boolean(showTravelerDetails);
+    if (allowedFileFormats !== undefined) {
+      settings.allowedFileFormats = Array.isArray(allowedFileFormats)
+        ? allowedFileFormats.map(s => String(s || '').toLowerCase().trim()).filter(Boolean)
+        : ["pdf", "jpg", "jpeg", "png"];
+    }
     if (customerChatEnabled !== undefined) settings.customerChatEnabled = Boolean(customerChatEnabled);
     if (customerChatMode !== undefined) settings.customerChatMode = String(customerChatMode || '').trim() || 'external_link';
     if (customerChatLink !== undefined) settings.customerChatLink = String(customerChatLink || '').trim();
@@ -474,6 +480,9 @@ const getUploadSettings = async (req, res) => {
       enableGDriveUpload: settings?.enableGDriveUpload !== false,
       enableFileUpload: settings?.enableFileUpload !== false,
       showTravelerDetails: settings?.showTravelerDetails !== false,
+      allowedFileFormats: Array.isArray(settings?.allowedFileFormats) && settings.allowedFileFormats.length > 0
+        ? settings.allowedFileFormats
+        : ["pdf", "jpg", "jpeg", "png"],
     };
     res.json({ success: true, config });
   } catch (error) {
