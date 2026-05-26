@@ -3651,21 +3651,26 @@ const Dashboard = () => {
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                           {["pdf", "jpg", "jpeg", "png"].map((format) => {
-                            const isChecked = settingsForm.allowedFileFormats?.includes(format);
+                            const isChecked = Array.isArray(settingsForm.allowedFileFormats) && settingsForm.allowedFileFormats.includes(format);
                             return (
                               <label
                                 key={format}
+                                htmlFor={`allowed-format-checkbox-${format}`}
                                 className="flex items-center gap-3 bg-background p-3 rounded-xl border border-border cursor-pointer hover:border-cyan/30 transition-colors"
                               >
                                 <input
                                   type="checkbox"
+                                  id={`allowed-format-checkbox-${format}`}
                                   className="w-4 h-4 rounded border-border text-cyan focus:ring-cyan bg-surface-2 focus:ring-offset-background"
                                   checked={isChecked}
                                   onChange={(e) => {
+                                    const checked = e.target.checked;
                                     setSettingsForm((p) => {
-                                      const current = p.allowedFileFormats || ["pdf", "jpg", "jpeg", "png"];
-                                      const next = e.target.checked
-                                        ? [...current, format]
+                                      const current = Array.isArray(p.allowedFileFormats)
+                                        ? p.allowedFileFormats
+                                        : ["pdf", "jpg", "jpeg", "png"];
+                                      const next = checked
+                                        ? (current.includes(format) ? current : [...current, format])
                                         : current.filter((x) => x !== format);
                                       return { ...p, allowedFileFormats: next };
                                     });
