@@ -28,6 +28,7 @@ import StaticPagesManager from "../components/cms/StaticPagesManager";
 import BlogAdminPanel from "../components/blog/BlogAdminPanel";
 import AnalyticsPage from "./admin/AnalyticsPage";
 import PaymentsPage from "./admin/PaymentsPage";
+import VisaTypesManager from "../components/controls/VisaTypesManager";
 import AdminLayout from "../layouts/AdminLayout";
 import { ADMIN_DASHBOARD_TABS } from "../constants/adminMenu";
 import { useUIStore } from "../store/uiStore";
@@ -3792,7 +3793,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}ï¿½ {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingGovernmentFee}</span> override it.
                         </>
                       )}
