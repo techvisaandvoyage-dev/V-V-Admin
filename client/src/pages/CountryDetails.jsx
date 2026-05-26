@@ -1499,6 +1499,8 @@ const CountryDetails = () => {
 
   const openTravelDetails = () => {
     setShowTravelDetails(true);
+    // Auto-save draft so a page refresh doesn't hide the form
+    persistCurrentTravelDraft();
     setTimeout(() => scrollToSection("travel-details"), 100);
   };
 
@@ -1529,6 +1531,27 @@ const CountryDetails = () => {
       localStorage.setItem("lastActiveCountryName", country.name);
     }
   };
+
+  // Auto-save draft as user fills the form to prevent data loss on refresh
+  useEffect(() => {
+    if (showTravelDetails && countryId) {
+      const timer = setTimeout(() => {
+        persistCurrentTravelDraft();
+      }, 500); // Debounce save to avoid hammering storage on every keystroke
+      return () => clearTimeout(timer);
+    }
+  }, [
+    showTravelDetails,
+    countryId,
+    currentApplicationId,
+    travelDateFrom,
+    travelDateTo,
+    visaOption,
+    sharedDriveLink,
+    travelers,
+    passportSuccesses,
+    passportDetails
+  ]);
 
   /** Build the `redirect=` value used when a guest needs to log in mid-flow. */
   const buildLoginRedirect = (postAction) => {
@@ -2526,8 +2549,16 @@ const CountryDetails = () => {
                     onChange={(e) => setVisaOption(e.target.value)}
                     className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-cyan/50"
                   >
-                    <option value="e-Visa">e-Visa</option>
-                    <option value="Sticker Visa">Sticker Visa</option>
+                    {activeVisaTypes.length > 0 ? (
+                      activeVisaTypes.map((vt) => (
+                        <option key={vt._id} value={vt.name}>{vt.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="e-Visa">e-Visa</option>
+                        <option value="Sticker Visa">Sticker Visa</option>
+                      </>
+                    )}
                   </select>
                 </div>
 

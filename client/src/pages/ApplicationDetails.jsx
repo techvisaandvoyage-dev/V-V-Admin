@@ -597,7 +597,11 @@ const ApplicationDetails = () => {
     : null;
   const activeExpandedTravelerNo = expandedTravelerNo ?? hashExpandedTravelerNo;
   const handleBack = () => {
-    navigate("/dashboard", { replace: true });
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   };
   const getSavedTravelerName = (travelerNo) => {
     const routeNames = Array.isArray(location.state?.travelerNames) ? location.state.travelerNames : [];
@@ -862,7 +866,7 @@ const ApplicationDetails = () => {
         <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
           <h2 className="text-2xl font-bold text-text-primary mb-2">Application Not Found</h2>
           <p className="text-text-secondary mb-6">We couldn't find the requested application.</p>
-          <Button variant="primary" onClick={() => navigate("/dashboard", { replace: true })}>
+          <Button variant="primary" onClick={handleBack}>
             Return to Dashboard
           </Button>
         </div>

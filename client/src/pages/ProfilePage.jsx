@@ -203,7 +203,11 @@ const ProfilePage = () => {
   }, []);
 
   const handleBack = () => {
-    navigate("/dashboard", { replace: true });
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   };
 
   const handleChange = (e) => {

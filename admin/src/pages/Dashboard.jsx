@@ -1442,6 +1442,7 @@ const Dashboard = () => {
     { key: "base-price", label: "Update Fee (universal)" },
     { key: "government-fee", label: "Update Government Fee (universal)" },
     { key: "visa-type", label: "Update Visa Type (universal)" },
+    { key: "manage-visa-types", label: "Manage Visa Types" },
     { key: "length-of-stay", label: "Update Length of Stay (universal)" },
     { key: "entry-type", label: "Update Entry (universal)" },
     { key: "validity", label: "Update Validity (universal)" },
@@ -5359,9 +5360,15 @@ const Dashboard = () => {
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
-                </div>
+                  </div>
               </Card>
               </div>
+
+              {/* ── Manage Visa Types ── */}
+              <div className={activeControlSection === "manage-visa-types" ? "" : "hidden"}>
+                <VisaTypesManager />
+              </div>
+
             </div>
           </div>
             </motion.div>
