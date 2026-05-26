@@ -35,8 +35,11 @@ const loadServiceAccountSources = (sources = {}) => {
   let filePath = String(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '').trim();
   if (!raw && !filePath) {
     const defaultPath = path.resolve(process.cwd(), 'firebase-key.json');
+    const doubleExtPath = path.resolve(process.cwd(), 'firebase-key.json.json');
     if (fs.existsSync(defaultPath)) {
       filePath = defaultPath;
+    } else if (fs.existsSync(doubleExtPath)) {
+      filePath = doubleExtPath;
     }
   }
 
