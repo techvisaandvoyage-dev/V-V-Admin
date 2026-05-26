@@ -3,7 +3,7 @@ import { api } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
-import { Loader2, Plus, Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
 import Card from "../ui/Card";
 
 const VisaTypesManager = () => {
@@ -11,6 +11,8 @@ const VisaTypesManager = () => {
   const [visaTypes, setVisaTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [toggling, setToggling] = useState({});
+  const [deleting, setDeleting] = useState({});
   const [newTypeName, setNewTypeName] = useState("");
 
   const fetchVisaTypes = async () => {
@@ -38,19 +40,17 @@ const VisaTypesManager = () => {
       showToast("Visa type name cannot be empty", "error");
       return;
     }
-
-    if (visaTypes.some(vt => vt.name.toLowerCase() === trimmed.toLowerCase())) {
-      showToast("Visa type already exists", "error");
+    if (visaTypes.some((vt) => vt.name.toLowerCase() === trimmed.toLowerCase())) {
+      showToast("This visa type already exists", "error");
       return;
     }
-
     try {
       setAdding(true);
       const { data } = await api.post("/visa-types", { name: trimmed, active: true });
       if (data?.success) {
         setVisaTypes([data.visaType, ...visaTypes]);
         setNewTypeName("");
-        showToast("Visa type added", "success");
+        showToast(`"${trimmed}" added successfully`, "success");
       }
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to add visa type", "error");
@@ -60,111 +60,181 @@ const VisaTypesManager = () => {
   };
 
   const handleToggleActive = async (id, currentActive) => {
+    setToggling((prev) => ({ ...prev, [id]: true }));
+    // Optimistic update
+    setVisaTypes((prev) =>
+      prev.map((vt) => (vt._id === id ? { ...vt, active: !currentActive } : vt))
+    );
     try {
-      // Optimistic update
-      setVisaTypes(prev => prev.map(vt => vt._id === id ? { ...vt, active: !currentActive } : vt));
       const { data } = await api.patch(`/visa-types/${id}`, { active: !currentActive });
       if (data?.success) {
-        showToast(`Visa type ${!currentActive ? "enabled" : "disabled"}`, "success");
+        showToast(
+          !currentActive
+            ? "Visa type enabled — will appear in user dropdown"
+            : "Visa type disabled — hidden from user dropdown",
+          "success"
+        );
       }
     } catch (err) {
-      // Revert optimistic update
-      setVisaTypes(prev => prev.map(vt => vt._id === id ? { ...vt, active: currentActive } : vt));
+      // Revert on failure
+      setVisaTypes((prev) =>
+        prev.map((vt) => (vt._id === id ? { ...vt, active: currentActive } : vt))
+      );
       showToast(err?.response?.data?.message || "Failed to update status", "error");
+    } finally {
+      setToggling((prev) => ({ ...prev, [id]: false }));
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this visa type?")) return;
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    setDeleting((prev) => ({ ...prev, [id]: true }));
     try {
       const { data } = await api.delete(`/visa-types/${id}`);
       if (data?.success) {
-        setVisaTypes(prev => prev.filter(vt => vt._id !== id));
-        showToast("Visa type deleted", "success");
+        setVisaTypes((prev) => prev.filter((vt) => vt._id !== id));
+        showToast(`"${name}" deleted`, "success");
       }
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to delete visa type", "error");
+    } finally {
+      setDeleting((prev) => ({ ...prev, [id]: false }));
     }
   };
 
   if (loading) {
     return (
       <Card>
-        <div className="flex items-center justify-center p-8">
+        <div className="flex items-center justify-center p-10">
           <Loader2 className="w-8 h-8 text-cyan animate-spin" />
         </div>
       </Card>
     );
   }
 
+  const activeCount = visaTypes.filter((vt) => vt.active).length;
+
   return (
     <Card>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-text-primary">Global Visa Types</h2>
-          <p className="text-sm text-text-secondary mt-1">
-            Manage the list of visa types available for users to select during application.
-          </p>
-        </div>
+      {/* Header */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-text-primary">Manage Visa Types</h2>
+        <p className="text-sm text-text-secondary mt-1">
+          Add visa types and check/uncheck to control which appear in the user's Travel Details dropdown.
+          {visaTypes.length > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-cyan">
+              {activeCount} of {visaTypes.length} active
+            </span>
+          )}
+        </p>
       </div>
 
-      <form onSubmit={handleAdd} className="flex gap-3 mb-8">
+      {/* Add new visa type */}
+      <form onSubmit={handleAdd} className="flex gap-3 mb-6">
         <Input
-          placeholder="New Visa Type (e.g. e-Visa, Sticker Visa)"
+          placeholder="Enter new visa type"
           value={newTypeName}
           onChange={(e) => setNewTypeName(e.target.value)}
           className="flex-1"
+          autoComplete="off"
         />
         <Button type="submit" disabled={adding || !newTypeName.trim()}>
-          {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-          Add Type
+          {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Add Visa Type
         </Button>
       </form>
 
+      {/* List */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
         {visaTypes.length === 0 ? (
-          <div className="p-8 text-center text-text-muted">
-            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No visa types defined yet.</p>
+          <div className="p-10 text-center text-text-muted">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="font-medium">No visa types yet</p>
+            <p className="text-xs mt-1">Add your first visa type above to get started.</p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {visaTypes.map((vt) => (
-              <div key={vt._id} className="flex items-center justify-between p-4 hover:bg-surface-2 transition-colors">
-                <div>
-                  <h3 className="font-semibold text-text-primary">{vt.name}</h3>
-                  <p className="text-xs text-text-muted">Created: {new Date(vt.createdAt).toLocaleDateString()}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${vt.active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={vt.active}
-                        onChange={() => handleToggleActive(vt._id, vt.active)}
-                      />
-                      <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${vt.active ? 'translate-x-4.5' : 'translate-x-1'}`}
-                      />
-                    </div>
-                    <span className={`text-sm font-medium ${vt.active ? 'text-emerald-500' : 'text-text-muted'}`}>
-                      {vt.active ? 'Active' : 'Inactive'}
+          <>
+            {/* Table header */}
+            <div className="hidden sm:grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-2 bg-surface-2 border-b border-border text-xs font-semibold text-text-muted uppercase tracking-wider">
+              <span>Show</span>
+              <span>Visa Type Name</span>
+              <span>Action</span>
+            </div>
+
+            <div className="divide-y divide-border">
+              {visaTypes.map((vt) => (
+                <div
+                  key={vt._id}
+                  className={`flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-2 ${
+                    !vt.active ? "opacity-60" : ""
+                  }`}
+                >
+                  {/* Checkbox */}
+                  <label className="flex items-center cursor-pointer flex-shrink-0" title={vt.active ? "Disable (hide from dropdown)" : "Enable (show in dropdown)"}>
+                    <input
+                      type="checkbox"
+                      checked={vt.active}
+                      disabled={toggling[vt._id]}
+                      onChange={() => handleToggleActive(vt._id, vt.active)}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
+                        vt.active
+                          ? "bg-cyan border-cyan"
+                          : "bg-transparent border-border"
+                      } ${toggling[vt._id] ? "opacity-50" : ""}`}
+                    >
+                      {vt.active && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                          <path
+                            d="M2 6l3 3 5-5"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
                     </span>
                   </label>
+
+                  {/* Name + status */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-primary truncate">{vt.name}</p>
+                    <p className={`text-xs ${vt.active ? "text-emerald-500" : "text-text-muted"}`}>
+                      {vt.active ? "Visible in user dropdown" : "Hidden from dropdown"}
+                    </p>
+                  </div>
+
+                  {/* Delete button */}
                   <button
-                    onClick={() => handleDelete(vt._id)}
-                    className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                    title="Delete"
+                    type="button"
+                    onClick={() => handleDelete(vt._id, vt.name)}
+                    disabled={deleting[vt._id]}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                    title={`Delete ${vt.name}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {deleting[vt._id] ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                    <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
+
+      {/* Helper note */}
+      {visaTypes.length > 0 && (
+        <p className="text-xs text-text-muted mt-3">
+          ☑ Checked visa types appear in the user's Travel Details dropdown. Uncheck to hide instantly.
+        </p>
+      )}
     </Card>
   );
 };
