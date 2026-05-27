@@ -56,6 +56,8 @@ const ImageWithShimmer = ({
 
   const optimizedSrc = useMemo(() => optimizeImageUrl(src, { width }), [src, width]);
   const srcSet = useMemo(() => buildSrcSet(src, width), [src, width]);
+  const showFallbackState = !optimizedSrc || error;
+  const showContent = loaded || showFallbackState;
 
   useEffect(() => {
     setLoaded(Boolean(optimizedSrc) && loadedImageCache.has(optimizedSrc));
@@ -64,7 +66,7 @@ const ImageWithShimmer = ({
 
   return (
     <div className={`relative overflow-hidden bg-slate-200 ${className}`}>
-      {(!loaded || !optimizedSrc || error) && (
+      {!showContent && (
         <div className="absolute inset-0 z-10 glass-shimmer" />
       )}
 
@@ -83,7 +85,10 @@ const ImageWithShimmer = ({
               setLoaded(true);
             }
           }}
-          onError={() => setError(true)}
+          onError={() => {
+            setError(true);
+            setLoaded(false);
+          }}
           ref={(node) => {
             if (!node || !optimizedSrc) return;
             if (node.complete && node.naturalWidth > 0) {
@@ -95,7 +100,7 @@ const ImageWithShimmer = ({
         />
       )}
 
-      <div className={`absolute inset-0 z-20 ${interactiveOverlay ? 'pointer-events-auto' : 'pointer-events-none'} flex flex-col transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute inset-0 z-20 ${interactiveOverlay ? 'pointer-events-auto' : 'pointer-events-none'} flex flex-col transition-opacity duration-500 ${showContent ? 'opacity-100' : 'opacity-0'}`}>
         {children}
       </div>
     </div>

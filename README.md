@@ -31,7 +31,7 @@ The blueprint creates **three** services:
 
 Default **HTTPS** URLs (match [`render.yaml`](render.yaml) unless you rename services):
 
-- API: `https://visa-voyage-api.onrender.com`
+- API: `https://api.visavo.in`
 - Client: `https://visa-voyage-client.onrender.com`
 - Admin: `https://visa-voyage-admin.onrender.com`
 
@@ -51,7 +51,7 @@ Free/starter web services **spin down** when idle; the first request after idle 
 
 ## Deploy client + admin on Cloudflare Pages
 
-Backend stays on Render (example: [API health check](https://server-x358.onrender.com/)). Create **two** [Cloudflare Pages](https://developers.cloudflare.com/pages/) projects from this repo.
+Backend stays on Render (example: [API health check](https://api.visavo.in/)). Create **two** [Cloudflare Pages](https://developers.cloudflare.com/pages/) projects from this repo.
 
 ### Build settings
 
@@ -65,11 +65,11 @@ Use **Production** environment variables for builds (Vite reads them at **build*
 
 **Admin project**
 
-- `VITE_API_URL` = `https://server-x358.onrender.com` (no trailing slash, no `/api`)
+- `VITE_API_URL` = `https://api.visavo.in` (no trailing slash, no `/api`)
 
 **Client project**
 
-- `VITE_API_URL` = `https://server-x358.onrender.com`
+- `VITE_API_URL` = `https://api.visavo.in`
 - `VITE_ADMIN_APP_ORIGIN` = full URL of your admin Pages deploy, e.g. `https://<admin-project>.pages.dev` or your custom domain for admin
 
 Deploy **admin** first, copy its `*.pages.dev` URL, then set `VITE_ADMIN_APP_ORIGIN` on the **client** project and trigger a new client build.
@@ -82,14 +82,14 @@ Your Express API uses open CORS by default; requests from `*.pages.dev` and cust
 
 ## Deploy client + admin on Vercel
 
-Backend stays on Render (e.g. `https://server-x358.onrender.com`). You create **two Vercel projects** from the **same Git repo**—one for `client`, one for `admin`.
+Backend stays on Render (e.g. `https://api.visavo.in`). You create **two Vercel projects** from the **same Git repo**—one for `client`, one for `admin`.
 
 [`client/vercel.json`](client/vercel.json) and [`admin/vercel.json`](admin/vercel.json) rewrite unknown paths to `index.html` so React Router works ([SPA fallback](https://vercel.com/docs/frameworks/vite#using-vite-on-vercel)).
 
 ### 1. Prerequisites
 
 - Repo on GitHub (or GitLab / Bitbucket) connected to [Vercel](https://vercel.com).
-- API URL (no `/api` suffix): `https://server-x358.onrender.com`
+- API URL (no `/api` suffix): `https://api.visavo.in`
 
 ### 2. Deploy the admin app first
 
@@ -101,7 +101,7 @@ Backend stays on Render (e.g. `https://server-x358.onrender.com`). You create **
    - **Build Command**: `npm run build` (default).
    - **Output Directory**: `dist` (default for Vite).
 4. Open **Environment Variables** → **Production**:
-   - Name: `VITE_API_URL` → Value: `https://server-x358.onrender.com`
+   - Name: `VITE_API_URL` → Value: `https://api.visavo.in`
 5. Click **Deploy**.
 
 When it finishes, note the admin URL (e.g. `https://visa-admin-xxxxx.vercel.app`).
@@ -112,7 +112,7 @@ When it finishes, note the admin URL (e.g. `https://visa-admin-xxxxx.vercel.app`
 2. **Root Directory**: `client`.
 3. **Framework Preset**: **Vite**.
 4. **Environment Variables** → **Production**:
-   - `VITE_API_URL` = `https://server-x358.onrender.com`
+   - `VITE_API_URL` = `https://api.visavo.in`
    - `VITE_ADMIN_APP_ORIGIN` = your admin URL from step 2 (full `https://…`, no trailing slash), e.g. `https://visa-admin-xxxxx.vercel.app`
 5. **Deploy**.
 

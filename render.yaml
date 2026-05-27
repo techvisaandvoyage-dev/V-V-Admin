@@ -2,7 +2,7 @@
 # Dashboard: New → Blueprint → connect this repo.
 #
 # After deploy, your services match these URLs (HTTPS):
-#   API:    https://visa-voyage-api.onrender.com
+#   API:    https://api.visavo.in
 #   Client: https://visa-voyage-client.onrender.com
 #   Admin:  https://visa-voyage-admin.onrender.com
 #
@@ -42,9 +42,9 @@ services:
     # Must match your live API origin (no trailing slash). Set in Render Dashboard if different.
     envVars:
       - key: VITE_API_URL
-        value: https://server-x358.onrender.com
+        value: https://api.visavo.in
       - key: VITE_ADMIN_APP_ORIGIN
-        value: https://visa-voyage-admin.onrender.com
+        value: https://www.admin.visavo.in
 
   - type: web
     name: visa-voyage-admin
@@ -59,4 +59,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://server-x358.onrender.com
+        value: https://api.visavo.in
