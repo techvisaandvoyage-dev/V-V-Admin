@@ -78,7 +78,7 @@ const Login = () => {
             <Input
               label="Admin Email"
               type="email"
-              placeholder="admin@visa.com"
+              placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               leftIcon={<Mail size={16} />}
