@@ -19,7 +19,7 @@ const Loader = ({ className = "", size = 24, label = "" }) => {
 
 export const FullPageLoader = () => (
   <div className="fixed inset-0 z-[9999] bg-background/80 backdrop-blur-sm flex items-center justify-center">
-    <Loader size={40} label="Loading SprintVisa..." />
+    <Loader size={40} label="Loading VisaAndVoyage..." />
   </div>
 );
 
