@@ -12,8 +12,9 @@ const ADMIN_TOKEN_KEY = "admin_token";
 
 // ── Axios Instance ───────────────────────────────────────────
 const normalizeServerUrl = (url) => {
-  let s = String(url ?? "http://localhost:5000").trim();
-  if (!s) s = "http://localhost:5000";
+  const fallback = import.meta.env.PROD ? "https://api.visavo.in" : "http://localhost:5000";
+  let s = String(url ?? fallback).trim();
+  if (!s) s = fallback;
   s = s.replace(/\/+$/, "");
   while (/\/api$/i.test(s)) {
     s = s.replace(/\/api$/i, "").replace(/\/+$/, "");
@@ -329,6 +330,5 @@ export const useAuthStore = create(
     }
   )
 );
-
 
 
