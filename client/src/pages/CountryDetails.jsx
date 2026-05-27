@@ -401,8 +401,6 @@ const CountryDetails = () => {
   const [activeSubNav, setActiveSubNav] = useState("how-it-works");
   const pendingContactAction = useRef(null);
   const [showStickyStartCta, setShowStickyStartCta] = useState(false);
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const loginPromptActionRef = useRef(null);
   /**
    * When a guest hits an action that requires authentication ("Upload docs
    * first" / "Upload docs later"), we attach a `?postLoginAction=<key>` to the
@@ -1582,8 +1580,8 @@ const CountryDetails = () => {
     // returns to a fully-filled travel-details panel.
     persistCurrentTravelDraft();
     if (!isAuthenticated && !token) {
-      loginPromptActionRef.current = "upload-now";
-      setShowLoginPrompt(true);
+      const next = buildLoginRedirect("upload-now");
+      navigate(`/login?redirect=${encodeURIComponent(next)}`);
       return;
     }
     gateContactOrRun(() => {
@@ -1609,8 +1607,8 @@ const CountryDetails = () => {
     const token = localStorage.getItem("token");
     persistCurrentTravelDraft();
     if (!isAuthenticated && !token) {
-      loginPromptActionRef.current = "upload-later";
-      setShowLoginPrompt(true);
+      const next = buildLoginRedirect("upload-later");
+      navigate(`/login?redirect=${encodeURIComponent(next)}`);
       return;
     }
 
@@ -2283,66 +2281,6 @@ const CountryDetails = () => {
           </button>
         </div>
       )}
-
-      {/* Login prompt modal — shown when unauthenticated user tries to proceed */}
-      <AnimatePresence>
-        {showLoginPrompt && (
-          <motion.div
-            key="login-prompt-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            onClick={() => setShowLoginPrompt(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="bg-surface border border-border rounded-3xl p-7 w-full max-w-sm shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-1 text-3xl text-center">&#128274;</div>
-              <h2 className="text-xl font-bold text-text-primary text-center mb-2">Login to continue</h2>
-              <p className="text-sm text-text-muted text-center mb-6">
-                Please log in or create an account to proceed with your {country.name} application. Your progress will be saved.
-              </p>
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = buildLoginRedirect(loginPromptActionRef.current || "upload-later");
-                    setShowLoginPrompt(false);
-                    navigate(`/login?redirect=${encodeURIComponent(next)}`);
-                  }}
-                  className="w-full h-[48px] rounded-full bg-cyan text-white text-[15px] font-semibold hover:bg-cyan-dim transition-colors"
-                >
-                  Log in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = buildLoginRedirect(loginPromptActionRef.current || "upload-later");
-                    setShowLoginPrompt(false);
-                    navigate(`/register?redirect=${encodeURIComponent(next)}`);
-                  }}
-                  className="w-full h-[48px] rounded-full border border-border bg-transparent text-[15px] font-medium text-text-primary hover:bg-surface-2 transition-colors"
-                >
-                  Create account
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPrompt(false)}
-                  className="text-sm text-text-muted hover:text-text-primary text-center mt-1 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <Navbar />
 
