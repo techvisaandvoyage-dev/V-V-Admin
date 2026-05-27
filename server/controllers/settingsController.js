@@ -41,9 +41,9 @@ const DESTINATION_INCLUDED_FALLBACK = [
 
 const DESTINATION_HOW_IT_WORKS_FALLBACK = [
   {
-    title: 'Apply with SprintVisa',
+    title: 'Apply with VisaAndVoyage',
     description:
-      'Upload your documents on SprintVisa or share over WhatsApp with our visa expert.',
+      'Upload your documents on VisaAndVoyage or share over WhatsApp with our visa expert.',
   },
   {
     title: 'Experts review the documents',
@@ -67,7 +67,7 @@ const DESTINATION_HOW_IT_WORKS_FALLBACK = [
   {
     title: 'Enjoy your vacation',
     description:
-      'Thanks for choosing SprintVisa and we wish you an amazing journey.',
+      'Thanks for choosing VisaAndVoyage and we wish you an amazing journey.',
   },
 ];
 

@@ -678,12 +678,12 @@ const CountryDetails = () => {
     const merged = mergeHowItWorksLists(g, country?.howItWorks);
     if (merged.length) return merged;
     return [
-      { title: "Apply with SprintVisa", description: "Upload your documents on SprintVisa or share over WhatsApp with our visa expert." },
+      { title: "Apply with VisaAndVoyage", description: "Upload your documents on VisaAndVoyage or share over WhatsApp with our visa expert." },
       { title: "Experts review the documents", description: "Our visa experts will verify your documents." },
       { title: "Prepare the application", description: "Our visa expert will help you create the application for document submission." },
       { title: "Visit the Visa Application Center", description: "Traveller visits their nearest Visa Application Center for document submission." },
       { title: "Get your visa", description: "Traveller will collect their passport from VAC or via courier with a stamped visa." },
-      { title: "Enjoy your vacation", description: "Thanks for choosing SprintVisa and we wish you an amazing journey." },
+      { title: "Enjoy your vacation", description: "Thanks for choosing VisaAndVoyage and we wish you an amazing journey." },
     ];
   }, [country, destinationPageContent]);
 

@@ -71,7 +71,7 @@ const StaticPage = ({ slugOverride } = {}) => {
   useEffect(() => {
     if (!page) return;
 
-    document.title = page.seo?.metaTitle || `${page.title} | Visa & Voyage`;
+    document.title = page.seo?.metaTitle || `${page.title} | visavo.in`;
 
     const metaDescription = ensureMetaTag('meta[name="description"]', () => {
       const meta = document.createElement("meta");

@@ -578,7 +578,7 @@ const BlogDetailsPage = () => {
   // SEO meta
   useEffect(() => {
     if (!post) return;
-    document.title = `${post.seoTitle || post.title} | Visa & Voyage Blog`;
+    document.title = `${post.seoTitle || post.title} | visavo.in Blog`;
   }, [post]);
 
   const loadComments = useCallback(

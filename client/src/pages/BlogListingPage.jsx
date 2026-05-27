@@ -206,7 +206,7 @@ const BlogListingPage = () => {
   }, []);
 
   useEffect(() => {
-    document.title = "Visa Blog | Visa & Voyage";
+    document.title = "Visa Blog | visavo.in";
   }, []);
 
   const navItems = useMemo(
