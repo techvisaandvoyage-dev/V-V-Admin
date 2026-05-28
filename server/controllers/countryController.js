@@ -245,10 +245,13 @@ const resolveControlCountryScope = async (body = {}) => {
       [country?._id, country?.slug].map((value) => String(value ?? '').trim()).filter(Boolean)
     )
   );
-  const applyToAllActiveCountries = body?.applyToAllActiveCountries !== false;
   const selectedCountries = normalizeControlSelectedCountries(body?.selectedCountries).filter((id) =>
     activeIds.has(id)
   );
+  const hasExplicitSubset = selectedCountries.length > 0 && selectedCountries.length < activeIds.size;
+  const applyToAllActiveCountries = hasExplicitSubset
+    ? false
+    : body?.applyToAllActiveCountries !== false;
   if (!applyToAllActiveCountries && selectedCountries.length === 0) {
     const error = new Error('Please select at least one country.');
     error.statusCode = 400;
@@ -268,6 +271,23 @@ const resolveControlCountryScope = async (body = {}) => {
     applyToAllActiveCountries,
     selectedCountries: applyToAllActiveCountries ? [] : selectedCountries,
     targetIds,
+  };
+};
+
+const applyResolvedVisaInformationValue = (visaInformation, itemId, value) => {
+  if (!visaInformation || typeof visaInformation !== 'object') return visaInformation;
+  const trimmedValue = String(value ?? '').trim();
+  if (!trimmedValue || !Array.isArray(visaInformation.items)) return visaInformation;
+  return {
+    ...visaInformation,
+    items: visaInformation.items.map((item) =>
+      item?.id === itemId
+        ? {
+            ...item,
+            value: trimmedValue,
+          }
+        : item
+    ),
   };
 };
 
@@ -400,6 +420,15 @@ const resolveCountryDoc = (country, settings) => {
     lengthOfStay: resolvedLengthOfStay,
     entryType: resolvedEntryType,
   });
+  const syncedVisaInformation = applyResolvedVisaInformationValue(
+    applyResolvedVisaInformationValue(
+      applyResolvedVisaInformationValue(resolvedVisaInformation, 'lengthOfStay', resolvedLengthOfStay),
+      'validity',
+      resolvedValidity
+    ),
+    'entry',
+    resolvedEntryType
+  );
   return {
     ...obj,
     isActive: obj.isActive !== false,
@@ -409,7 +438,7 @@ const resolveCountryDoc = (country, settings) => {
     validity: resolvedValidity,
     lengthOfStay: resolvedLengthOfStay,
     entryType: resolvedEntryType,
-    visaInformation: resolvedVisaInformation,
+    visaInformation: syncedVisaInformation,
     processingDays: resolvedProcessingDays,
     requiredDocuments: resolvedRequiredDocuments,
     useGlobalVisaType,

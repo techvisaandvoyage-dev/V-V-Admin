@@ -69,17 +69,24 @@ const DEFAULT_VISA_INFORMATION_ITEMS = Object.freeze([
 
 function normalizeVisaInformation(raw, country = {}) {
   const data = raw && typeof raw === "object" ? raw : {};
+  const getResolvedVisaInfoValue = (itemId) => {
+    if (itemId === "lengthOfStay") {
+      return String(country.lengthOfStay || country.validity || "").trim();
+    }
+    if (itemId === "validity") {
+      return String(country.validity || "").trim();
+    }
+    if (itemId === "entry") {
+      return String(country.entryType || "").trim();
+    }
+    return "";
+  };
   const defaultsById = new Map(
     DEFAULT_VISA_INFORMATION_ITEMS.map((item) => [
       item.id,
       {
         ...item,
-        value:
-          item.id === "lengthOfStay"
-            ? country.lengthOfStay || country.validity || item.value
-            : item.id === "validity"
-              ? country.validity || item.value
-              : country.entryType || item.value,
+        value: getResolvedVisaInfoValue(item.id) || item.value,
       },
     ])
   );
@@ -111,11 +118,12 @@ function normalizeVisaInformation(raw, country = {}) {
     items: DEFAULT_VISA_INFORMATION_ITEMS.map((item) => {
       const fallback = defaultsById.get(item.id);
       const next = itemsById.get(item.id);
+      const resolvedValue = getResolvedVisaInfoValue(item.id);
       return {
         ...fallback,
         enabled: next?.enabled !== false,
         label: next?.label || fallback.label,
-        value: next?.value || fallback.value,
+        value: resolvedValue || next?.value || fallback.value,
         description: next?.description || fallback.description,
         icon: next?.icon || fallback.icon,
         color: next?.color || fallback.color,

@@ -52,10 +52,6 @@ const VisaTypesManager = ({ activeCountries = [] }) => {
       showToast("Visa type name cannot be empty", "error");
       return;
     }
-    if (visaTypes.some((vt) => vt.name.toLowerCase() === trimmed.toLowerCase())) {
-      showToast("This visa type already exists", "error");
-      return;
-    }
     if (!hasCountrySelection(newTypeVisibility)) {
       showToast("Please select at least one country.", "error");
       return;
@@ -69,10 +65,20 @@ const VisaTypesManager = ({ activeCountries = [] }) => {
         selectedCountries: newTypeVisibility.selectedCountries,
       });
       if (data?.success) {
-        setVisaTypes([data.visaType, ...visaTypes]);
+        setVisaTypes((prev) => {
+          const existingIndex = prev.findIndex(
+            (vt) => String(vt?.name ?? "").trim().toLowerCase() === trimmed.toLowerCase()
+          );
+          if (existingIndex >= 0) {
+            const next = [...prev];
+            next[existingIndex] = data.visaType;
+            return next;
+          }
+          return [data.visaType, ...prev];
+        });
         setNewTypeName("");
         setNewTypeVisibility(DEFAULT_VISIBILITY);
-        showToast(`"${trimmed}" added successfully`, "success");
+        showToast(data.message || `"${trimmed}" saved successfully`, "success");
       }
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed to add visa type", "error");

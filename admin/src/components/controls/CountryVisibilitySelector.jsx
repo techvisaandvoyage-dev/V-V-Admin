@@ -27,8 +27,11 @@ const CountryVisibilitySelector = ({
     [activeCountries]
   );
 
-  const allSelected = item?.[allKey] !== false;
-  const selected = allSelected ? activeCountryIds : normalizeIds(item?.[selectedKey]);
+  const normalizedSelected = normalizeIds(item?.[selectedKey]);
+  const hasExplicitSubset =
+    normalizedSelected.length > 0 && normalizedSelected.length < activeCountryIds.length;
+  const allSelected = hasExplicitSubset ? false : item?.[allKey] !== false;
+  const selected = allSelected ? activeCountryIds : normalizedSelected;
 
   const filteredCountries = activeCountries.filter((country) => {
     const term = search.trim().toLowerCase();

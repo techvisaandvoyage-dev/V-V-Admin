@@ -6,13 +6,31 @@ const normalizeCountryIds = (values) =>
     ? Array.from(new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean)))
     : [];
 
+const mergeVisaTypeVisibility = (currentVisaType, nextVisibility) => {
+  const currentSelected = normalizeCountryIds(currentVisaType?.selectedCountries);
+  const nextSelected = normalizeCountryIds(nextVisibility?.selectedCountries);
+
+  if (currentVisaType?.applyToAllActiveCountries !== false || nextVisibility?.applyToAllActiveCountries !== false) {
+    return {
+      applyToAllActiveCountries: true,
+      selectedCountries: [],
+    };
+  }
+
+  return {
+    applyToAllActiveCountries: false,
+    selectedCountries: Array.from(new Set([...currentSelected, ...nextSelected])),
+  };
+};
+
 const resolveVisaTypeVisibility = async ({ applyToAllActiveCountries, selectedCountries }) => {
   const activeCountries = await Country.find({ isActive: { $ne: false } }).select('_id slug').lean();
   const activeIds = new Set(
     activeCountries.flatMap((country) => [country?._id, country?.slug].map((value) => String(value ?? '').trim()).filter(Boolean))
   );
   const normalizedSelected = normalizeCountryIds(selectedCountries).filter((id) => activeIds.has(id));
-  const applyAll = applyToAllActiveCountries !== false;
+  const hasExplicitSubset = normalizedSelected.length > 0 && normalizedSelected.length < activeIds.size;
+  const applyAll = hasExplicitSubset ? false : applyToAllActiveCountries !== false;
 
   if (!applyAll && normalizedSelected.length === 0) {
     const error = new Error('Please select at least one country.');
@@ -63,12 +81,21 @@ exports.createVisaType = async (req, res) => {
     }
 
     const trimmedName = name.trim();
+    const visibility = await resolveVisaTypeVisibility(req.body || {});
     const existing = await VisaType.findOne({ name: { $regex: new RegExp(`^${trimmedName}$`, 'i') } });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Visa type already exists' });
+      const mergedVisibility = mergeVisaTypeVisibility(existing, visibility);
+      existing.active = active !== undefined ? active : true;
+      existing.applyToAllActiveCountries = mergedVisibility.applyToAllActiveCountries;
+      existing.selectedCountries = mergedVisibility.selectedCountries;
+      await existing.save();
+      return res.status(200).json({
+        success: true,
+        visaType: existing,
+        message: 'Visa type already existed, so its country selection was updated.',
+      });
     }
 
-    const visibility = await resolveVisaTypeVisibility(req.body || {});
     const visaType = await VisaType.create({
       name: trimmedName,
       active: active !== undefined ? active : true,
