@@ -272,6 +272,8 @@ const ExpandableAdminControlCard = ({
   previewHeight = CONTROL_CARD_PREVIEW_HEIGHT,
   expandMode = "inline",
   showToggle = true,
+  forceShowToggle = false,
+  allowBodyOverflow = false,
   expanded: controlledExpanded,
   onExpandedChange,
   fullscreenTitle = "Editor",
@@ -329,7 +331,13 @@ const ExpandableAdminControlCard = ({
           <div className="flex h-full flex-col">
             <div
               ref={bodyRef}
-              className={`relative ${expanded && !isFullscreen ? "" : "overflow-hidden"}`}
+              className={`relative ${
+                expanded && !isFullscreen
+                  ? ""
+                  : allowBodyOverflow
+                    ? "overflow-visible"
+                    : "overflow-hidden"
+              }`}
               style={expanded && !isFullscreen ? undefined : { maxHeight: `${previewHeight}px` }}
             >
               {children}
@@ -338,7 +346,7 @@ const ExpandableAdminControlCard = ({
               )}
             </div>
 
-            {canExpand && showToggle && (
+            {(canExpand || forceShowToggle) && showToggle && (
               <div className="mt-4 border-t border-border pt-4">
                 <Button
                   variant="secondary"
@@ -516,6 +524,18 @@ const createVisaInformationState = (source = {}) => {
     : source && typeof source === "object"
       ? source
       : {};
+  const getResolvedVisaInfoValue = (itemId) => {
+    if (itemId === "lengthOfStay") {
+      return String(source?.lengthOfStay ?? source?.validity ?? "").trim();
+    }
+    if (itemId === "validity") {
+      return String(source?.validity ?? "").trim();
+    }
+    if (itemId === "entry") {
+      return String(source?.entryType ?? "").trim();
+    }
+    return "";
+  };
   const itemsById = new Map(
     (Array.isArray(data.items) ? data.items : [])
       .map((item) => ({
@@ -543,17 +563,12 @@ const createVisaInformationState = (source = {}) => {
       "Visa rules and conditions may change. Please check the latest requirements before applying.",
     items: DEFAULT_VISA_INFORMATION_ITEMS.map((item) => {
       const next = itemsById.get(item.id);
-      const fallbackValue =
-        item.id === "lengthOfStay"
-          ? String(source?.lengthOfStay ?? source?.validity ?? "").trim() || "On request"
-          : item.id === "validity"
-            ? String(source?.validity ?? "").trim() || "On request"
-            : String(source?.entryType ?? "").trim() || "Single";
+      const fallbackValue = getResolvedVisaInfoValue(item.id) || (item.id === "entry" ? "Single" : "On request");
       return {
         ...item,
         enabled: next?.enabled !== false,
         label: next?.label || item.label,
-        value: next?.value || fallbackValue,
+        value: getResolvedVisaInfoValue(item.id) || next?.value || fallbackValue,
         description: next?.description || item.description,
         icon: next?.icon || item.icon,
         color: next?.color || item.color,
@@ -636,11 +651,17 @@ const normalizeCountrySelectorIds = (list) =>
 
 const withCountryApplyMeta = (item, activeCountryIds = []) => ({
   ...item,
-  applyToAllActiveCountries: item?.applyToAllActiveCountries !== false,
-  selectedCountries:
-    item?.applyToAllActiveCountries !== false
-      ? [...activeCountryIds]
-      : normalizeCountrySelectorIds(item?.selectedCountries),
+  applyToAllActiveCountries: (() => {
+    const selected = normalizeCountrySelectorIds(item?.selectedCountries);
+    const hasExplicitSubset = selected.length > 0 && selected.length < activeCountryIds.length;
+    return hasExplicitSubset ? false : item?.applyToAllActiveCountries !== false;
+  })(),
+  selectedCountries: (() => {
+    const selected = normalizeCountrySelectorIds(item?.selectedCountries);
+    const hasExplicitSubset = selected.length > 0 && selected.length < activeCountryIds.length;
+    const applyToAll = hasExplicitSubset ? false : item?.applyToAllActiveCountries !== false;
+    return applyToAll ? [...activeCountryIds] : selected;
+  })(),
 });
 
 const withCountryVisibilityMeta = (item, activeCountryIds = []) => ({
@@ -4434,7 +4455,7 @@ const Dashboard = () => {
                   ══════════════════════════════════════════════════════════ */}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
               <div className={activeControlSection === "landing-highlights" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard allowBodyOverflow>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4505,7 +4526,7 @@ const Dashboard = () => {
               </div>
 
               <div className={activeControlSection === "base-price" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard forceShowToggle>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
