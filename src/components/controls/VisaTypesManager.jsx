@@ -5,15 +5,27 @@ import Button from "../ui/Button";
 import Input from "../ui/Input";
 import { Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
 import Card from "../ui/Card";
+import CountryVisibilitySelector from "./CountryVisibilitySelector";
 
-const VisaTypesManager = () => {
+const DEFAULT_VISIBILITY = {
+  applyToAllActiveCountries: true,
+  selectedCountries: [],
+};
+
+const hasCountrySelection = (item) =>
+  item?.applyToAllActiveCountries !== false ||
+  (Array.isArray(item?.selectedCountries) && item.selectedCountries.length > 0);
+
+const VisaTypesManager = ({ activeCountries = [] }) => {
   const { showToast } = useUIStore();
   const [visaTypes, setVisaTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [toggling, setToggling] = useState({});
   const [deleting, setDeleting] = useState({});
+  const [savingVisibility, setSavingVisibility] = useState({});
   const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeVisibility, setNewTypeVisibility] = useState(DEFAULT_VISIBILITY);
 
   const fetchVisaTypes = async () => {
     try {
@@ -44,12 +56,22 @@ const VisaTypesManager = () => {
       showToast("This visa type already exists", "error");
       return;
     }
+    if (!hasCountrySelection(newTypeVisibility)) {
+      showToast("Please select at least one country.", "error");
+      return;
+    }
     try {
       setAdding(true);
-      const { data } = await api.post("/visa-types", { name: trimmed, active: true });
+      const { data } = await api.post("/visa-types", {
+        name: trimmed,
+        active: true,
+        applyToAllActiveCountries: newTypeVisibility.applyToAllActiveCountries !== false,
+        selectedCountries: newTypeVisibility.selectedCountries,
+      });
       if (data?.success) {
         setVisaTypes([data.visaType, ...visaTypes]);
         setNewTypeName("");
+        setNewTypeVisibility(DEFAULT_VISIBILITY);
         showToast(`"${trimmed}" added successfully`, "success");
       }
     } catch (err) {
@@ -61,7 +83,6 @@ const VisaTypesManager = () => {
 
   const handleToggleActive = async (id, currentActive) => {
     setToggling((prev) => ({ ...prev, [id]: true }));
-    // Optimistic update
     setVisaTypes((prev) =>
       prev.map((vt) => (vt._id === id ? { ...vt, active: !currentActive } : vt))
     );
@@ -70,19 +91,50 @@ const VisaTypesManager = () => {
       if (data?.success) {
         showToast(
           !currentActive
-            ? "Visa type enabled — will appear in user dropdown"
-            : "Visa type disabled — hidden from user dropdown",
+            ? "Visa type enabled and visible in the user dropdown"
+            : "Visa type disabled and hidden from the user dropdown",
           "success"
         );
       }
     } catch (err) {
-      // Revert on failure
       setVisaTypes((prev) =>
         prev.map((vt) => (vt._id === id ? { ...vt, active: currentActive } : vt))
       );
       showToast(err?.response?.data?.message || "Failed to update status", "error");
     } finally {
       setToggling((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleVisibilityChange = async (id, currentVisaType, nextVisibility) => {
+    if (!hasCountrySelection(nextVisibility)) {
+      showToast("Please select at least one country.", "error");
+      return;
+    }
+    setSavingVisibility((prev) => ({ ...prev, [id]: true }));
+    setVisaTypes((prev) =>
+      prev.map((vt) => (vt._id === id ? { ...vt, ...nextVisibility } : vt))
+    );
+    try {
+      const { data } = await api.patch(`/visa-types/${id}`, nextVisibility);
+      if (data?.success) {
+        showToast(`"${currentVisaType.name}" updated for selected countries`, "success");
+      }
+    } catch (err) {
+      setVisaTypes((prev) =>
+        prev.map((vt) =>
+          vt._id === id
+            ? {
+                ...vt,
+                applyToAllActiveCountries: currentVisaType.applyToAllActiveCountries !== false,
+                selectedCountries: currentVisaType.selectedCountries || [],
+              }
+            : vt
+        )
+      );
+      showToast(err?.response?.data?.message || "Failed to update selected countries", "error");
+    } finally {
+      setSavingVisibility((prev) => ({ ...prev, [id]: false }));
     }
   };
 
@@ -116,7 +168,6 @@ const VisaTypesManager = () => {
 
   return (
     <Card>
-      {/* Header */}
       <div className="mb-6">
         <h2 className="text-xl font-bold text-text-primary">Manage Visa Types</h2>
         <p className="text-sm text-text-secondary mt-1">
@@ -129,22 +180,31 @@ const VisaTypesManager = () => {
         </p>
       </div>
 
-      {/* Add new visa type */}
-      <form onSubmit={handleAdd} className="flex gap-3 mb-6">
-        <Input
-          placeholder="Enter new visa type"
-          value={newTypeName}
-          onChange={(e) => setNewTypeName(e.target.value)}
-          className="flex-1"
-          autoComplete="off"
+      <form onSubmit={handleAdd} className="mb-6 space-y-4">
+        <div className="flex gap-3">
+          <Input
+            placeholder="Enter new visa type"
+            value={newTypeName}
+            onChange={(e) => setNewTypeName(e.target.value)}
+            className="flex-1"
+            autoComplete="off"
+          />
+          <Button type="submit" disabled={adding || !newTypeName.trim()}>
+            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Add Visa Type
+          </Button>
+        </div>
+        <CountryVisibilitySelector
+          item={newTypeVisibility}
+          activeCountries={activeCountries}
+          itemLabel="this visa type"
+          mode="applied"
+          allKey="applyToAllActiveCountries"
+          selectedKey="selectedCountries"
+          onChange={setNewTypeVisibility}
         />
-        <Button type="submit" disabled={adding || !newTypeName.trim()}>
-          {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Add Visa Type
-        </Button>
       </form>
 
-      {/* List */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
         {visaTypes.length === 0 ? (
           <div className="p-10 text-center text-text-muted">
@@ -154,10 +214,10 @@ const VisaTypesManager = () => {
           </div>
         ) : (
           <>
-            {/* Table header */}
-            <div className="hidden sm:grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-2 bg-surface-2 border-b border-border text-xs font-semibold text-text-muted uppercase tracking-wider">
+            <div className="hidden lg:grid grid-cols-[auto_minmax(180px,220px)_minmax(260px,1fr)_auto] items-center gap-4 px-4 py-2 bg-surface-2 border-b border-border text-xs font-semibold text-text-muted uppercase tracking-wider">
               <span>Show</span>
               <span>Visa Type Name</span>
+              <span>Countries</span>
               <span>Action</span>
             </div>
 
@@ -165,12 +225,14 @@ const VisaTypesManager = () => {
               {visaTypes.map((vt) => (
                 <div
                   key={vt._id}
-                  className={`flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-surface-2 ${
+                  className={`grid gap-4 px-4 py-3.5 transition-colors hover:bg-surface-2 lg:grid-cols-[auto_minmax(180px,220px)_minmax(260px,1fr)_auto] lg:items-center ${
                     !vt.active ? "opacity-60" : ""
                   }`}
                 >
-                  {/* Checkbox */}
-                  <label className="flex items-center cursor-pointer flex-shrink-0" title={vt.active ? "Disable (hide from dropdown)" : "Enable (show in dropdown)"}>
+                  <label
+                    className="flex items-center cursor-pointer flex-shrink-0"
+                    title={vt.active ? "Disable (hide from dropdown)" : "Enable (show in dropdown)"}
+                  >
                     <input
                       type="checkbox"
                       checked={vt.active}
@@ -180,9 +242,7 @@ const VisaTypesManager = () => {
                     />
                     <span
                       className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
-                        vt.active
-                          ? "bg-cyan border-cyan"
-                          : "bg-transparent border-border"
+                        vt.active ? "bg-cyan border-cyan" : "bg-transparent border-border"
                       } ${toggling[vt._id] ? "opacity-50" : ""}`}
                     >
                       {vt.active && (
@@ -199,15 +259,28 @@ const VisaTypesManager = () => {
                     </span>
                   </label>
 
-                  {/* Name + status */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold text-text-primary truncate">{vt.name}</p>
                     <p className={`text-xs ${vt.active ? "text-emerald-500" : "text-text-muted"}`}>
                       {vt.active ? "Visible in user dropdown" : "Hidden from dropdown"}
                     </p>
                   </div>
 
-                  {/* Delete button */}
+                  <div className={savingVisibility[vt._id] ? "pointer-events-none opacity-70" : ""}>
+                    <CountryVisibilitySelector
+                      item={{
+                        applyToAllActiveCountries: vt.applyToAllActiveCountries !== false,
+                        selectedCountries: vt.selectedCountries || [],
+                      }}
+                      activeCountries={activeCountries}
+                      itemLabel={vt.name}
+                      mode="applied"
+                      allKey="applyToAllActiveCountries"
+                      selectedKey="selectedCountries"
+                      onChange={(next) => handleVisibilityChange(vt._id, vt, next)}
+                    />
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => handleDelete(vt._id, vt.name)}
@@ -229,10 +302,9 @@ const VisaTypesManager = () => {
         )}
       </div>
 
-      {/* Helper note */}
       {visaTypes.length > 0 && (
         <p className="text-xs text-text-muted mt-3">
-          ☑ Checked visa types appear in the user's Travel Details dropdown. Uncheck to hide instantly.
+          Checked visa types appear in the user's Travel Details dropdown, and each type can be limited to selected active countries.
         </p>
       )}
     </Card>

@@ -29,6 +29,8 @@ export const useUIStore = create((set) => ({
   selectedCountry: null,            // Country being edited
   openCountryModal: (mode = "add", country = null) =>
     set({ countryModalOpen: true, countryModalMode: mode, selectedCountry: country }),
+  setSelectedCountry: (country) =>
+    set({ selectedCountry: country }),
   closeCountryModal: () =>
     set({ countryModalOpen: false, selectedCountry: null }),
 

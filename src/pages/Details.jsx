@@ -8,7 +8,7 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { Select } from "../components/ui/Input";
 import { StatusBadge } from "../components/ui/Badge";
-import { useAuthStore, api, SERVER_URL } from "../store/authStore";
+import { api, SERVER_URL } from "../store/authStore";
 import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 import { fmtDate } from "../utils/formatDate";
 
@@ -83,6 +83,14 @@ const getDocumentLabelFromPath = (path, fallback = "Document") => {
   const legacyMatch = fileName.match(/^([^._]+)/);
   const docKey = travelerMatch?.[1] || legacyMatch?.[1] || "";
   return docKey ? formatDocumentKeyLabel(docKey) : fallback;
+};
+
+const resolveDocumentUrl = (path) => {
+  const value = String(path || "").trim();
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  const base = SERVER_URL.replace(/\/+$/, "");
+  return `${base}${value.startsWith("/") ? value : `/${value}`}`;
 };
 
 const Details = () => {
@@ -313,22 +321,38 @@ const Details = () => {
     legacyDocumentsFiltered.length > 0;
 
   const handleDownload = async (docUrl) => {
+    const sourcePath = String(docUrl || "").trim();
+    if (!sourcePath) {
+      showToast("Document URL is missing.", "error");
+      return;
+    }
+
     try {
-      const fullUrl = `${SERVER_URL}${docUrl}`;
-      const response = await fetch(fullUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = docUrl.split("/").pop(); // Extract filename
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      const { data } = await api.get("/admin/applications/download-document", {
+        params: { path: sourcePath },
+        responseType: "blob",
+      });
+      const blobUrl = window.URL.createObjectURL(data);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = sourcePath.split("/").pop() || "document";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Error downloading file:", error);
-      showToast("Failed to download file", "error");
+      showToast(error?.response?.data?.message || "Failed to download file.", "error");
     }
+  };
+
+  const handleOpenDocument = (docUrl) => {
+    const fullUrl = resolveDocumentUrl(docUrl);
+    if (!fullUrl) {
+      showToast("Document URL is missing.", "error");
+      return;
+    }
+    window.open(fullUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleUpdateStatus = async (newStatus) => {
@@ -668,7 +692,16 @@ const Details = () => {
                                     return (
                                       <div
                                         key={`${traveler.travelerNo}-${labelKey}`}
-                                        className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary"
+                                        className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-cyan/40 hover:bg-surface-2/70"
+                                        onClick={() => handleOpenDocument(path)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            handleOpenDocument(path);
+                                          }
+                                        }}
                                       >
                                         <div className="flex min-w-0 items-start gap-2">
                                           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
@@ -681,7 +714,10 @@ const Details = () => {
                                         </div>
                                         <button
                                           type="button"
-                                          onClick={() => handleDownload(path)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownload(path);
+                                          }}
                                           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
                                           title={`Download ${documentLabel}`}
                                           aria-label={`Download ${documentLabel}`}
@@ -702,7 +738,16 @@ const Details = () => {
                               return (
                                 <div
                                   key={`other-doc-${traveler.travelerNo || idx}-${docIdx}`}
-                                  className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary"
+                                  className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-cyan/40 hover:bg-surface-2/70"
+                                  onClick={() => handleOpenDocument(path)}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleOpenDocument(path);
+                                    }
+                                  }}
                                 >
                                   <div className="flex min-w-0 items-start gap-2">
                                     <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
@@ -715,7 +760,10 @@ const Details = () => {
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={() => handleDownload(path)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownload(path);
+                                    }}
                                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
                                     title={`Download other document ${docIdx + 1}`}
                                     aria-label={`Download other document ${docIdx + 1}`}
@@ -725,7 +773,10 @@ const Details = () => {
                                   <button
                                     type="button"
                                     disabled={Boolean(updatingOtherDocs[travelerNo])}
-                                    onClick={() => handleDeleteTravelerOtherDoc(travelerNo, docIdx)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteTravelerOtherDoc(travelerNo, docIdx);
+                                    }}
                                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                                     title={`Delete other document ${docIdx + 1}`}
                                     aria-label={`Delete other document ${docIdx + 1}`}
@@ -750,7 +801,16 @@ const Details = () => {
                               return (
                                 <div
                                   key={`root-doc-${travelerNo}-${docIdx}`}
-                                  className="flex items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary"
+                                  className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-cyan/40 hover:bg-surface-2/70"
+                                  onClick={() => handleOpenDocument(path)}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleOpenDocument(path);
+                                    }
+                                  }}
                                 >
                                   <div className="flex min-w-0 items-start gap-2">
                                     <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
@@ -763,7 +823,10 @@ const Details = () => {
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={() => handleDownload(path)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownload(path);
+                                    }}
                                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
                                     title={`Download ${documentLabel}`}
                                     aria-label={`Download ${documentLabel}`}

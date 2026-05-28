@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const AnalyticsPage = ({ bookings, activeChart, setActiveChart, liveAnalytics }) => (
+const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {[
@@ -131,11 +131,10 @@ const AnalyticsPage = ({ bookings, activeChart, setActiveChart, liveAnalytics })
 
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       {[
-        { label: "Approved", count: bookings.filter((booking) => booking.status === "approved").length, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-        { label: "Under Review", count: bookings.filter((booking) => booking.status === "review").length, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-        { label: "Pending", count: bookings.filter((booking) => booking.status === "pending").length, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-        { label: "Rejected", count: bookings.filter((booking) => booking.status === "rejected").length, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
-        { label: "Cancelled", count: bookings.filter((booking) => booking.status === "cancelled").length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
+        { label: "Approved", count: liveAnalytics.statusCounts.approved, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+        { label: "Under Review", count: liveAnalytics.statusCounts.review, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+        { label: "Pending", count: liveAnalytics.statusCounts.pending, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { label: "Rejected", count: liveAnalytics.statusCounts.rejected, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
       ].map(({ label, count, color, bg, border }) => (
         <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
           <div className={`text-3xl font-bold ${color}`}>{count}</div>

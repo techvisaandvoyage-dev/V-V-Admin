@@ -29,6 +29,7 @@ import BlogAdminPanel from "../components/blog/BlogAdminPanel";
 import AnalyticsPage from "./admin/AnalyticsPage";
 import PaymentsPage from "./admin/PaymentsPage";
 import VisaTypesManager from "../components/controls/VisaTypesManager";
+import CountryVisibilitySelector from "../components/controls/CountryVisibilitySelector";
 import AdminLayout from "../layouts/AdminLayout";
 import { ADMIN_DASHBOARD_TABS } from "../constants/adminMenu";
 import { useUIStore } from "../store/uiStore";
@@ -99,10 +100,83 @@ const REMIX_ICON_SUGGESTIONS = [
   "ri-ticket-2-line",
 ];
 
+const REMIX_ICON_PICKER_OPTIONS = Array.from(
+  new Set([
+    ...REMIX_ICON_SUGGESTIONS,
+    "ri-article-line",
+    "ri-bank-line",
+    "ri-bookmark-3-line",
+    "ri-book-open-line",
+    "ri-building-2-line",
+    "ri-calendar-check-line",
+    "ri-calendar-event-line",
+    "ri-checkbox-circle-line",
+    "ri-clipboard-line",
+    "ri-copper-diamond-line",
+    "ri-customer-service-2-line",
+    "ri-edit-box-line",
+    "ri-file-3-line",
+    "ri-file-chart-line",
+    "ri-file-copy-2-line",
+    "ri-file-download-line",
+    "ri-file-info-line",
+    "ri-file-paper-2-line",
+    "ri-files-line",
+    "ri-folders-line",
+    "ri-global-line",
+    "ri-government-line",
+    "ri-health-book-line",
+    "ri-heart-pulse-line",
+    "ri-home-4-line",
+    "ri-image-2-line",
+    "ri-mail-send-line",
+    "ri-map-pin-2-line",
+    "ri-medal-line",
+    "ri-money-rupee-circle-line",
+    "ri-pages-line",
+    "ri-phone-line",
+    "ri-plane-line",
+    "ri-road-map-line",
+    "ri-safe-2-line",
+    "ri-scales-3-line",
+    "ri-search-eye-line",
+    "ri-secure-payment-line",
+    "ri-shield-star-line",
+    "ri-suitcase-3-line",
+    "ri-team-line",
+    "ri-time-line",
+    "ri-todo-line",
+    "ri-truck-line",
+    "ri-user-heart-line",
+    "ri-visa-line",
+  ])
+);
+
 const sanitizeRemixIconClass = (value) => {
   const icon = String(value ?? "").trim();
   if (!icon) return "";
   return /^ri-[a-z0-9-]+$/.test(icon) ? icon : "";
+};
+
+const IconPickerPreviewButton = ({
+  icon,
+  onClick,
+  fallbackIcon: FallbackIcon = FileText,
+  title = "Choose icon",
+  className = "",
+}) => {
+  const sanitized = sanitizeRemixIconClass(icon);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan transition hover:border-cyan/40 hover:bg-surface-2 ${className}`}
+      title={title}
+      aria-label={title}
+    >
+      {sanitized ? <i className={`${sanitized} text-xl`} /> : <FallbackIcon size={18} className="text-text-muted" />}
+    </button>
+  );
 };
 
 // ── Recharts custom tooltip ────────────────────────────────
@@ -555,10 +629,117 @@ const LANDING_HERO_HIGHLIGHTS_DEFAULT = [
   },
 ];
 
+const normalizeCountrySelectorIds = (list) =>
+  Array.isArray(list)
+    ? list.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : [];
+
+const withCountryApplyMeta = (item, activeCountryIds = []) => ({
+  ...item,
+  applyToAllActiveCountries: item?.applyToAllActiveCountries !== false,
+  selectedCountries:
+    item?.applyToAllActiveCountries !== false
+      ? [...activeCountryIds]
+      : normalizeCountrySelectorIds(item?.selectedCountries),
+});
+
+const withCountryVisibilityMeta = (item, activeCountryIds = []) => ({
+  ...item,
+  showInAllActiveCountries: item?.showInAllActiveCountries !== false,
+  selectedCountries:
+    item?.showInAllActiveCountries !== false
+      ? [...activeCountryIds]
+      : normalizeCountrySelectorIds(item?.selectedCountries),
+});
+
+const normalizeVisibleTextItems = (items, fallbackItems = [], activeCountryIds = []) => {
+  const source = Array.isArray(items) && items.length
+    ? items
+    : fallbackItems.map((text) => ({ text }));
+  return source
+    .map((item) => {
+      if (typeof item === "string") {
+        const text = String(item).trim();
+        return text
+          ? withCountryVisibilityMeta({ text }, activeCountryIds)
+          : null;
+      }
+      const text = String(item?.text ?? item ?? "").trim();
+      return text
+        ? withCountryVisibilityMeta({ ...item, text }, activeCountryIds)
+        : null;
+    })
+    .filter(Boolean);
+};
+
+const normalizeVisibleIncludedItems = (items, fallbackItems = [], activeCountryIds = []) => {
+  const source = Array.isArray(items) && items.length ? items : fallbackItems;
+  return source
+    .map((item) =>
+      withCountryVisibilityMeta(
+        {
+          ...item,
+          title: String(item?.title ?? "").trim(),
+          description: String(item?.description ?? "").trim(),
+          icon: String(item?.icon ?? "").trim(),
+          color: String(item?.color ?? "blue").trim() || "blue",
+        },
+        activeCountryIds
+      )
+    )
+    .filter((item) => item.title);
+};
+
+const normalizeVisibleFaqItems = (items, fallbackItems = [], activeCountryIds = []) => {
+  const source = Array.isArray(items) && items.length ? items : fallbackItems;
+  return source
+    .map((item) =>
+      withCountryVisibilityMeta(
+        {
+          ...item,
+          question: String(item?.question ?? "").trim(),
+          answer: String(item?.answer ?? "").trim(),
+        },
+        activeCountryIds
+      )
+    )
+    .filter((item) => item.question && item.answer);
+};
+
+const normalizeVisibleHowItWorksItems = (items, fallbackItems = [], activeCountryIds = []) => {
+  const source = Array.isArray(items) && items.length ? items : fallbackItems;
+  return source
+    .map((item) =>
+      withCountryVisibilityMeta(
+        {
+          ...item,
+          title: String(item?.title ?? "").trim(),
+          description: String(item?.description ?? "").trim(),
+        },
+        activeCountryIds
+      )
+    )
+    .filter((item) => item.title && item.description);
+};
+
+const normalizeGlobalRequiredDocumentEntriesFromApi = (items, fallbackKeys = [], activeCountryIds = []) => {
+  const source = Array.isArray(items) && items.length
+    ? items
+    : fallbackKeys.map((key) => ({ key }));
+  return source
+    .map((item) => {
+      const key = String(typeof item === "string" ? item : item?.key ?? "").trim();
+      return key
+        ? withCountryVisibilityMeta({ ...(typeof item === "string" ? {} : item), key }, activeCountryIds)
+        : null;
+    })
+    .filter(Boolean);
+};
+
 const mapDestinationWhyBookNowFromApi = (s) => {
   const a = s?.destinationWhyBookNow;
   return Array.isArray(a) && a.length
-    ? a.map((x) => String(x ?? "").trim()).filter(Boolean)
+    ? a.map((x) => String(x?.text ?? x ?? "").trim()).filter(Boolean)
     : [...DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW];
 };
 
@@ -610,9 +791,24 @@ const mapDestinationHowItWorksFromApi = (s) => {
 const mapDestinationVisaRequirementsFromApi = (s) => {
   const a = s?.destinationVisaRequirements;
   return Array.isArray(a) && a.length
-    ? a.map((x) => String(x ?? "").trim()).filter(Boolean)
+    ? a.map((x) => String(x?.text ?? x ?? "").trim()).filter(Boolean)
     : [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS];
 };
+
+const mapDestinationWhyBookNowItemsFromApi = (s, activeCountryIds = []) =>
+  normalizeVisibleTextItems(s?.destinationWhyBookNow, DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW, activeCountryIds);
+
+const mapDestinationIncludedItemsFromApi = (s, activeCountryIds = []) =>
+  normalizeVisibleIncludedItems(s?.destinationIncludedItems, DESTINATION_PAGE_DEFAULT_INCLUDED, activeCountryIds);
+
+const mapDestinationFaqItemsFromApi = (s, activeCountryIds = []) =>
+  normalizeVisibleFaqItems(s?.destinationFaqs, DESTINATION_PAGE_DEFAULT_FAQS, activeCountryIds);
+
+const mapDestinationHowItWorksItemsFromApi = (s, activeCountryIds = []) =>
+  normalizeVisibleHowItWorksItems(s?.destinationHowItWorks, DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS, activeCountryIds);
+
+const mapDestinationVisaRequirementItemsFromApi = (s, activeCountryIds = []) =>
+  normalizeVisibleTextItems(s?.destinationVisaRequirements, DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS, activeCountryIds);
 
 const mapLandingHeroHighlightsFromApi = (s) => {
   const a = s?.landingHeroHighlights;
@@ -635,11 +831,11 @@ const mapLandingHeroHighlightsFromApi = (s) => {
 const normDestKey = (s) => String(s ?? "").trim().toLowerCase();
 
 /** Map `/admin/settings` API document to the dashboard settings form (GET + PUT). */
-const mapApiSettingsToFormState = (s) => ({
+const mapApiSettingsToFormState = (s, activeCountryIds = []) => ({
   razorpayKeyId: s.razorpayKeyId || "",
   razorpayKeySecret: s.razorpayKeySecret || "",
   gstEnabled: s.gstEnabled !== false,
-  gstRate: Number.isFinite(Number(s.gstRate)) ? Number(s.gstRate) : 18,
+  gstRate: Number.isFinite(Number(s.gstRate)) ? String(Number(s.gstRate)) : "18",
   firebaseApiKey: s.firebaseApiKey || "",
   firebaseAuthDomain: s.firebaseAuthDomain || "",
   firebaseProjectId: s.firebaseProjectId || "",
@@ -665,11 +861,11 @@ const mapApiSettingsToFormState = (s) => ({
   unsplashApplicationId: s.unsplashApplicationId || "",
   unsplashAccessKey: s.unsplashAccessKey || "",
   unsplashSecretKey: s.unsplashSecretKey || "",
-  destinationWhyBookNow: mapDestinationWhyBookNowFromApi(s),
-  destinationIncludedItems: mapDestinationIncludedFromApi(s),
-  destinationFaqs: mapDestinationFaqsFromApi(s),
-  destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
-  destinationVisaRequirements: mapDestinationVisaRequirementsFromApi(s),
+  destinationWhyBookNow: mapDestinationWhyBookNowItemsFromApi(s, activeCountryIds),
+  destinationIncludedItems: mapDestinationIncludedItemsFromApi(s, activeCountryIds),
+  destinationFaqs: mapDestinationFaqItemsFromApi(s, activeCountryIds),
+  destinationHowItWorks: mapDestinationHowItWorksItemsFromApi(s, activeCountryIds),
+  destinationVisaRequirements: mapDestinationVisaRequirementItemsFromApi(s, activeCountryIds),
   landingHeroHighlights: mapLandingHeroHighlightsFromApi(s),
   customerChatEnabled: s.customerChatEnabled !== false,
   customerChatMode: s.customerChatMode || "external_link",
@@ -679,6 +875,10 @@ const mapApiSettingsToFormState = (s) => ({
   customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
   customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
   whatsappTemplate: s.whatsappTemplate || "",
+  popularCountries: Array.isArray(s?.popularCountries) && s.popularCountries.length > 0
+    ? s.popularCountries
+    : ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
+  showPopularCountries: s.showPopularCountries !== false,
 });
 
 const integrationFlagsFromSettings = (s) => {
@@ -728,6 +928,36 @@ const DisplayToggle = ({ active, busy, onClick, labelOn = "Visible on client", l
         />
       </span>
       {active ? labelOn : labelOff}
+    </button>
+  );
+};
+
+const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className={`inline-flex items-center rounded-full border p-1 transition-colors ${
+        active
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60"
+          : "border-border bg-surface-3 text-text-muted hover:border-cyan/30"
+      } ${busy ? "cursor-wait opacity-60" : "cursor-pointer"}`}
+      aria-label={`${active ? "Disable" : "Enable"} ${countryName}`}
+      aria-pressed={active}
+      title={active ? "Visible on public site" : "Hidden on public site"}
+    >
+      <span
+        className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
+          active ? "bg-emerald-500" : "bg-surface-2 border border-border"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+            active ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </span>
     </button>
   );
 };
@@ -1326,7 +1556,14 @@ const SupportChatWorkspace = () => {
 
 // ─────────────────────────────────────────────────────────────
 const Dashboard = () => {
-  const { showToast, countryModalOpen, selectedCountry, openCountryModal, closeCountryModal } = useUIStore();
+  const {
+    showToast,
+    countryModalOpen,
+    selectedCountry,
+    openCountryModal,
+    closeCountryModal,
+    setSelectedCountry,
+  } = useUIStore();
 
   // ── Route & State Navigation ──────────────────────────────
   const navigate       = useNavigate();
@@ -1342,6 +1579,23 @@ const Dashboard = () => {
 
   // ── Global Data Store ──────────────────────────────────────
   const { bookings, countries, fetchAllApplications, fetchCountries, fetchPages, updateCountry } = useDataStore();
+  const activeCountryOptions = useMemo(
+    () =>
+      (Array.isArray(countries) ? countries : [])
+        .filter((country) => country?.isActive !== false)
+        .map((country) => ({
+          ...country,
+          slug: country?.slug || country?.id,
+        })),
+    [countries]
+  );
+  const activeCountryIds = useMemo(
+    () =>
+      activeCountryOptions
+        .map((country) => String(country?._id || country?.slug || country?.id || "").trim())
+        .filter(Boolean),
+    [activeCountryOptions]
+  );
 
   // ── Local state ──────────────────────────────────────────
   const [searchQuery, setSearchQuery]        = useState("");
@@ -1353,7 +1607,7 @@ const Dashboard = () => {
     razorpayKeyId: "",
     razorpayKeySecret: "",
     gstEnabled: true,
-    gstRate: 18,
+    gstRate: "18",
     firebaseApiKey: "",
     firebaseAuthDomain: "",
     firebaseProjectId: "",
@@ -1377,11 +1631,11 @@ const Dashboard = () => {
     unsplashApplicationId: "",
     unsplashAccessKey: "",
     unsplashSecretKey: "",
-    destinationWhyBookNow: [...DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW],
-    destinationIncludedItems: [...DESTINATION_PAGE_DEFAULT_INCLUDED],
-    destinationFaqs: DESTINATION_PAGE_DEFAULT_FAQS.map((f) => ({ ...f })),
-    destinationHowItWorks: DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS.map((x) => ({ ...x })),
-    destinationVisaRequirements: [...DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS],
+    destinationWhyBookNow: normalizeVisibleTextItems([], DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW, []),
+    destinationIncludedItems: normalizeVisibleIncludedItems([], DESTINATION_PAGE_DEFAULT_INCLUDED, []),
+    destinationFaqs: normalizeVisibleFaqItems([], DESTINATION_PAGE_DEFAULT_FAQS, []),
+    destinationHowItWorks: normalizeVisibleHowItWorksItems([], DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS, []),
+    destinationVisaRequirements: normalizeVisibleTextItems([], DESTINATION_PAGE_DEFAULT_VISA_REQUIREMENTS, []),
     landingHeroHighlights: LANDING_HERO_HIGHLIGHTS_DEFAULT.map((item) => ({ ...item })),
     customerChatEnabled: true,
     customerChatMode: "external_link",
@@ -1391,6 +1645,8 @@ const Dashboard = () => {
     customerChatHeaderTitle: "Chat with us",
     customerChatHeaderSubtitle: "We typically reply in a few minutes",
     whatsappTemplate: "",
+    popularCountries: ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
+    showPopularCountries: true,
   });
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
@@ -1402,13 +1658,18 @@ const Dashboard = () => {
    */
   const [globalDefaults, setGlobalDefaults] = useState({
     globalBasePrice: null,
+    globalBasePriceVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalGovernmentFee: null,
+    globalGovernmentFeeVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalVisaType: "",
     globalValidity: "",
     globalLengthOfStay: "",
     globalEntryType: "",
+    globalEntryTypeVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalProcessingDays: "",
+    globalProcessingDaysVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalRequiredDocuments: [],
+    globalRequiredDocumentEntries: [],
   });
   const [globalDefaultStats, setGlobalDefaultStats] = useState({
     totalCountries: 0,
@@ -1443,7 +1704,7 @@ const Dashboard = () => {
   const controlSections = [
     { key: "upload-methods", label: "Document Upload Methods" },
     { key: "landing-highlights", label: "Landing Highlights" },
-    { key: "base-price", label: "Update Fee (universal)" },
+    { key: "base-price", label: "Update Service Fee (universal)" },
     { key: "government-fee", label: "Update Government Fee (universal)" },
     { key: "visa-type", label: "Update Visa Type (universal)" },
     { key: "manage-visa-types", label: "Manage Visa Types" },
@@ -1451,13 +1712,36 @@ const Dashboard = () => {
     { key: "entry-type", label: "Update Entry (universal)" },
     { key: "validity", label: "Update Validity (universal)" },
     { key: "processing-days", label: "Update Processing Days (universal)" },
-    { key: "required-docs", label: "Required Documents (universal)" },
+    { key: "required-docs", label: "Documents Required (global)" },
     { key: "other-docs", label: "Other Documents Catalog (global)" },
     { key: "maintenance-mode", label: "Site maintenance mode" },
     { key: "customer-support", label: "Customer Support Widget" },
     { key: "destination-pages", label: "Destination pages (all countries)" },
+    { key: "popular-countries", label: "Popular Countries (Landing Page)" },
   ];
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
+  const [newPopularCountryTag, setNewPopularCountryTag] = useState("");
+
+  const addPopularTag = () => {
+    const val = String(newPopularCountryTag || "").trim();
+    if (!val) return;
+    if (settingsForm.popularCountries?.includes(val)) {
+      showToast("This country tag already exists.", "warning");
+      return;
+    }
+    setSettingsForm((prev) => ({
+      ...prev,
+      popularCountries: [...(prev.popularCountries || []), val],
+    }));
+    setNewPopularCountryTag("");
+  };
+
+  const removePopularTag = (indexToRemove) => {
+    setSettingsForm((prev) => ({
+      ...prev,
+      popularCountries: (prev.popularCountries || []).filter((_, index) => index !== indexToRemove),
+    }));
+  };
   const [basePriceCustom, setBasePriceCustom] = useState("");
   const [governmentFeeCustom, setGovernmentFeeCustom] = useState("");
   const [visaTypePicker, setVisaTypePicker] = useState("");
@@ -1484,15 +1768,211 @@ const Dashboard = () => {
   const [editingCatalogDocKey, setEditingCatalogDocKey] = useState(null);
   const [selectedCatalogDocs, setSelectedCatalogDocs] = useState([]);
   const [showCustomDocCreator, setShowCustomDocCreator] = useState(true);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [iconPickerSearch, setIconPickerSearch] = useState("");
+  const [iconPickerTarget, setIconPickerTarget] = useState(null);
   const [savingControlKey, setSavingControlKey] = useState(null);
   const [togglingDisplayKey, setTogglingDisplayKey] = useState(null);
   const [unsplashFetchRunning, setUnsplashFetchRunning] = useState(false);
   const customDocCreatorRef = useRef(null);
 
-  // Fetch settings once on mount for accurate progress calculation across all tabs
+  const filteredRemixIcons = useMemo(() => {
+    const query = iconPickerSearch.trim().toLowerCase();
+    if (!query) return REMIX_ICON_PICKER_OPTIONS;
+    return REMIX_ICON_PICKER_OPTIONS.filter((icon) => icon.toLowerCase().includes(query));
+  }, [iconPickerSearch]);
+
+  const closeIconPicker = () => {
+    setIconPickerOpen(false);
+    setIconPickerSearch("");
+    setIconPickerTarget(null);
+  };
+
+  const openIconPicker = (target) => {
+    setIconPickerTarget(target);
+    setIconPickerSearch("");
+    setIconPickerOpen(true);
+  };
+
+  const applyPickedIcon = (nextIcon) => {
+    if (!iconPickerTarget) return;
+
+    switch (iconPickerTarget.type) {
+      case "document-catalog":
+        setDocumentCatalog((prev) =>
+          prev.map((doc) =>
+            doc.key === iconPickerTarget.key ? { ...doc, icon: nextIcon } : doc
+          )
+        );
+        break;
+      case "new-custom-document":
+        setNewCustomDocIcon(nextIcon);
+        break;
+      case "destination-included-item":
+        setSettingsForm((prev) => {
+          const next = [...(prev.destinationIncludedItems || [])];
+          if (!next[iconPickerTarget.index]) return prev;
+          next[iconPickerTarget.index] = {
+            ...next[iconPickerTarget.index],
+            icon: nextIcon,
+          };
+          return { ...prev, destinationIncludedItems: next };
+        });
+        break;
+      case "country-included-item":
+        setCountryForm((prev) => {
+          const next = [...(prev.includedItems || [])];
+          if (!next[iconPickerTarget.index]) return prev;
+          next[iconPickerTarget.index] = {
+            ...next[iconPickerTarget.index],
+            icon: nextIcon,
+          };
+          return { ...prev, includedItems: next };
+        });
+        break;
+      default:
+        break;
+    }
+
+    closeIconPicker();
+  };
+
+  const getCurrentPickedIcon = () => {
+    if (!iconPickerTarget) return "";
+    switch (iconPickerTarget.type) {
+      case "document-catalog":
+        return documentCatalog.find((doc) => doc.key === iconPickerTarget.key)?.icon || "";
+      case "new-custom-document":
+        return newCustomDocIcon;
+      case "destination-included-item":
+        return settingsForm.destinationIncludedItems?.[iconPickerTarget.index]?.icon || "";
+      case "country-included-item":
+        return countryForm.includedItems?.[iconPickerTarget.index]?.icon || "";
+      default:
+        return "";
+    }
+  };
+
+  const validateCountryVisibilitySelection = (items, label, readSelectedCountries = (item) => item?.selectedCountries) => {
+    for (const item of items || []) {
+      if (item?.showInAllActiveCountries !== false) continue;
+      const selected = normalizeCountrySelectorIds(readSelectedCountries(item));
+      if (selected.length > 0) continue;
+      showToast(`${label} must be assigned to at least one active country, or turn on "Show in all active countries".`, "error");
+      return false;
+    }
+    return true;
+  };
+
+  const validateCountryApplySelection = (item) => {
+    if (item?.applyToAllActiveCountries !== false) return true;
+    if (normalizeCountrySelectorIds(item?.selectedCountries).length > 0) return true;
+    showToast("Please select at least one country.", "error");
+    return false;
+  };
+
+  const buildGlobalRequiredDocumentEntriesPayload = () =>
+    (Array.isArray(requiredDocsDraft) ? requiredDocsDraft.filter(Boolean) : []).map((key) => {
+      const existing = (globalDefaults.globalRequiredDocumentEntries || []).find((item) => item.key === key);
+      return {
+        key,
+        showInAllActiveCountries: existing?.showInAllActiveCountries !== false,
+        selectedCountries:
+          existing?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(existing?.selectedCountries),
+      };
+    });
+
+  const buildDestinationWhyBookNowPayload = () =>
+    (settingsForm.destinationWhyBookNow || [])
+      .map((s) => ({
+        text: String(s?.text ?? "").trim(),
+        showInAllActiveCountries: s?.showInAllActiveCountries !== false,
+        selectedCountries:
+          s?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(s?.selectedCountries),
+      }))
+      .filter((s) => s.text);
+
+  const buildDestinationIncludedPayload = () =>
+    (settingsForm.destinationIncludedItems || [])
+      .map((x) => ({
+        title: String(x?.title ?? "").trim(),
+        description: String(x?.description ?? "").trim(),
+        icon: String(x?.icon ?? "").trim(),
+        color: String(x?.color ?? "blue").trim(),
+        showInAllActiveCountries: x?.showInAllActiveCountries !== false,
+        selectedCountries:
+          x?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(x?.selectedCountries),
+      }))
+      .filter((x) => x.title);
+
+  const buildDestinationFaqsPayload = () =>
+    (settingsForm.destinationFaqs || [])
+      .map((f) => ({
+        question: String(f?.question ?? "").trim(),
+        answer: String(f?.answer ?? "").trim(),
+        showInAllActiveCountries: f?.showInAllActiveCountries !== false,
+        selectedCountries:
+          f?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(f?.selectedCountries),
+      }))
+      .filter((f) => f.question && f.answer);
+
+  const buildDestinationHowItWorksPayload = () =>
+    (settingsForm.destinationHowItWorks || [])
+      .map((s) => ({
+        title: String(s?.title ?? "").trim(),
+        description: String(s?.description ?? "").trim(),
+        showInAllActiveCountries: s?.showInAllActiveCountries !== false,
+        selectedCountries:
+          s?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(s?.selectedCountries),
+      }))
+      .filter((s) => s.title && s.description);
+
+  const buildDestinationVisaRequirementsPayload = () =>
+    (settingsForm.destinationVisaRequirements || [])
+      .map((s) => ({
+        text: String(s?.text ?? "").trim(),
+        showInAllActiveCountries: s?.showInAllActiveCountries !== false,
+        selectedCountries:
+          s?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(s?.selectedCountries),
+      }))
+      .filter((s) => s.text);
+
+  const saveDestinationContentSection = ({ sectionKey, validationLabel, payloadBuilder, payloadKey, successMessage }) => {
+    const payloadItems = payloadBuilder();
+    if (!validateCountryVisibilitySelection(payloadItems, validationLabel, (item) => item?.selectedCountries)) {
+      return;
+    }
+    saveSettingsPartial(
+      "destination-content",
+      { [payloadKey]: payloadItems },
+      successMessage || "Destination content saved."
+    );
+  };
+            // Fetch settings once on mount for accurate progress calculation across all tabs
   useEffect(() => {
     const initSettings = async () => {
       try {
+        await fetchCountries();
+        const latestCountries = useDataStore.getState().countries || [];
+        const activeOpts = latestCountries
+          .filter((c) => c?.isActive !== false)
+          .map((c) => ({ ...c, slug: c?.slug || c?.id }));
+        const latestActiveCountryIds = activeOpts
+          .map((c) => String(c?._id || c?.slug || c?.id || "").trim())
+          .filter(Boolean);
+
         const { data } = await api.get("/admin/settings");
         if (data.success && data.settings) {
           const s = data.settings;
@@ -1502,7 +1982,7 @@ const Dashboard = () => {
           setIsSmtpConfigured(flags.isSmtpConfigured);
           setIsSms91Configured(flags.isSms91Configured);
           setIsUnsplashConfigured(flags.isUnsplashConfigured);
-          setSettingsForm(mapApiSettingsToFormState(s));
+          setSettingsForm(mapApiSettingsToFormState(s, latestActiveCountryIds));
         }
       } catch (error) {
         console.error("Error initializing settings:", error);
@@ -1604,6 +2084,15 @@ const Dashboard = () => {
           const { data } = await api.get("/admin/transactions");
           if (data.success) setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
         } else if (activeTab === "settings") {
+          await fetchCountries();
+          const latestCountries = useDataStore.getState().countries || [];
+          const activeOpts = latestCountries
+            .filter((c) => c?.isActive !== false)
+            .map((c) => ({ ...c, slug: c?.slug || c?.id }));
+          const latestActiveCountryIds = activeOpts
+            .map((c) => String(c?._id || c?.slug || c?.id || "").trim())
+            .filter(Boolean);
+
           const { data } = await api.get("/admin/settings");
           if (data.success && data.settings) {
             const flags = integrationFlagsFromSettings(data.settings);
@@ -1612,9 +2101,18 @@ const Dashboard = () => {
             setIsSmtpConfigured(flags.isSmtpConfigured);
             setIsSms91Configured(flags.isSms91Configured);
             setIsUnsplashConfigured(flags.isUnsplashConfigured);
-            setSettingsForm(mapApiSettingsToFormState(data.settings));
+            setSettingsForm(mapApiSettingsToFormState(data.settings, latestActiveCountryIds));
           }
         } else if (activeTab === "controls") {
+          await fetchCountries();
+          const latestCountries = useDataStore.getState().countries || [];
+          const activeOpts = latestCountries
+            .filter((c) => c?.isActive !== false)
+            .map((c) => ({ ...c, slug: c?.slug || c?.id }));
+          const latestActiveCountryIds = activeOpts
+            .map((c) => String(c?._id || c?.slug || c?.id || "").trim())
+            .filter(Boolean);
+
           const { data } = await api.get("/admin/settings");
           if (data.success && data.settings) {
             const s = data.settings;
@@ -1623,11 +2121,11 @@ const Dashboard = () => {
               enableGDriveUpload: s.enableGDriveUpload !== false,
               enableFileUpload: s.enableFileUpload !== false,
               showTravelerDetails: s.showTravelerDetails !== false,
-              destinationWhyBookNow: mapDestinationWhyBookNowFromApi(s),
-              destinationIncludedItems: mapDestinationIncludedFromApi(s),
-              destinationFaqs: mapDestinationFaqsFromApi(s),
-              destinationHowItWorks: mapDestinationHowItWorksFromApi(s),
-              destinationVisaRequirements: mapDestinationVisaRequirementsFromApi(s),
+              destinationWhyBookNow: mapDestinationWhyBookNowItemsFromApi(s, latestActiveCountryIds),
+              destinationIncludedItems: mapDestinationIncludedItemsFromApi(s, latestActiveCountryIds),
+              destinationFaqs: mapDestinationFaqItemsFromApi(s, latestActiveCountryIds),
+              destinationHowItWorks: mapDestinationHowItWorksItemsFromApi(s, latestActiveCountryIds),
+              destinationVisaRequirements: mapDestinationVisaRequirementItemsFromApi(s, latestActiveCountryIds),
               landingHeroHighlights: mapLandingHeroHighlightsFromApi(s),
               customerChatEnabled: s.customerChatEnabled !== false,
               customerChatMode: s.customerChatMode || "external_link",
@@ -1637,6 +2135,10 @@ const Dashboard = () => {
               customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
               customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
               whatsappTemplate: s.whatsappTemplate || "",
+              popularCountries: Array.isArray(s?.popularCountries) && s.popularCountries.length > 0
+                ? s.popularCountries
+                : ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
+              showPopularCountries: s.showPopularCountries !== false,
             }));
           }
           await loadGlobalCountryDefaults();
@@ -1708,7 +2210,7 @@ const Dashboard = () => {
   const [countryForm, setCountryForm] = useState({
     name: "", flagEmoji: "🌍", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
     visaType: "", validity: "", lengthOfStay: "", entryType: "", continent: "", description: "", requirements: [""], imageUrl: "",
-    requiredDocuments: ["passport"], successRate: "80", trending: false,
+    requiredDocuments: ["passport"], successRate: "80", trending: false, isActive: true,
     visaInformation: createVisaInformationState({}),
     whyBookNow: [], includedItems: [], faqs: [], howItWorks: [],
     useGlobalGst: true,
@@ -1842,6 +2344,8 @@ const Dashboard = () => {
 
   // ── Country Manager handlers ───────────────────────────────
   const [isSavingCountry, setIsSavingCountry] = useState(false);
+  const [togglingCountryKey, setTogglingCountryKey] = useState(null);
+  const [bulkCountryToggleBusy, setBulkCountryToggleBusy] = useState(false);
   const syncVisaInfoCoreField = (field, value) => {
     setCountryForm((prev) => {
       const visaInformation = createVisaInformationState(prev);
@@ -1907,6 +2411,7 @@ const Dashboard = () => {
       governmentFee: String(country.governmentFee ?? 0),
       successRate: String(country.successRate ?? 80),
       trending: Boolean(country.trending),
+      isActive: country.isActive !== false,
       validity: String(country.validity ?? ""),
       lengthOfStay: String(country.lengthOfStay ?? ""),
       entryType: String(country.entryType ?? ""),
@@ -1956,7 +2461,7 @@ const Dashboard = () => {
 
   const saveCountry = async () => {
     if (!countryForm.name.trim() || !countryForm.basePrice) {
-      showToast("Country name and base price are required.", "error");
+      showToast("Country name and service fee are required.", "error");
       return;
     }
     setIsSavingCountry(true);
@@ -1981,6 +2486,7 @@ const Dashboard = () => {
       requiredDocuments: countryForm.requiredDocuments,
       successRate: Number(countryForm.successRate) || 80,
       trending: Boolean(countryForm.trending),
+      isActive: Boolean(countryForm.isActive),
       whyBookNow: (countryForm.whyBookNow || [])
         .map((s) => String(s ?? "").trim())
         .filter(Boolean),
@@ -2032,12 +2538,106 @@ const Dashboard = () => {
     const id = selectedCountry?._id || selectedCountry?.id;
     const result = await updateCountry(id, payload);
     if (result?.success) {
+      if (result.country) {
+        setSelectedCountry(result.country);
+      }
       showToast(`Country "${countryForm.name}" updated.`, "success");
-      closeCountryModal();
     } else {
       showToast(result?.message || "Failed to update country.", "error");
     }
     setIsSavingCountry(false);
+  };
+
+  const toggleCountryActive = async (country) => {
+    const id = country?._id || country?.id || country?.slug;
+    if (!id) return;
+    const next = country.isActive === false;
+    setTogglingCountryKey(String(id));
+    try {
+      const result = await updateCountry(id, { isActive: next });
+      if (result?.success) {
+        showToast(`Country "${country.name}" ${next ? "enabled" : "disabled"}.`, "success");
+      } else {
+        showToast(result?.message || "Failed to update country status.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || "Failed to update country status.", "error");
+    } finally {
+      setTogglingCountryKey(null);
+    }
+  };
+
+  const bulkSetCountryActive = async (isActive) => {
+    setBulkCountryToggleBusy(true);
+    try {
+      const { data } = await api.post("/admin/countries/visibility", { isActive });
+      if (data?.success) {
+        await fetchCountries();
+        showToast(
+          data.message ||
+            (isActive
+              ? "All countries are now visible on the public site."
+              : "All countries are now hidden from the public site."),
+          "success"
+        );
+      } else {
+        showToast(data?.message || "Failed to update country visibility.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const shouldFallbackToPerCountry =
+        status === 404 || status === 405 || status === 501;
+
+      if (shouldFallbackToPerCountry) {
+        try {
+          const updates = await Promise.allSettled(
+            countries.map((country) =>
+              updateCountry(country._id || country.id || country.slug, { isActive })
+            )
+          );
+          const failed = updates.filter(
+            (result) => result.status === "rejected" || result.value?.success === false
+          );
+          if (failed.length === 0) {
+            await fetchCountries();
+            showToast(
+              isActive
+                ? "All countries are now visible on the public site."
+                : "All countries are now hidden from the public site.",
+              "success"
+            );
+            return;
+          }
+          showToast(
+            `Updated ${updates.length - failed.length} of ${updates.length} countries. Please try again for the remaining ones.`,
+            "error"
+          );
+          return;
+        } catch (fallbackError) {
+          showToast(
+            fallbackError?.response?.data?.message || "Bulk visibility update failed.",
+            "error"
+          );
+          return;
+        }
+      }
+
+      showToast(
+        error?.response?.data?.message ||
+          (status ? `Failed to update country visibility. (HTTP ${status})` : "Failed to update country visibility."),
+        "error"
+      );
+    } finally {
+      setBulkCountryToggleBusy(false);
+    }
   };
 
   const toggleRequiredDoc = (key) => {
@@ -2101,6 +2701,11 @@ const Dashboard = () => {
                 description: String(item?.description ?? "").trim(),
                 icon: String(item?.icon ?? "").trim(),
                 color: String(item?.color ?? "blue").trim() || "blue",
+                showInAllActiveCountries: item?.showInAllActiveCountries !== false,
+                selectedCountries:
+                  item?.showInAllActiveCountries !== false
+                    ? [...activeCountryIds]
+                    : normalizeCountrySelectorIds(item?.selectedCountries),
               }))
               .filter((item) => item.title)
           : [];
@@ -2117,7 +2722,16 @@ const Dashboard = () => {
         setIsSmtpConfigured(flags.isSmtpConfigured);
         setIsSms91Configured(flags.isSms91Configured);
         setIsUnsplashConfigured(flags.isUnsplashConfigured);
-        setSettingsForm(mapApiSettingsToFormState(data.settings));
+        const serverMapped = mapApiSettingsToFormState(data.settings, activeCountryIds);
+        setSettingsForm((prev) => {
+          const nextForm = { ...prev };
+          Object.keys(safePayload).forEach((key) => {
+            if (key in serverMapped) {
+              nextForm[key] = serverMapped[key];
+            }
+          });
+          return nextForm;
+        });
       } else {
         switch (sectionKey) {
           case "razorpay":
@@ -2178,20 +2792,41 @@ const Dashboard = () => {
             Number.isFinite(Number(data.defaults?.globalBasePrice)) && Number(data.defaults?.globalBasePrice) >= 0
               ? Number(data.defaults.globalBasePrice)
               : null,
+          globalBasePriceVisibility: withCountryApplyMeta(
+            data.defaults?.globalBasePriceVisibility || {},
+            activeCountryIds
+          ),
           globalGovernmentFee:
             Number.isFinite(Number(data.defaults?.globalGovernmentFee)) && Number(data.defaults?.globalGovernmentFee) >= 0
               ? Number(data.defaults.globalGovernmentFee)
               : null,
+          globalGovernmentFeeVisibility: withCountryApplyMeta(
+            data.defaults?.globalGovernmentFeeVisibility || {},
+            activeCountryIds
+          ),
           globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
           globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
           globalLengthOfStay: String(data.defaults?.globalLengthOfStay ?? "").trim(),
           globalEntryType: String(data.defaults?.globalEntryType ?? "").trim(),
+          globalEntryTypeVisibility: withCountryApplyMeta(
+            data.defaults?.globalEntryTypeVisibility || {},
+            activeCountryIds
+          ),
           globalProcessingDays: String(data.defaults?.globalProcessingDays ?? "").trim(),
+          globalProcessingDaysVisibility: withCountryApplyMeta(
+            data.defaults?.globalProcessingDaysVisibility || {},
+            activeCountryIds
+          ),
           globalRequiredDocuments: Array.isArray(data.defaults?.globalRequiredDocuments)
             ? data.defaults.globalRequiredDocuments
                 .map((k) => String(k ?? "").trim())
                 .filter(Boolean)
             : [],
+          globalRequiredDocumentEntries: normalizeGlobalRequiredDocumentEntriesFromApi(
+            data.defaults?.globalRequiredDocumentEntries,
+            data.defaults?.globalRequiredDocuments,
+            activeCountryIds
+          ),
         };
         setGlobalDefaults(next);
         setGlobalDefaultStats({
@@ -2428,9 +3063,16 @@ const Dashboard = () => {
       showToast("Pick an Entry value from the dropdown or type your own.", "error");
       return;
     }
+    if (!validateCountryApplySelection(globalDefaults.globalEntryTypeVisibility)) {
+      return;
+    }
     setSavingControlKey("entry-type");
     try {
-      const { data } = await api.post("/admin/control/entry-type", { entryType });
+      const { data } = await api.post("/admin/control/entry-type", {
+        entryType,
+        applyToAllActiveCountries: globalDefaults.globalEntryTypeVisibility?.applyToAllActiveCountries !== false,
+        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalEntryTypeVisibility?.selectedCountries),
+      });
       if (data?.success) {
         showToast(data.message || `Entry set to "${entryType}".`, "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
@@ -2466,9 +3108,16 @@ const Dashboard = () => {
       showToast("Pick Processing Days from the dropdown or type your own.", "error");
       return;
     }
+    if (!validateCountryApplySelection(globalDefaults.globalProcessingDaysVisibility)) {
+      return;
+    }
     setSavingControlKey("processing-days");
     try {
-      const { data } = await api.post("/admin/control/processing-days", { processingDays });
+      const { data } = await api.post("/admin/control/processing-days", {
+        processingDays,
+        applyToAllActiveCountries: globalDefaults.globalProcessingDaysVisibility?.applyToAllActiveCountries !== false,
+        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalProcessingDaysVisibility?.selectedCountries),
+      });
       if (data?.success) {
         showToast(data.message || `Processing Days set to "${processingDays}".`, "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
@@ -2501,17 +3150,24 @@ const Dashboard = () => {
   const runUpdateGlobalBasePrice = async () => {
     const parsedBasePrice = Number(basePriceCustom);
     if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
-      showToast("Enter a valid global fee.", "error");
+      showToast("Enter a valid global service fee.", "error");
+      return;
+    }
+    if (!validateCountryApplySelection(globalDefaults.globalBasePriceVisibility)) {
       return;
     }
     setSavingControlKey("base-price");
     try {
-      const { data } = await api.post("/admin/control/base-price", { basePrice: parsedBasePrice });
+      const { data } = await api.post("/admin/control/base-price", {
+        basePrice: parsedBasePrice,
+        applyToAllActiveCountries: globalDefaults.globalBasePriceVisibility?.applyToAllActiveCountries !== false,
+        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalBasePriceVisibility?.selectedCountries),
+      });
       if (data?.success) {
         showToast(data.message || `Fee set to ${formatPriceINR(parsedBasePrice)}.`, "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
       } else {
-        showToast(data?.message || "Failed to update global fee.", "error");
+        showToast(data?.message || "Failed to update global service fee.", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -2520,14 +3176,14 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global fee.";
+      let toastMsg = serverMsg || error?.message || "Failed to update global service fee.";
       if (status === 404) {
         toastMsg =
           "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/base-price is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      console.error("Update global fee failed:", { status, serverMsg, error });
+      console.error("Update global service fee failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -2540,9 +3196,16 @@ const Dashboard = () => {
       showToast("Enter a valid global government fee.", "error");
       return;
     }
+    if (!validateCountryApplySelection(globalDefaults.globalGovernmentFeeVisibility)) {
+      return;
+    }
     setSavingControlKey("government-fee");
     try {
-      const { data } = await api.post("/admin/control/government-fee", { governmentFee: parsedGovernmentFee });
+      const { data } = await api.post("/admin/control/government-fee", {
+        governmentFee: parsedGovernmentFee,
+        applyToAllActiveCountries: globalDefaults.globalGovernmentFeeVisibility?.applyToAllActiveCountries !== false,
+        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalGovernmentFeeVisibility?.selectedCountries),
+      });
       if (data?.success) {
         showToast(data.message || `Government fee set to ${formatPriceINR(parsedGovernmentFee)}.`, "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
@@ -2577,10 +3240,14 @@ const Dashboard = () => {
    */
   const runUpdateGlobalRequiredDocuments = async () => {
     const docs = Array.isArray(requiredDocsDraft) ? requiredDocsDraft.filter(Boolean) : [];
+    const entries = buildGlobalRequiredDocumentEntriesPayload();
+    if (!validateCountryVisibilitySelection(entries, "Each global document", (item) => item?.selectedCountries)) {
+      return;
+    }
     setSavingControlKey("required-documents");
     try {
       const { data } = await api.post("/admin/control/required-documents", {
-        requiredDocuments: docs,
+        requiredDocuments: entries,
       });
       if (data?.success) {
         showToast(
@@ -2739,6 +3406,17 @@ const Dashboard = () => {
       showToast('Use a valid Remix Icon class like "ri-passport-line".', "error");
       return;
     }
+    const requiredDocEntries = buildGlobalRequiredDocumentEntriesPayload();
+    if (
+      requiredDocEntries.some((item) => item.key === key) &&
+      !validateCountryVisibilitySelection(
+        requiredDocEntries.filter((item) => item.key === key),
+        "This global document",
+        (item) => item?.selectedCountries
+      )
+    ) {
+      return;
+    }
     setSavingDocumentMetaKey(key);
     try {
       const { data } = await api.post("/admin/control/custom-documents", {
@@ -2749,6 +3427,15 @@ const Dashboard = () => {
         icon,
       });
       if (data?.success) {
+        if (requiredDocEntries.length) {
+          const visibilityRes = await api.post("/admin/control/required-documents", {
+            requiredDocuments: requiredDocEntries,
+          });
+          if (!visibilityRes?.data?.success) {
+            showToast(visibilityRes?.data?.message || "Failed to save document visibility.", "error");
+            return;
+          }
+        }
         showToast(data.message || `"${label}" saved.`, "success");
         if (Array.isArray(data.documentCatalog)) {
           setDocumentCatalog(
@@ -2765,6 +3452,7 @@ const Dashboard = () => {
           );
         }
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        setEditingDocKey(key);
       } else {
         showToast(data?.message || "Failed to save document.", "error");
       }
@@ -2991,17 +3679,36 @@ const Dashboard = () => {
   const removeRequirement = (index) =>
     setCountryForm((p) => ({ ...p, requirements: p.requirements.filter((_, i) => i !== index) }));
 
-  // ── Recalculate live analytics from state ─────────────────
-  const liveAnalytics = {
-    total:    bookings.length,
-    revenue:  bookings.reduce((s, b) => s + b.fee, 0),
-    pending:  bookings.filter((b) => {
-      const progress = getApplicationProgress(b, settingsForm);
-      const resolvedStatus = resolveApplicationStatus(b, progress);
-      return resolvedStatus === "pending";
-    }).length,
-    approvalRate: Math.round((bookings.filter((b) => b.status === "approved").length / bookings.length) * 100),
-  };
+  // ── Recalculate live analytics from current applications ──
+  const liveAnalytics = useMemo(() => {
+    const statusCounts = {
+      pending: 0,
+      doc_pending: 0,
+      review: 0,
+      approved: 0,
+      rejected: 0,
+      cancelled: 0,
+    };
+
+    for (const booking of bookings) {
+      const progress = getApplicationProgress(booking, settingsForm);
+      const resolvedStatus = resolveApplicationStatus(booking, progress);
+      if (Object.prototype.hasOwnProperty.call(statusCounts, resolvedStatus)) {
+        statusCounts[resolvedStatus] += 1;
+      }
+    }
+
+    const total = bookings.length;
+    const approved = statusCounts.approved;
+
+    return {
+      total,
+      revenue: bookings.reduce((sum, booking) => sum + Number(booking?.fee || 0), 0),
+      pending: statusCounts.pending,
+      statusCounts,
+      approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,
+    };
+  }, [bookings, settingsForm]);
 
   return (
     <AdminLayout
@@ -3258,6 +3965,7 @@ const Dashboard = () => {
                       <option value="review">Under Review</option>
                       <option value="approved">Approved</option>
                       <option value="rejected">Rejected</option>
+                      <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
                 </div>
@@ -3403,15 +4111,37 @@ const Dashboard = () => {
                     <h2 className="font-semibold text-text-primary">Country Manager</h2>
                     <p className="text-xs text-text-muted">Edit pricing, visa type, documents, requirements, images, and display details for all 195 countries.</p>
                   </div>
-                  <div className="relative w-full sm:w-80">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <input
-                      value={countrySearchQuery}
-                      onChange={(e) => setCountrySearchQuery(e.target.value)}
-                      placeholder="Search country, city, visa type..."
-                      className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
-                      id="country-manager-search"
-                    />
+                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[24rem]">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => bulkSetCountryActive(true)}
+                        disabled={bulkCountryToggleBusy}
+                        id="country-manager-select-all"
+                      >
+                        {bulkCountryToggleBusy ? "Updating..." : "Select All"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => bulkSetCountryActive(false)}
+                        disabled={bulkCountryToggleBusy}
+                        id="country-manager-deselect-all"
+                      >
+                        {bulkCountryToggleBusy ? "Updating..." : "Deselect All"}
+                      </Button>
+                    </div>
+                    <div className="relative w-full sm:w-80 sm:self-end">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                      <input
+                        value={countrySearchQuery}
+                        onChange={(e) => setCountrySearchQuery(e.target.value)}
+                        placeholder="Search country, city, visa type..."
+                        className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
+                        id="country-manager-search"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -3458,16 +4188,22 @@ const Dashboard = () => {
                             </div>
                           </div>
                           {/* Actions */}
-                          <div className="flex gap-1">
-                          <button
-                            id={`edit-country-${c._id || c.id}`}
-                            onClick={() => openEditCountry(c)}
-                            className="p-1.5 rounded-lg hover:bg-cyan/10 text-text-muted hover:text-cyan transition-colors"
-                            aria-label={`Edit ${c.name}`}
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                        </div>
+                          <div className="flex items-center gap-2">
+                            <CountryCardActiveToggle
+                              active={c.isActive !== false}
+                              busy={togglingCountryKey === String(c._id || c.id || c.slug)}
+                              onClick={() => toggleCountryActive(c)}
+                              countryName={c.name}
+                            />
+                            <button
+                              id={`edit-country-${c._id || c.id}`}
+                              onClick={() => openEditCountry(c)}
+                              className="p-1.5 rounded-lg hover:bg-cyan/10 text-text-muted hover:text-cyan transition-colors"
+                              aria-label={`Edit ${c.name}`}
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                          </div>
                       </div>
 
                       {/* Required docs badges */}
@@ -3724,7 +4460,7 @@ const Dashboard = () => {
                         title: String(item?.title ?? LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title ?? "").trim(),
                         body: String(item?.body ?? LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body ?? "").trim(),
                       }));
-                      saveSettingsSection("landing-highlights", { landingHeroHighlights }, "Landing highlights updated");
+                      saveSettingsPartial("landing-highlights", { landingHeroHighlights }, "Landing highlights updated");
                     }}
                   >
                     Save Landing Highlights
@@ -3775,13 +4511,13 @@ const Dashboard = () => {
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-semibold text-text-primary flex items-center gap-2">
                         <IndianRupee size={18} className="text-cyan" />
-                        Update Fee (universal)
+                        Update Service Fee (universal)
                       </h2>
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Sets one global <span className="text-text-primary font-medium">Fee</span> for every country.
-                      Per-country fees in <span className="text-text-primary font-medium">Country Manager</span> can still
-                      override it manually, and typing the same amount again switches that country back to the global fee.
+                      Sets one global <span className="text-text-primary font-medium">Service Fee</span> for every country.
+                      Per-country service fees in <span className="text-text-primary font-medium">Country Manager</span> can still
+                      override it manually, and typing the same amount again switches that country back to the global service fee.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -3805,19 +4541,30 @@ const Dashboard = () => {
                     disabled={!String(basePriceCustom).trim()}
                     onClick={runUpdateGlobalBasePrice}
                   >
-                    Update All Fees
+                    Update All Service Fees
                   </Button>
                 </div>
 
                 <Input
-                  label="Global Fee (₹)"
+                  label="Global Service Fee (₹)"
                   type="number"
                   value={basePriceCustom}
                   onChange={(e) => setBasePriceCustom(e.target.value)}
                   placeholder="e.g. 4999"
                   id="control-base-price"
-                  helper="Saving this updates every country to use the global fee until a country is manually given a different amount."
+                  helper="Saving this updates every country to use the global service fee until a country is manually given a different amount."
                 />
+                <div className="mt-4">
+                  <CountryVisibilitySelector
+                    item={globalDefaults.globalBasePriceVisibility}
+                    activeCountries={activeCountryOptions}
+                    itemLabel="this service fee"
+                    mode="applied"
+                    allKey="applyToAllActiveCountries"
+                    selectedKey="selectedCountries"
+                    onChange={(next) => setGlobalDefaults((prev) => ({ ...prev, globalBasePriceVisibility: next }))}
+                  />
+                </div>
               </ExpandableAdminControlCard>
               </div>
 
@@ -3871,6 +4618,19 @@ const Dashboard = () => {
                   id="control-government-fee"
                   helper="Landing page and destination cards will show this government fee unless a country has its own override."
                 />
+                <div className="mt-4">
+                  <CountryVisibilitySelector
+                    item={globalDefaults.globalGovernmentFeeVisibility}
+                    activeCountries={activeCountryOptions}
+                    itemLabel="this government fee"
+                    mode="applied"
+                    allKey="applyToAllActiveCountries"
+                    selectedKey="selectedCountries"
+                    onChange={(next) =>
+                      setGlobalDefaults((prev) => ({ ...prev, globalGovernmentFeeVisibility: next }))
+                    }
+                  />
+                </div>
               </ExpandableAdminControlCard>
               </div>
               </div>
@@ -4101,6 +4861,17 @@ const Dashboard = () => {
                     helper="Custom value overrides the dropdown above."
                   />
                 </div>
+                <div className="mt-4">
+                  <CountryVisibilitySelector
+                    item={globalDefaults.globalEntryTypeVisibility}
+                    activeCountries={activeCountryOptions}
+                    itemLabel="this entry type"
+                    mode="applied"
+                    allKey="applyToAllActiveCountries"
+                    selectedKey="selectedCountries"
+                    onChange={(next) => setGlobalDefaults((prev) => ({ ...prev, globalEntryTypeVisibility: next }))}
+                  />
+                </div>
               </ExpandableAdminControlCard>
               </div>
 
@@ -4261,6 +5032,19 @@ const Dashboard = () => {
                     helper="Custom value overrides the dropdown above."
                   />
                 </div>
+                <div className="mt-4">
+                  <CountryVisibilitySelector
+                    item={globalDefaults.globalProcessingDaysVisibility}
+                    activeCountries={activeCountryOptions}
+                    itemLabel="these processing days"
+                    mode="applied"
+                    allKey="applyToAllActiveCountries"
+                    selectedKey="selectedCountries"
+                    onChange={(next) =>
+                      setGlobalDefaults((prev) => ({ ...prev, globalProcessingDaysVisibility: next }))
+                    }
+                  />
+                </div>
               </ExpandableAdminControlCard>
               </div>
 
@@ -4277,7 +5061,7 @@ const Dashboard = () => {
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-semibold text-text-primary flex items-center gap-2">
                         <FileText size={18} className="text-cyan" />
-                        Required Documents (universal)
+                        Documents Required (global)
                       </h2>
                       <DisplayToggle
                         active={displayToggles.showRequiredDocuments}
@@ -4289,7 +5073,7 @@ const Dashboard = () => {
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
                       Tick every document type applicants must upload globally. Click{" "}
-                      <span className="text-text-primary font-medium">Update All Required Documents</span>{" "}
+                      <span className="text-text-primary font-medium">Update All Documents Required</span>{" "}
                       to apply it to every country. Per-country edits in{" "}
                       <span className="text-text-primary font-medium">Country Manager</span> are restored to the
                       global list. Need a new document type? Add it at the top — it appears in this checklist and on
@@ -4320,7 +5104,7 @@ const Dashboard = () => {
                     loading={savingControlKey === "required-documents"}
                     onClick={runUpdateGlobalRequiredDocuments}
                   >
-                    Update All Required Documents
+                    Update All Documents Required
                   </Button>
                 </div>
 
@@ -4328,7 +5112,22 @@ const Dashboard = () => {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setRequiredDocsDraft(documentCatalog.filter((d) => !d.deleted).map((d) => d.key))}
+                    onClick={() => {
+                      const keys = documentCatalog.filter((d) => !d.deleted).map((d) => d.key);
+                      setRequiredDocsDraft(keys);
+                      setGlobalDefaults((prev) => {
+                        const existing = Array.isArray(prev.globalRequiredDocumentEntries)
+                          ? prev.globalRequiredDocumentEntries
+                          : [];
+                        const merged = [...existing];
+                        keys.forEach((key) => {
+                          if (!merged.some((entry) => entry.key === key)) {
+                            merged.push(withCountryVisibilityMeta({ key }, activeCountryIds));
+                          }
+                        });
+                        return { ...prev, globalRequiredDocumentEntries: merged };
+                      });
+                    }}
                   >
                     Select All
                   </Button>
@@ -4352,6 +5151,9 @@ const Dashboard = () => {
                   {documentCatalog.filter((d) => !d.deleted).map((doc, index) => {
                     const { key, label, description, builtIn, icon } = doc;
                     const checked = requiredDocsDraft.includes(key);
+                    const visibilityEntry =
+                      (globalDefaults.globalRequiredDocumentEntries || []).find((item) => item.key === key) ||
+                      withCountryVisibilityMeta({ key }, activeCountryIds);
                     const DocIcon = getDocumentIcon(key);
                     const isEditing = editingDocKey === key;
                     return (
@@ -4366,9 +5168,25 @@ const Dashboard = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            setRequiredDocsDraft((prev) =>
-                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-                            )
+                            setRequiredDocsDraft((prev) => {
+                              const exists = prev.includes(key);
+                              if (!exists) {
+                                setGlobalDefaults((current) => {
+                                  const entries = Array.isArray(current.globalRequiredDocumentEntries)
+                                    ? current.globalRequiredDocumentEntries
+                                    : [];
+                                  if (entries.some((entry) => entry.key === key)) return current;
+                                  return {
+                                    ...current,
+                                    globalRequiredDocumentEntries: [
+                                      ...entries,
+                                      withCountryVisibilityMeta({ key }, activeCountryIds),
+                                    ],
+                                  };
+                                });
+                              }
+                              return exists ? prev.filter((k) => k !== key) : [...prev, key];
+                            })
                           }
                           className="flex w-full items-start gap-3 text-left pr-8"
                           id={`control-doc-toggle-${key}`}
@@ -4454,6 +5272,24 @@ const Dashboard = () => {
                               }}
                               placeholder="Short document description shown to applicants"
                             />
+                            {checked && (
+                              <CountryVisibilitySelector
+                                item={visibilityEntry}
+                                activeCountries={activeCountryOptions}
+                                itemLabel="this document"
+                                onChange={(nextItem) =>
+                                  setGlobalDefaults((prev) => {
+                                    const nextEntries = Array.isArray(prev.globalRequiredDocumentEntries)
+                                      ? [...prev.globalRequiredDocumentEntries]
+                                      : [];
+                                    const existingIndex = nextEntries.findIndex((entry) => entry.key === key);
+                                    if (existingIndex >= 0) nextEntries[existingIndex] = nextItem;
+                                    else nextEntries.push(nextItem);
+                                    return { ...prev, globalRequiredDocumentEntries: nextEntries };
+                                  })
+                                }
+                              />
+                            )}
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
                               <div className="w-full">
                                 <Input
@@ -4471,9 +5307,17 @@ const Dashboard = () => {
                                   list="custom-document-icon-suggestions"
                                 />
                               </div>
-                              <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
-                                {sanitizeRemixIconClass(icon) ? <i className={`${sanitizeRemixIconClass(icon)} text-xl`} /> : <DocIcon size={18} />}
-                              </div>
+                              <IconPickerPreviewButton
+                                icon={icon}
+                                fallbackIcon={DocIcon}
+                                title={`Choose icon for ${label || "document type"}`}
+                                onClick={() =>
+                                  openIconPicker({
+                                    type: "document-catalog",
+                                    key,
+                                  })
+                                }
+                              />
                               <div className="flex gap-2 shrink-0">
                                 <Button
                                   variant="secondary"
@@ -4557,13 +5401,16 @@ const Dashboard = () => {
                       </datalist>
                     </div>
 
-                    <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
-                      {sanitizeRemixIconClass(newCustomDocIcon) ? (
-                        <i className={`${sanitizeRemixIconClass(newCustomDocIcon)} text-xl`} />
-                      ) : (
-                        <FileText size={18} className="text-text-muted" />
-                      )}
-                    </div>
+                    <IconPickerPreviewButton
+                      icon={newCustomDocIcon}
+                      fallbackIcon={FileText}
+                      title="Choose icon for custom document"
+                      onClick={() =>
+                        openIconPicker({
+                          type: "new-custom-document",
+                        })
+                      }
+                    />
 
                     <Button
                       variant="secondary"
@@ -4742,9 +5589,17 @@ const Dashboard = () => {
                                   list="custom-document-icon-suggestions"
                                 />
                               </div>
-                              <div className="flex h-[46px] min-w-[56px] items-center justify-center rounded-xl border border-border bg-background text-cyan">
-                                {sanitizeRemixIconClass(icon) ? <i className={`${sanitizeRemixIconClass(icon)} text-xl`} /> : <DocIcon size={18} />}
-                              </div>
+                              <IconPickerPreviewButton
+                                icon={icon}
+                                fallbackIcon={DocIcon}
+                                title={`Choose icon for ${label || "document type"}`}
+                                onClick={() =>
+                                  openIconPicker({
+                                    type: "document-catalog",
+                                    key,
+                                  })
+                                }
+                              />
                               <div className="flex gap-2 shrink-0">
                                 <Button
                                   variant="secondary"
@@ -4775,6 +5630,117 @@ const Dashboard = () => {
                 </div>
               </ExpandableAdminControlCard>
 
+              </div>
+
+              <div className={activeControlSection === "popular-countries" ? "" : "hidden"}>
+              <Card>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <MapPin size={18} className="text-cyan" />
+                        Popular Countries (Landing Page Search Bar)
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Manage the popular countries tags shown directly under the search bar in the landing page hero section. These tags allow users to search and filter instantly by clicking them.
+                    </p>
+                    <div className="mt-4">
+                      <DisplayToggle
+                        active={settingsForm.showPopularCountries}
+                        onClick={() =>
+                          setSettingsForm((prev) => ({
+                            ...prev,
+                            showPopularCountries: !prev.showPopularCountries,
+                          }))
+                        }
+                        labelOn="Popular Countries Block Visible"
+                        labelOff="Popular Countries Block Hidden"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Save size={15} />}
+                    loading={savingSettingsKey === "popular-countries"}
+                    onClick={() => {
+                      saveSettingsPartial(
+                        "popular-countries",
+                        {
+                          popularCountries: settingsForm.popularCountries,
+                          showPopularCountries: settingsForm.showPopularCountries,
+                        },
+                        "Popular countries tags saved successfully."
+                      );
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
+                      Current Tags
+                    </label>
+                    {Array.isArray(settingsForm.popularCountries) && settingsForm.popularCountries.length > 0 ? (
+                      <div className="flex flex-wrap gap-2.5">
+                        {settingsForm.popularCountries.map((tag, idx) => (
+                          <span
+                            key={`popular-tag-${idx}`}
+                            className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-[#146fd8] shadow-sm transition-all hover:bg-sky-100"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              onClick={() => removePopularTag(idx)}
+                              className="text-sky-400 hover:text-red-500 font-bold transition-all text-sm pl-1"
+                              title={`Remove ${tag}`}
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-text-muted">
+                        No popular country tags configured. The landing page will fall back to default values.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-border pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
+                      Add New Tag
+                    </label>
+                    <div className="flex items-center gap-3 max-w-md">
+                      <Input
+                        id="new-popular-tag-input"
+                        placeholder="e.g. Canada, Germany, Singapore..."
+                        value={newPopularCountryTag}
+                        onChange={(e) => setNewPopularCountryTag(e.target.value)}
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addPopularTag();
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={addPopularTag}
+                        className="h-10 px-5 rounded-xl border border-sky-100 hover:bg-sky-50 text-cyan font-semibold shrink-0"
+                      >
+                        Add Tag
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
               </div>
 
               <div className={activeControlSection === "maintenance-mode" ? "" : "hidden"}>
@@ -4970,32 +5936,70 @@ const Dashboard = () => {
                     leftIcon={<Save size={15} />}
                     loading={savingSettingsKey === "destination-content"}
                     onClick={() => {
+                      if (
+                        !validateCountryVisibilitySelection(settingsForm.destinationWhyBookNow, "Each 'Why book now' item", (item) => item?.selectedCountries) ||
+                        !validateCountryVisibilitySelection(settingsForm.destinationIncludedItems, "Each included item", (item) => item?.selectedCountries) ||
+                        !validateCountryVisibilitySelection(settingsForm.destinationFaqs, "Each FAQ", (item) => item?.selectedCountries) ||
+                        !validateCountryVisibilitySelection(settingsForm.destinationHowItWorks, "Each 'How it works' step", (item) => item?.selectedCountries) ||
+                        !validateCountryVisibilitySelection(settingsForm.destinationVisaRequirements, "Each visa requirement", (item) => item?.selectedCountries)
+                      ) {
+                        return;
+                      }
                       const whyBookNow = settingsForm.destinationWhyBookNow
-                        .map((s) => String(s ?? "").trim())
-                        .filter(Boolean);
+                        .map((s) => ({
+                          text: String(s?.text ?? "").trim(),
+                          showInAllActiveCountries: s?.showInAllActiveCountries !== false,
+                          selectedCountries:
+                            s?.showInAllActiveCountries !== false
+                              ? [...activeCountryIds]
+                              : normalizeCountrySelectorIds(s?.selectedCountries),
+                        }))
+                        .filter((s) => s.text);
                       const included = (settingsForm.destinationIncludedItems || [])
                         .map((x) => ({
                           title: String(x?.title ?? "").trim(),
                           description: String(x?.description ?? "").trim(),
                           icon: String(x?.icon ?? "").trim(),
                           color: String(x?.color ?? "blue").trim(),
+                          showInAllActiveCountries: x?.showInAllActiveCountries !== false,
+                          selectedCountries:
+                            x?.showInAllActiveCountries !== false
+                              ? [...activeCountryIds]
+                              : normalizeCountrySelectorIds(x?.selectedCountries),
                         }))
                         .filter((x) => x.title);
                       const faqs = settingsForm.destinationFaqs
                         .map((f) => ({
                           question: String(f?.question ?? "").trim(),
                           answer: String(f?.answer ?? "").trim(),
+                          showInAllActiveCountries: f?.showInAllActiveCountries !== false,
+                          selectedCountries:
+                            f?.showInAllActiveCountries !== false
+                              ? [...activeCountryIds]
+                              : normalizeCountrySelectorIds(f?.selectedCountries),
                         }))
                         .filter((f) => f.question && f.answer);
                       const howItWorks = settingsForm.destinationHowItWorks
                         .map((s) => ({
                           title: String(s?.title ?? "").trim(),
                           description: String(s?.description ?? "").trim(),
+                          showInAllActiveCountries: s?.showInAllActiveCountries !== false,
+                          selectedCountries:
+                            s?.showInAllActiveCountries !== false
+                              ? [...activeCountryIds]
+                              : normalizeCountrySelectorIds(s?.selectedCountries),
                         }))
                         .filter((s) => s.title && s.description);
                       const visaRequirements = (settingsForm.destinationVisaRequirements || [])
-                        .map((s) => String(s ?? "").trim())
-                        .filter(Boolean);
+                        .map((s) => ({
+                          text: String(s?.text ?? "").trim(),
+                          showInAllActiveCountries: s?.showInAllActiveCountries !== false,
+                          selectedCountries:
+                            s?.showInAllActiveCountries !== false
+                              ? [...activeCountryIds]
+                              : normalizeCountrySelectorIds(s?.selectedCountries),
+                        }))
+                        .filter((s) => s.text);
                       saveSettingsPartial(
                         "destination-content",
                         {
@@ -5024,36 +6028,50 @@ const Dashboard = () => {
                       One reason per line. These appear on every destination page unless a specific country overrides them.
                     </p>
                     <div className="space-y-3 max-w-2xl">
-                      {(settingsForm.destinationWhyBookNow || []).map((line, idx) => (
-                        <div key={`why-${idx}`} className="flex gap-2 items-start">
-                          <Input
-                            className="flex-1"
-                            value={line}
-                            onChange={(e) => {
-                              const v = e.target.value;
+                      {(settingsForm.destinationWhyBookNow || []).map((item, idx) => (
+                        <div key={`why-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
+                          <div className="flex gap-2 items-start">
+                            <Input
+                              className="flex-1"
+                              value={item?.text ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSettingsForm((p) => {
+                                  const next = [...(p.destinationWhyBookNow || [])];
+                                  next[idx] = { ...next[idx], text: v };
+                                  return { ...p, destinationWhyBookNow: next };
+                                });
+                              }}
+                              placeholder="e.g. Fast document pre-check by visa specialists"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="shrink-0 text-red-400 hover:text-red-300"
+                              onClick={() =>
+                                setSettingsForm((p) => ({
+                                  ...p,
+                                  destinationWhyBookNow: (p.destinationWhyBookNow || []).filter((_, i) => i !== idx),
+                                }))
+                              }
+                              aria-label="Remove reason"
+                            >
+                              <X size={16} />
+                            </Button>
+                          </div>
+                          <CountryVisibilitySelector
+                            item={item}
+                            activeCountries={activeCountryOptions}
+                            itemLabel="this reason"
+                            onChange={(nextItem) =>
                               setSettingsForm((p) => {
                                 const next = [...(p.destinationWhyBookNow || [])];
-                                next[idx] = v;
+                                next[idx] = nextItem;
                                 return { ...p, destinationWhyBookNow: next };
-                              });
-                            }}
-                            placeholder="e.g. Fast document pre-check by visa specialists"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0 text-red-400 hover:text-red-300"
-                            onClick={() =>
-                              setSettingsForm((p) => ({
-                                ...p,
-                                destinationWhyBookNow: (p.destinationWhyBookNow || []).filter((_, i) => i !== idx),
-                              }))
+                              })
                             }
-                            aria-label="Remove reason"
-                          >
-                            <X size={16} />
-                          </Button>
+                          />
                         </div>
                       ))}
                       <Button
@@ -5064,12 +6082,35 @@ const Dashboard = () => {
                         onClick={() =>
                           setSettingsForm((p) => ({
                             ...p,
-                            destinationWhyBookNow: [...(p.destinationWhyBookNow || []), ""],
+                            destinationWhyBookNow: [
+                              ...(p.destinationWhyBookNow || []),
+                              withCountryVisibilityMeta({ text: "" }, activeCountryIds),
+                            ],
                           }))
                         }
                       >
                         Add reason
                       </Button>
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<Save size={14} />}
+                          loading={savingSettingsKey === "destination-content"}
+                          onClick={() =>
+                            saveDestinationContentSection({
+                              sectionKey: "why-book-now",
+                              validationLabel: "Each 'Why book now' item",
+                              payloadBuilder: buildDestinationWhyBookNowPayload,
+                              payloadKey: "destinationWhyBookNow",
+                              successMessage: "'Why book now' saved.",
+                            })
+                          }
+                        >
+                          Save This Section
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
@@ -5151,9 +6192,18 @@ const Dashboard = () => {
                               list="remix-icon-suggestions"
                             />
                             <div className="flex items-end pb-1.5">
-                               <div className="w-10 h-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-xl text-cyan">
-                                  {item.icon ? <i className={item.icon} /> : <ShieldCheck size={20} />}
-                                </div>
+                              <IconPickerPreviewButton
+                                icon={item.icon}
+                                fallbackIcon={ShieldCheck}
+                                className="min-w-0 w-10 h-10 rounded-lg bg-surface-2"
+                                title={`Choose icon for ${item.title || "included item"}`}
+                                onClick={() =>
+                                  openIconPicker({
+                                    type: "destination-included-item",
+                                    index: idx,
+                                  })
+                                }
+                              />
                             </div>
                           </div>
 
@@ -5171,6 +6221,18 @@ const Dashboard = () => {
                             }}
                             placeholder="Explain what's included..."
                           />
+                          <CountryVisibilitySelector
+                            item={item}
+                            activeCountries={activeCountryOptions}
+                            itemLabel="this item"
+                            onChange={(nextItem) =>
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationIncludedItems || [])];
+                                next[idx] = nextItem;
+                                return { ...p, destinationIncludedItems: next };
+                              })
+                            }
+                          />
                         </div>
                       ))}
                       <Button
@@ -5181,12 +6243,35 @@ const Dashboard = () => {
                         onClick={() =>
                           setSettingsForm((p) => ({
                             ...p,
-                            destinationIncludedItems: [...(p.destinationIncludedItems || []), { title: "", description: "", icon: "", color: "blue" }],
+                            destinationIncludedItems: [
+                              ...(p.destinationIncludedItems || []),
+                              withCountryVisibilityMeta({ title: "", description: "", icon: "", color: "blue" }, activeCountryIds),
+                            ],
                           }))
                         }
                       >
                         Add item
                       </Button>
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<Save size={14} />}
+                          loading={savingSettingsKey === "destination-content"}
+                          onClick={() =>
+                            saveDestinationContentSection({
+                              sectionKey: "whats-included",
+                              validationLabel: "Each included item",
+                              payloadBuilder: buildDestinationIncludedPayload,
+                              payloadKey: "destinationIncludedItems",
+                              successMessage: "'What's included' saved.",
+                            })
+                          }
+                        >
+                          Save This Section
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
@@ -5243,6 +6328,18 @@ const Dashboard = () => {
                               });
                             }}
                           />
+                          <CountryVisibilitySelector
+                            item={faq}
+                            activeCountries={activeCountryOptions}
+                            itemLabel="this FAQ"
+                            onChange={(nextItem) =>
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationFaqs || [])];
+                                next[idx] = nextItem;
+                                return { ...p, destinationFaqs: next };
+                              })
+                            }
+                          />
                         </div>
                       ))}
                       <Button
@@ -5253,12 +6350,35 @@ const Dashboard = () => {
                         onClick={() =>
                           setSettingsForm((p) => ({
                             ...p,
-                            destinationFaqs: [...(p.destinationFaqs || []), { question: "", answer: "" }],
+                            destinationFaqs: [
+                              ...(p.destinationFaqs || []),
+                              withCountryVisibilityMeta({ question: "", answer: "" }, activeCountryIds),
+                            ],
                           }))
                         }
                       >
                         Add FAQ
                       </Button>
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<Save size={14} />}
+                          loading={savingSettingsKey === "destination-content"}
+                          onClick={() =>
+                            saveDestinationContentSection({
+                              sectionKey: "faq",
+                              validationLabel: "Each FAQ",
+                              payloadBuilder: buildDestinationFaqsPayload,
+                              payloadKey: "destinationFaqs",
+                              successMessage: "FAQs saved.",
+                            })
+                          }
+                        >
+                          Save This Section
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
@@ -5318,6 +6438,18 @@ const Dashboard = () => {
                             }}
                             placeholder="Short instruction shown under the title"
                           />
+                          <CountryVisibilitySelector
+                            item={step}
+                            activeCountries={activeCountryOptions}
+                            itemLabel="this step"
+                            onChange={(nextItem) =>
+                              setSettingsForm((p) => {
+                                const next = [...(p.destinationHowItWorks || [])];
+                                next[idx] = nextItem;
+                                return { ...p, destinationHowItWorks: next };
+                              })
+                            }
+                          />
                         </div>
                       ))}
                       <Button
@@ -5330,13 +6462,33 @@ const Dashboard = () => {
                             ...p,
                             destinationHowItWorks: [
                               ...(p.destinationHowItWorks || []),
-                              { title: "", description: "" },
+                              withCountryVisibilityMeta({ title: "", description: "" }, activeCountryIds),
                             ],
                           }))
                         }
                       >
                         Add step
                       </Button>
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<Save size={14} />}
+                          loading={savingSettingsKey === "destination-content"}
+                          onClick={() =>
+                            saveDestinationContentSection({
+                              sectionKey: "how-it-works",
+                              validationLabel: "Each 'How it works' step",
+                              payloadBuilder: buildDestinationHowItWorksPayload,
+                              payloadKey: "destinationHowItWorks",
+                              successMessage: "'How it works' saved.",
+                            })
+                          }
+                        >
+                          Save This Section
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
@@ -5361,35 +6513,49 @@ const Dashboard = () => {
                       extras you add inside Country Manager are appended below — duplicates are skipped.
                     </p>
                     <div className="space-y-3 max-w-2xl">
-                      {(settingsForm.destinationVisaRequirements || []).map((line, idx) => (
-                        <div key={`visa-${idx}`} className="flex gap-2 items-start">
-                          <Textarea
-                            rows={2}
-                            value={line}
-                            onChange={(e) => {
-                              const v = e.target.value;
+                      {(settingsForm.destinationVisaRequirements || []).map((item, idx) => (
+                        <div key={`visa-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
+                          <div className="flex gap-2 items-start">
+                            <Textarea
+                              rows={2}
+                              value={item?.text ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setSettingsForm((p) => {
+                                  const next = [...(p.destinationVisaRequirements || [])];
+                                  next[idx] = { ...next[idx], text: v };
+                                  return { ...p, destinationVisaRequirements: next };
+                                });
+                              }}
+                              placeholder="e.g. Original passport valid for at least 6 months"
+                            />
+                            <button
+                              type="button"
+                              className="mt-1.5 p-2 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              onClick={() =>
+                                setSettingsForm((p) => ({
+                                  ...p,
+                                  destinationVisaRequirements: (p.destinationVisaRequirements || []).filter((_, i) => i !== idx),
+                                }))
+                              }
+                              aria-label={`Remove requirement ${idx + 1}`}
+                              title="Remove"
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+                          <CountryVisibilitySelector
+                            item={item}
+                            activeCountries={activeCountryOptions}
+                            itemLabel="this requirement"
+                            onChange={(nextItem) =>
                               setSettingsForm((p) => {
                                 const next = [...(p.destinationVisaRequirements || [])];
-                                next[idx] = v;
+                                next[idx] = nextItem;
                                 return { ...p, destinationVisaRequirements: next };
-                              });
-                            }}
-                            placeholder="e.g. Original passport valid for at least 6 months"
-                          />
-                          <button
-                            type="button"
-                            className="mt-1.5 p-2 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                            onClick={() =>
-                              setSettingsForm((p) => ({
-                                ...p,
-                                destinationVisaRequirements: (p.destinationVisaRequirements || []).filter((_, i) => i !== idx),
-                              }))
+                              })
                             }
-                            aria-label={`Remove requirement ${idx + 1}`}
-                            title="Remove"
-                          >
-                            <X size={15} />
-                          </button>
+                          />
                         </div>
                       ))}
                       <Button
@@ -5400,12 +6566,35 @@ const Dashboard = () => {
                         onClick={() =>
                           setSettingsForm((p) => ({
                             ...p,
-                            destinationVisaRequirements: [...(p.destinationVisaRequirements || []), ""],
+                            destinationVisaRequirements: [
+                              ...(p.destinationVisaRequirements || []),
+                              withCountryVisibilityMeta({ text: "" }, activeCountryIds),
+                            ],
                           }))
                         }
                       >
                         Add requirement
                       </Button>
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<Save size={14} />}
+                          loading={savingSettingsKey === "destination-content"}
+                          onClick={() =>
+                            saveDestinationContentSection({
+                              sectionKey: "visa-requirements",
+                              validationLabel: "Each visa requirement",
+                              payloadBuilder: buildDestinationVisaRequirementsPayload,
+                              payloadKey: "destinationVisaRequirements",
+                              successMessage: "Visa requirements saved.",
+                            })
+                          }
+                        >
+                          Save This Section
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
@@ -5415,7 +6604,7 @@ const Dashboard = () => {
 
               {/* ── Manage Visa Types ── */}
               <div className={activeControlSection === "manage-visa-types" ? "" : "hidden"}>
-                <VisaTypesManager />
+                <VisaTypesManager activeCountries={activeCountryOptions} />
               </div>
 
             </div>
@@ -5468,7 +6657,9 @@ const Dashboard = () => {
                       razorpayKeyId: settingsForm.razorpayKeyId,
                       razorpayKeySecret: settingsForm.razorpayKeySecret,
                       gstEnabled: settingsForm.gstEnabled,
-                      gstRate: settingsForm.gstRate,
+                      gstRate: Number.isFinite(Number(settingsForm.gstRate))
+                        ? Number(settingsForm.gstRate)
+                        : 0,
                     },
                     "Razorpay and GST settings saved.",
                   )
@@ -5507,7 +6698,7 @@ const Dashboard = () => {
                     value={settingsForm.gstRate}
                     min={0}
                     max={100}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, gstRate: Number(e.target.value) }))}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, gstRate: e.target.value }))}
                     id="setting-gst-rate"
                     helper="Set the percentage applied to the service fee for all applications."
                   />
@@ -6062,6 +7253,82 @@ const Dashboard = () => {
           COUNTRY MANAGER MODAL
           ══════════════════════════════════════ */}
       <Modal
+        isOpen={iconPickerOpen}
+        onClose={closeIconPicker}
+        title="Select Remix Icon"
+        size="xl"
+        footer={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-text-muted">
+              Pick visually here, or type any valid <span className="font-mono text-text-primary">ri-*</span> class manually in the input.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => applyPickedIcon("")}>
+                Clear icon
+              </Button>
+              <Button variant="primary" size="sm" onClick={closeIconPicker}>
+                Close
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-surface-2/50 p-4">
+            <p className="text-sm font-medium text-text-primary">Choose an icon for the current field</p>
+            <p className="mt-1 text-xs leading-relaxed text-text-muted">
+              Clicking any icon below inserts its class immediately into the form. Manual editing still works too.
+            </p>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} aria-hidden />
+            <input
+              type="search"
+              value={iconPickerSearch}
+              onChange={(e) => setIconPickerSearch(e.target.value)}
+              placeholder="Search icons by class name..."
+              className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+            />
+          </div>
+
+          {filteredRemixIcons.length === 0 ? (
+            <div className="rounded-xl border border-border bg-surface-2/60 px-4 py-8 text-center text-sm text-text-muted">
+              No icon matched your search. You can still type a custom Remix icon class in the field.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {filteredRemixIcons.map((icon) => {
+                const isActive =
+                  sanitizeRemixIconClass(icon) === sanitizeRemixIconClass(getCurrentPickedIcon());
+
+                return (
+                  <button
+                    key={icon}
+                    type="button"
+                    onClick={() => applyPickedIcon(icon)}
+                    className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
+                      isActive
+                        ? "border-cyan bg-cyan/10"
+                        : "border-border bg-surface-2/60 hover:border-cyan/40 hover:bg-surface-2"
+                    }`}
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-2xl text-cyan">
+                      <i className={icon} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-text-primary">{icon}</span>
+                      <span className="block text-xs text-text-muted">Click to use</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={countryModalOpen}
         onClose={closeCountryModal}
         title={`Edit ${selectedCountry?.name || "Country"}`}
@@ -6091,6 +7358,29 @@ const Dashboard = () => {
               <BadgeCheck size={14} className="text-cyan" />
               <h3 className="text-xs font-semibold uppercase tracking-widest text-text-primary">Country basics</h3>
             </div>
+          <div className="rounded-2xl border border-border bg-surface-2/70 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Country visibility</p>
+                <p className="mt-1 text-xs text-text-muted">
+                  {countryForm.isActive !== false
+                    ? "Shown on homepage, All Destinations, and search."
+                    : "Hidden from public pages and search, but still available here in Admin."}
+                </p>
+              </div>
+              <CountryCardActiveToggle
+                active={countryForm.isActive !== false}
+                busy={isSavingCountry}
+                onClick={() =>
+                  setCountryForm((p) => ({ ...p, isActive: p.isActive === false }))
+                }
+                countryName={countryForm.name || "country"}
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-text-muted">
+              Changes here are saved when you click <span className="text-text-primary font-medium">Save Changes</span>.
+            </p>
+          </div>
           {/* Name + Flag emoji */}
           <div className="grid grid-cols-3 gap-3">
             <Input
@@ -6238,7 +7528,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Input
-                label="Base Price (₹)"
+                label="Service Fee (₹)"
                 type="number"
                 value={countryForm.basePrice}
                 onChange={(e) => setCountryForm((p) => ({ ...p, basePrice: e.target.value }))}
@@ -6578,7 +7868,7 @@ const Dashboard = () => {
           <div className="rounded-2xl border border-border bg-surface-2/40 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <label className="text-sm font-semibold text-text-primary">
-                Required Documents
+                Documents Required
                 <span className="ml-2 text-xs text-text-muted font-normal">Select which documents applicants must upload</span>
               </label>
               {/* Quick "use global" helper — sets the local list to the global
@@ -6599,49 +7889,140 @@ const Dashboard = () => {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {(() => {
-                // Catalog from the universal control + a graceful fallback to
-                // the hardcoded `DOC_OPTIONS` shipped with the admin so this
-                // block still renders before the API responds on first load.
-                const rows = documentCatalog.length
-                  ? documentCatalog.filter((d) => !d.deleted)
-                  : DOC_OPTIONS.map((o) => ({ ...o, builtIn: true }));
-                return rows.map(({ key, label, builtIn, icon }) => {
-                  const checked = countryForm.requiredDocuments.includes(key);
-                  const DocIcon = getDocumentIcon(key);
-                  return (
+            {(() => {
+              const rows = documentCatalog.length
+                ? documentCatalog.filter((d) => !d.deleted)
+                : DOC_OPTIONS.map((o) => ({ ...o, builtIn: true }));
+              const rowByKey = new Map(rows.map((row) => [row.key, row]));
+              const globalKeys = (globalDefaults.globalRequiredDocuments || []).filter(Boolean);
+              const selectedKeys = Array.isArray(countryForm.requiredDocuments)
+                ? countryForm.requiredDocuments.filter(Boolean)
+                : [];
+              const visibleGlobalKeys = globalKeys.filter((key) => selectedKeys.includes(key));
+              const hiddenGlobalKeys = globalKeys.filter((key) => !selectedKeys.includes(key));
+              const extraSelectedKeys = selectedKeys.filter((key) => !globalKeys.includes(key));
+              const availableCatalogKeys = rows
+                .map((row) => row.key)
+                .filter((key) => !selectedKeys.includes(key));
+
+              const renderDocChip = (key, actionLabel, actionIcon, onClick, tone = "default") => {
+                const row = rowByKey.get(key) || { key, label: key, builtIn: true, icon: "" };
+                const DocIcon = getDocumentIcon(key);
+                const actionTone =
+                  tone === "danger"
+                    ? "hover:text-red-400 hover:bg-red-500/10"
+                    : "hover:text-cyan hover:bg-cyan/5";
+
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text-primary"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-cyan">
+                      {row.icon ? <i className={`${row.icon} text-[15px] leading-none`} aria-hidden="true" /> : <DocIcon size={14} />}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate" title={row.label}>{row.label}</span>
+                    {row.builtIn === false && (
+                      <span className="text-[10px] uppercase tracking-wider text-cyan/70">custom</span>
+                    )}
                     <button
-                      key={key}
                       type="button"
-                      onClick={() => toggleRequiredDoc(key)}
-                      className={`relative flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 text-left min-w-0 ${
-                        checked
-                          ? "border-cyan/60 bg-cyan/10 text-cyan"
-                          : "border-border bg-surface-2 text-text-muted hover:border-cyan/30 hover:text-text-primary"
-                      }`}
-                      id={`doc-toggle-${key}`}
+                      onClick={onClick}
+                      className={`shrink-0 rounded-lg p-1.5 text-text-muted transition-colors ${actionTone}`}
+                      aria-label={actionLabel}
+                      title={actionLabel}
                     >
-                      <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border transition-colors ${checked ? "bg-cyan border-cyan" : "border-border"}`}>
-                        {checked && <CheckCircle size={10} className="text-background" />}
-                      </span>
-                      {icon ? (
-                        <i
-                          className={`${icon} text-[15px] leading-none flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`}
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <DocIcon size={15} className={`flex-shrink-0 ${checked ? "text-cyan" : "text-text-muted"}`} />
-                      )}
-                      <span className="truncate" title={label}>{label}</span>
-                      {builtIn === false && (
-                        <span className="ml-auto text-[10px] uppercase tracking-wider text-cyan/70">custom</span>
-                      )}
+                      {actionIcon}
                     </button>
-                  );
-                });
-              })()}
-            </div>
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-4">
+                  {globalKeys.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Global (every country)</p>
+                      {visibleGlobalKeys.length === 0 ? (
+                        <p className="rounded-xl border border-border bg-background/40 px-3 py-2 text-xs italic text-text-muted">
+                          All global documents are hidden on this country. Restore them below.
+                        </p>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {visibleGlobalKeys.map((key) =>
+                            renderDocChip(
+                              key,
+                              "Hide on this country",
+                              <X size={14} />,
+                              () => toggleRequiredDoc(key),
+                              "danger"
+                            )
+                          )}
+                        </div>
+                      )}
+                      {hiddenGlobalKeys.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-dashed border-border bg-background/40 p-3">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                            Hidden on this country ({hiddenGlobalKeys.length})
+                          </p>
+                          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                            {hiddenGlobalKeys.map((key) =>
+                              renderDocChip(
+                                key,
+                                "Show on this country again",
+                                <Plus size={14} />,
+                                () => toggleRequiredDoc(key)
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Extra documents for this country</p>
+                    {extraSelectedKeys.length === 0 ? (
+                      <p className="rounded-xl border border-border bg-background/40 px-3 py-2 text-xs italic text-text-muted">
+                        No extra country-only documents selected yet.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {extraSelectedKeys.map((key) =>
+                          renderDocChip(
+                            key,
+                            "Remove extra document",
+                            <X size={14} />,
+                            () => toggleRequiredDoc(key),
+                            "danger"
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Add from document catalog</p>
+                    {availableCatalogKeys.length === 0 ? (
+                      <p className="rounded-xl border border-border bg-background/40 px-3 py-2 text-xs italic text-text-muted">
+                        Every document in the catalog is already selected for this country.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {availableCatalogKeys.map((key) =>
+                          renderDocChip(
+                            key,
+                            "Add document to this country",
+                            <Plus size={14} />,
+                            () => toggleRequiredDoc(key)
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             {countryForm.requiredDocuments.length === 0 && (
               <p className="text-xs text-amber-400 mt-2">⚠ At least one document type should be selected.</p>
             )}
@@ -7026,9 +8407,18 @@ const Dashboard = () => {
                           list="remix-icon-suggestions"
                         />
                         <div className="flex items-end pb-1.5">
-                           <div className="w-10 h-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-xl">
-                              {item.icon ? <i className={item.icon} /> : <ShieldCheck size={20} />}
-                           </div>
+                          <IconPickerPreviewButton
+                            icon={item.icon}
+                            fallbackIcon={ShieldCheck}
+                            className="min-w-0 w-10 h-10 rounded-lg bg-surface-2"
+                            title={`Choose icon for ${item.title || "included item"}`}
+                            onClick={() =>
+                              openIconPicker({
+                                type: "country-included-item",
+                                index: idx,
+                              })
+                            }
+                          />
                         </div>
                       </div>
 
@@ -7571,9 +8961,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-
-
-
-
-
