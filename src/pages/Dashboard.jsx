@@ -664,14 +664,19 @@ const withCountryApplyMeta = (item, activeCountryIds = []) => ({
   })(),
 });
 
-const withCountryVisibilityMeta = (item, activeCountryIds = []) => ({
-  ...item,
-  showInAllActiveCountries: item?.showInAllActiveCountries !== false,
-  selectedCountries:
-    item?.showInAllActiveCountries !== false
-      ? [...activeCountryIds]
-      : normalizeCountrySelectorIds(item?.selectedCountries),
-});
+const withCountryVisibilityMeta = (item, activeCountryIds = []) => {
+  const selected = normalizeCountrySelectorIds(item?.selectedCountries);
+  const hasExplicitSubset = selected.length > 0 && selected.length < activeCountryIds.length;
+  const showInAllActiveCountries = hasExplicitSubset
+    ? false
+    : item?.showInAllActiveCountries !== false;
+
+  return {
+    ...item,
+    showInAllActiveCountries,
+    selectedCountries: showInAllActiveCountries ? [...activeCountryIds] : selected,
+  };
+};
 
 const normalizeVisibleTextItems = (items, fallbackItems = [], activeCountryIds = []) => {
   const source = Array.isArray(items) && items.length
@@ -3724,7 +3729,10 @@ const Dashboard = () => {
 
     return {
       total,
-      revenue: bookings.reduce((sum, booking) => sum + Number(booking?.fee || 0), 0),
+      revenue: bookings.reduce((sum, booking) => {
+        const isPaid = booking?.paymentStatus === "completed" || booking?.isPaid === true;
+        return isPaid ? sum + Number(booking?.fee || 0) : sum;
+      }, 0),
       pending: statusCounts.pending,
       statusCounts,
       approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,

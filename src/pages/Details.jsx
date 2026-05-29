@@ -313,9 +313,18 @@ const Details = () => {
     return String(firstTravelerLink?.gdriveLink || "").trim();
   }, [application, travelerDocumentCards]);
 
+  const sharedDriveLinkHistory = useMemo(() => {
+    if (!application) return [];
+    return Array.isArray(application.gdriveLinkHistory)
+      ? application.gdriveLinkHistory.filter((entry) => Boolean(String(entry?.url || "").trim()))
+      : [];
+  }, [application]);
+
   const hasAnyUploadedDocs =
     Boolean(application?.gdriveLink) ||
+    sharedDriveLinkHistory.length > 0 ||
     hasTravelerGdrive ||
+    travelerDocumentCards.some((traveler) => Array.isArray(traveler?.gdriveLinkHistory) && traveler.gdriveLinkHistory.some((entry) => Boolean(String(entry?.url || "").trim()))) ||
     hasTravelerUploadedFiles ||
     rootDocumentsByTraveler.size > 0 ||
     legacyDocumentsFiltered.length > 0;
@@ -644,12 +653,19 @@ const Details = () => {
                     const effectiveFurtherInfoLink =
                       traveler.gdriveFurtherInfoLink ||
                       (travelerNo === 1 && isSingleTravelerApplication ? application.gdriveFurtherInfoLink || "" : "");
+                    const travelerDriveLinkHistory = Array.isArray(traveler.gdriveLinkHistory)
+                      ? traveler.gdriveLinkHistory.filter((entry) => Boolean(String(entry?.url || "").trim()))
+                      : [];
                     const documentEntries = getTravelerDocumentEntries(traveler.documents);
+                    const documentHistory = Array.isArray(traveler.documentHistory)
+                      ? traveler.documentHistory.filter((entry) => Boolean(String(entry?.url || "").trim()))
+                      : [];
                     const otherDocs = Array.isArray(traveler.otherDocuments)
                       ? traveler.otherDocuments.filter(Boolean)
                       : [];
                     const hasTravelerDocs =
                       documentEntries.length > 0 ||
+                      documentHistory.length > 0 ||
                       otherDocs.length > 0 ||
                       effectiveRootDocs.length > 0 ||
                       Boolean(effectiveFurtherInfoLink);
@@ -729,6 +745,56 @@ const Details = () => {
                                   })}
                                 </div>
                               )}
+                      {documentHistory.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-[11px] text-text-muted mb-1.5">Previous Versions ({documentHistory.length})</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                            {documentHistory.map((entry, historyIdx) => {
+                              const path = String(entry?.url || "").trim();
+                              const fileName = String(entry?.fileName || path.split("/").pop() || "document");
+                              const documentLabel = formatDocumentKeyLabel(entry?.docType || `Document ${historyIdx + 1}`);
+                              return (
+                                <div
+                                  key={`history-doc-${traveler.travelerNo || idx}-${historyIdx}`}
+                                  className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-amber-500/40 hover:bg-amber-500/10"
+                                  onClick={() => handleOpenDocument(path)}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleOpenDocument(path);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex min-w-0 items-start gap-2">
+                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-300">
+                                      <FileText size={14} />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <span className="font-medium text-text-primary block truncate mb-0.5">{documentLabel}</span>
+                                      <span className="block truncate">{fileName}</span>
+                                      <span className="mt-0.5 inline-block text-[10px] font-medium text-amber-300">Previous upload</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownload(path);
+                                    }}
+                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
+                                    title={`Download previous ${documentLabel}`}
+                                    aria-label={`Download previous ${documentLabel}`}
+                                  >
+                                    <Download size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {otherDocs.length > 0 && (
                         <div className="mt-2">
                           <p className="text-[11px] text-text-muted mb-1.5">Other Documents ({otherDocs.length})</p>
@@ -857,6 +923,38 @@ const Details = () => {
                           </Button>
                         </div>
                       )}
+                      {travelerDriveLinkHistory.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-[11px] text-text-muted mb-1.5">Previous Drive Links ({travelerDriveLinkHistory.length})</p>
+                          <div className="space-y-2">
+                            {travelerDriveLinkHistory.map((entry, linkIdx) => {
+                              const previousUrl = String(entry?.url || "").trim();
+                              if (!previousUrl) return null;
+                              return (
+                                <div
+                                  key={`traveler-drive-history-${travelerNo}-${linkIdx}`}
+                                  className="p-2 bg-amber-500/5 border border-amber-500/20 rounded-lg flex items-center justify-between gap-2"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Link size={16} className="text-amber-300 shrink-0" />
+                                    <div className="text-[11px] text-text-primary font-medium truncate">
+                                      {previousUrl}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-7 text-[10px] px-2 shrink-0"
+                                    onClick={() => window.open(previousUrl, "_blank")}
+                                  >
+                                    Open
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                             </div>
                           )}
                         </div>
@@ -867,26 +965,58 @@ const Details = () => {
                 </div>
               )}
 
-              {sharedTravelerDriveLink && (
+              {(sharedTravelerDriveLink || sharedDriveLinkHistory.length > 0) && (
                 <div className="mb-5 rounded-xl border border-cyan/30 bg-cyan/10 p-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-cyan">
-                        Shared Google Drive Link
+                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan">
+                    Shared Google Drive Link
+                  </p>
+
+                  {sharedDriveLinkHistory.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-medium text-amber-300">
+                        Previous links ({sharedDriveLinkHistory.length})
                       </p>
-                      <p className="mt-1 text-sm text-text-primary break-all">
-                        {sharedTravelerDriveLink}
-                      </p>
+                      {sharedDriveLinkHistory.map((entry, index) => {
+                        const previousUrl = String(entry?.url || "").trim();
+                        if (!previousUrl) return null;
+                        return (
+                          <div
+                            key={`shared-drive-history-${index}`}
+                            className="rounded-lg border border-amber-500/20 bg-background/40 px-3 py-2 flex items-center justify-between gap-2"
+                          >
+                            <p className="min-w-0 break-all text-xs text-text-primary">{previousUrl}</p>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-7 shrink-0 text-[10px]"
+                              onClick={() => window.open(previousUrl, "_blank")}
+                            >
+                              Open
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="h-8 shrink-0 text-xs"
-                      onClick={() => window.open(sharedTravelerDriveLink, "_blank")}
-                    >
-                      Open Link
-                    </Button>
-                  </div>
+                  )}
+
+                  {sharedTravelerDriveLink && (
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-medium text-cyan/80">Current link</p>
+                        <p className="mt-1 text-sm text-text-primary break-all">
+                          {sharedTravelerDriveLink}
+                        </p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 shrink-0 text-xs"
+                        onClick={() => window.open(sharedTravelerDriveLink, "_blank")}
+                      >
+                        Open Link
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
