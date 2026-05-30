@@ -242,6 +242,19 @@ const buildFeeSaveAllDraft = (scopeValues, scopeTargets, fallbackAll = null) => 
   },
 });
 
+const normalizeServiceFeeOverrideRows = (rows) =>
+  Array.isArray(rows)
+    ? rows
+        .map((row) => ({
+          countryId: String(row?.countryId ?? "").trim(),
+          countryName: String(row?.countryName ?? "").trim(),
+          amount: Number(row?.amount),
+          updatedAt: row?.updatedAt || null,
+        }))
+        .filter((row) => row.countryId && row.countryName && Number.isFinite(row.amount) && row.amount > 0)
+        .sort((a, b) => a.countryName.localeCompare(b.countryName))
+    : [];
+
 const serializeFeeSaveAllDraft = (draft) =>
   JSON.stringify({
     allCountries: {
@@ -1912,6 +1925,10 @@ const Dashboard = () => {
   const [serviceFeeSavedDraft, setServiceFeeSavedDraft] = useState(() =>
     buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
   );
+  const [singleServiceFeeDraft, setSingleServiceFeeDraft] = useState({ countryId: "", amount: "" });
+  const [serviceFeeCountryOverrides, setServiceFeeCountryOverrides] = useState([]);
+  const [serviceFeeOverridesLoading, setServiceFeeOverridesLoading] = useState(false);
+  const [serviceFeeOverrideBusyId, setServiceFeeOverrideBusyId] = useState("");
   const [governmentFeeSaveAllDraft, setGovernmentFeeSaveAllDraft] = useState(() =>
     buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
   );
@@ -3133,6 +3150,7 @@ const Dashboard = () => {
           next.serviceFeeScopeTargets,
           next.globalBasePrice
         );
+        nextServiceFeeDraft.singleCountry = { countryId: "", amount: "" };
         const nextGovernmentFeeDraft = buildFeeSaveAllDraft(
           next.governmentFeeScopeValues,
           next.governmentFeeScopeTargets,
@@ -3140,6 +3158,9 @@ const Dashboard = () => {
         );
         setServiceFeeSaveAllDraft(nextServiceFeeDraft);
         setServiceFeeSavedDraft(nextServiceFeeDraft);
+        setServiceFeeCountryOverrides(
+          normalizeServiceFeeOverrideRows(data.defaults?.serviceFeeCountryOverrides)
+        );
         setGovernmentFeeSaveAllDraft(nextGovernmentFeeDraft);
         setGovernmentFeeSavedDraft(nextGovernmentFeeDraft);
         // Pre-fill the dropdowns with whatever the global currently is so admins can
@@ -3187,6 +3208,96 @@ const Dashboard = () => {
       // Defaults stay at their initial empty values — the UI will show "Not set yet".
     }
   };
+
+  const loadServiceFeeCountryOverrides = async ({ silent = false } = {}) => {
+    if (!silent) setServiceFeeOverridesLoading(true);
+    try {
+      const { data } = await api.get("/admin/service-fee-overrides");
+      if (data?.success) {
+        setServiceFeeCountryOverrides(normalizeServiceFeeOverrideRows(data.overrides));
+      } else if (!silent) {
+        showToast(data?.message || "Failed to load single-country service fee overrides", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      if (!silent) {
+        showToast(
+          error?.response?.data?.message || "Failed to load single-country service fee overrides",
+          "error"
+        );
+      }
+    } finally {
+      if (!silent) setServiceFeeOverridesLoading(false);
+    }
+  };
+
+  const saveSingleServiceFeeOverride = async () => {
+    const countryId = String(singleServiceFeeDraft.countryId ?? "").trim();
+    const amount = Number(singleServiceFeeDraft.amount);
+    if (!countryId) {
+      showToast("Select one country for the custom service fee.", "error");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast("Enter a valid custom service fee.", "error");
+      return;
+    }
+
+    setServiceFeeOverrideBusyId(countryId);
+    try {
+      const { data } = await api.put(`/admin/service-fee-overrides/${encodeURIComponent(countryId)}`, {
+        amount,
+      });
+      if (!data?.success) {
+        showToast(data?.message || "Failed to save custom service fee", "error");
+        return;
+      }
+      setServiceFeeCountryOverrides(normalizeServiceFeeOverrideRows(data.overrides));
+      showToast(data?.message || "Custom service fee saved successfully", "success");
+      await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+      setSingleServiceFeeDraft({ countryId: "", amount: "" });
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || "Failed to save custom service fee", "error");
+    } finally {
+      setServiceFeeOverrideBusyId("");
+    }
+  };
+
+  const removeSingleServiceFeeOverride = async (countryId) => {
+    const resolvedCountryId = String(countryId ?? "").trim();
+    if (!resolvedCountryId) return;
+    setServiceFeeOverrideBusyId(resolvedCountryId);
+    try {
+      const { data } = await api.delete(`/admin/service-fee-overrides/${encodeURIComponent(resolvedCountryId)}`);
+      if (!data?.success) {
+        showToast(data?.message || "Failed to remove custom service fee", "error");
+        return;
+      }
+      setServiceFeeCountryOverrides(normalizeServiceFeeOverrideRows(data.overrides));
+      showToast(data?.message || "Custom service fee removed successfully", "success");
+      await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || "Failed to remove custom service fee", "error");
+    } finally {
+      setServiceFeeOverrideBusyId("");
+    }
+  };
+
+  useEffect(() => {
+    if (activeControlSection !== "base-price") return;
+    loadServiceFeeCountryOverrides({ silent: serviceFeeCountryOverrides.length > 0 });
+  }, [activeControlSection]);
 
   const serviceFeeHasUnsavedChanges =
     serializeFeeSaveAllDraft(serviceFeeSaveAllDraft) !== serializeFeeSaveAllDraft(serviceFeeSavedDraft);
@@ -5094,26 +5205,96 @@ const Dashboard = () => {
                       }))
                     }
                   />
-                  <FeeScopeConfigSection
-                    title="Single Country"
-                    description="Pick one active country and define its service-fee override."
-                    mode="single"
-                    countries={allCountryOptions}
-                    countryId={serviceFeeSaveAllDraft.singleCountry.countryId}
-                    onCountryIdChange={(countryId) =>
-                      setServiceFeeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountry: { ...prev.singleCountry, countryId },
-                      }))
-                    }
-                    amount={serviceFeeSaveAllDraft.singleCountry.amount}
-                    onAmountChange={(value) =>
-                      setServiceFeeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountry: { ...prev.singleCountry, amount: value },
-                      }))
-                    }
-                  />
+                  <div className="space-y-4">
+                    <FeeScopeConfigSection
+                      title="Single Country"
+                      description="Pick one active country and define its service-fee override."
+                      mode="single"
+                      countries={allCountryOptions}
+                      countryId={singleServiceFeeDraft.countryId}
+                      onCountryIdChange={(countryId) =>
+                        setSingleServiceFeeDraft((prev) => ({ ...prev, countryId }))
+                      }
+                      amount={singleServiceFeeDraft.amount}
+                      onAmountChange={(value) =>
+                        setSingleServiceFeeDraft((prev) => ({ ...prev, amount: value }))
+                      }
+                    />
+                    <div className="rounded-2xl border border-border bg-surface/70 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs text-text-muted">
+                          Save one country at a time here. Existing custom overrides stay independent and always win over the default all-countries fee.
+                        </p>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="shrink-0"
+                          leftIcon={<Save size={15} />}
+                          loading={Boolean(
+                            serviceFeeOverrideBusyId &&
+                            serviceFeeOverrideBusyId === String(singleServiceFeeDraft.countryId || "").trim()
+                          )}
+                          disabled={serviceFeeOverridesLoading}
+                          onClick={saveSingleServiceFeeOverride}
+                        >
+                          Save / Update
+                        </Button>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-border bg-background">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-text-primary">Selected Country Fee List</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Removing an override makes that country use the default all-countries service fee again.
+                          </p>
+                        </div>
+                        {serviceFeeOverridesLoading ? (
+                          <div className="px-4 py-5 text-sm text-text-muted">Loading custom country fees...</div>
+                        ) : serviceFeeCountryOverrides.length === 0 ? (
+                          <div className="px-4 py-5 text-sm text-text-muted">No custom country service fees added yet.</div>
+                        ) : (
+                          <div className="divide-y divide-border">
+                            {serviceFeeCountryOverrides.map((override) => {
+                              const isBusy = serviceFeeOverrideBusyId === override.countryId;
+                              return (
+                                <div key={override.countryId} className="flex items-center justify-between gap-3 px-4 py-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text-primary">{override.countryName}</p>
+                                    <p className="mt-1 text-xs text-text-muted">{formatPriceINR(override.amount)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={Boolean(serviceFeeOverrideBusyId && !isBusy)}
+                                      onClick={() =>
+                                        setSingleServiceFeeDraft({
+                                          countryId: override.countryId,
+                                          amount: String(override.amount),
+                                        })
+                                      }
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-rose-300 hover:text-rose-200"
+                                      loading={isBusy}
+                                      disabled={Boolean(serviceFeeOverrideBusyId && !isBusy)}
+                                      onClick={() => removeSingleServiceFeeOverride(override.countryId)}
+                                    >
+                                      X Remove
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <FeeScopeConfigSection
                     title="Some Countries"
                     description="Choose multiple active countries that should share the same service fee."
@@ -5138,7 +5319,7 @@ const Dashboard = () => {
 
                 <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-text-muted">
-                    Review all three service fee sections, then save everything together.
+                    Review the shared service-fee sections here, then save those changes together. Single-country custom overrides save instantly from the card above.
                   </p>
                   <Button
                     variant="primary"

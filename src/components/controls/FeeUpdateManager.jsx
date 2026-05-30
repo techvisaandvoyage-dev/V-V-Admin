@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Edit3, RefreshCw, Save, Search } from "lucide-react";
+import { ChevronDown, Edit3, RefreshCw, Check, X, Search } from "lucide-react";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
 import { api } from "../../store/authStore";
 
 const FALLBACK_CURRENCIES = [
-  "INR", "USD", "EUR", "GBP", "AED", "SGD", "CAD", "AUD", "JPY", "CNY",
-  "THB", "MYR", "NZD", "CHF", "ZAR", "SAR", "QAR", "KWD", "BHD", "OMR",
+  "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF",
+  "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLP", "CNY", "COP", "CRC",
+  "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "FOK", "GBP", "GEL",
+  "GGP", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HRK", "HTG", "HUF", "IDR", "ILS", "IMP", "INR",
+  "IQD", "IRR", "ISK", "JEP", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KID", "KMF", "KRW", "KWD", "KYD", "KZT",
+  "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR",
+  "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR",
+  "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SLL",
+  "SOS", "SRD", "SSP", "STN", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TVD", "TWD", "TZS",
+  "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XDR", "XOF", "XPF", "YER", "ZAR",
+  "ZMW", "ZWL"
 ];
 
 const PAGE_SIZE = 10;
@@ -20,6 +29,15 @@ const formatFx = (value) => {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "0";
   return amount.toFixed(4).replace(/\.?0+$/, "");
+};
+
+const getCurrencyLabel = (code) => {
+  try {
+    const name = new Intl.DisplayNames(['en'], { type: 'currency' }).of(code);
+    return `${code} - ${name}`;
+  } catch (e) {
+    return code;
+  }
 };
 
 const toDraft = (row) => ({
@@ -44,6 +62,8 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
   const [draft, setDraft] = useState(null);
   const [savingRowId, setSavingRowId] = useState("");
   const [convertingRowId, setConvertingRowId] = useState("");
+  const [currencyMenuRowId, setCurrencyMenuRowId] = useState("");
+  const [currencySearch, setCurrencySearch] = useState("");
   const convertSeqRef = useRef(0);
 
   const loadRows = async () => {
@@ -129,15 +149,32 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
     return () => window.clearTimeout(timer);
   }, [draft?.countryId, draft?.currency, draft?.amount, draft?.forexFeePercent, editingRowId, showToast]);
 
+  useEffect(() => {
+    if (!currencyMenuRowId) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (!event.target.closest(".currency-dropdown-root")) {
+        setCurrencyMenuRowId("");
+        setCurrencySearch("");
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [currencyMenuRowId]);
+
   const handleEdit = (row) => {
     setEditingRowId(row.countryId);
     setDraft(toDraft(row));
+    setCurrencyMenuRowId("");
   };
 
   const handleCancel = () => {
     setEditingRowId("");
     setDraft(null);
     setConvertingRowId("");
+    setCurrencyMenuRowId("");
+    setCurrencySearch("");
     convertSeqRef.current += 1;
   };
 
@@ -201,7 +238,7 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
       <div className="w-full overflow-hidden rounded-2xl border border-border bg-surface">
         <div className="hidden md:block w-full overflow-x-auto">
           <div className="min-w-full">
-            <table className="w-full table-fixed text-sm">
+            <table className="w-full min-w-[1100px] table-fixed text-sm">
               <colgroup>
                 <col className="w-[10%]" />
                 <col className="w-[16%]" />
@@ -226,7 +263,7 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                 <th className="px-4 py-3 font-semibold">Total Fee</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody style={{ paddingBottom: currencyMenuRowId ? "12rem" : "0" }}>
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-text-muted">Loading fee manager...</td>
@@ -252,17 +289,20 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                               onClick={handleSave}
                               loading={savingRowId === row.countryId}
                               disabled={Boolean(convertingRowId === row.countryId)}
-                              leftIcon={<Save size={14} />}
+                              className="!px-2"
+                              title="Save"
                             >
-                              Save
+                              {!savingRowId && <Check size={16} />}
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={handleCancel}
                               disabled={isBusy}
+                              className="!px-2"
+                              title="Cancel"
                             >
-                              Cancel
+                              <X size={16} />
                             </Button>
                           </div>
                         ) : (
@@ -282,15 +322,55 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                       </td>
                       <td className="px-4 py-3 align-top">
                         {isEditing ? (
-                          <select
-                            value={current.currency}
-                            onChange={(e) => setDraft((prev) => ({ ...prev, currency: e.target.value }))}
-                            className="w-28 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
-                          >
-                            {currencies.map((currency) => (
-                              <option key={currency} value={currency}>{currency}</option>
-                            ))}
-                          </select>
+                          <div className="relative inline-block w-full currency-dropdown-root">
+                            <button
+                              type="button"
+                              className="w-full inline-flex items-center justify-between rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary transition hover:border-cyan focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                              onClick={() => {
+                                setCurrencyMenuRowId((prev) => {
+                                  if (prev === row.countryId) return "";
+                                  setCurrencySearch("");
+                                  return row.countryId;
+                                });
+                              }}
+                            >
+                              <span>{current.currency}</span>
+                              <ChevronDown size={14} className="ml-2 text-text-muted" />
+                            </button>
+                            {currencyMenuRowId === row.countryId && (
+                              <div className="absolute left-0 top-full mt-2 z-[60] w-[280px] max-w-[90vw] flex flex-col rounded-2xl border border-border bg-surface-2 shadow-xl overflow-hidden">
+                                <div className="p-2 border-b border-border bg-surface-2">
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    placeholder="Search..."
+                                    value={currencySearch}
+                                    onChange={(e) => setCurrencySearch(e.target.value)}
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-text-primary focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan/20"
+                                  />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto">
+                                  {currencies.filter((c) => getCurrencyLabel(c).toLowerCase().includes(currencySearch.toLowerCase())).map((currency) => (
+                                    <button
+                                      key={currency}
+                                      type="button"
+                                      onClick={() => {
+                                        setDraft((prev) => ({ ...prev, currency }));
+                                        setCurrencyMenuRowId("");
+                                        setCurrencySearch("");
+                                      }}
+                                      className={`w-full px-3 py-2 text-left text-sm whitespace-nowrap overflow-hidden text-ellipsis hover:bg-surface-3 ${current.currency === currency ? "text-cyan font-medium bg-cyan/5" : "text-text-primary"}`}
+                                    >
+                                      {getCurrencyLabel(currency)}
+                                    </button>
+                                  ))}
+                                  {currencies.filter((c) => getCurrencyLabel(c).toLowerCase().includes(currencySearch.toLowerCase())).length === 0 && (
+                                    <div className="px-3 py-4 text-center text-xs text-text-muted">No results found</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-text-primary">{row.currency}</span>
                         )}
@@ -303,7 +383,7 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                             step="0.01"
                             value={current.amount}
                             onChange={(e) => setDraft((prev) => ({ ...prev, amount: e.target.value }))}
-                            className="w-32 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                            className="w-full rounded-xl border border-border bg-surface-2 px-2 py-2 text-sm text-text-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
                           />
                         ) : (
                           <span className="text-text-primary">{Number(row.amount || 0).toLocaleString("en-IN")}</span>
@@ -322,7 +402,7 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                             step="0.01"
                             value={current.forexFeePercent}
                             onChange={(e) => setDraft((prev) => ({ ...prev, forexFeePercent: e.target.value }))}
-                            className="w-28 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                            className="w-full rounded-xl border border-border bg-surface-2 px-2 py-2 text-sm text-text-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
                           />
                         ) : (
                           <span className="text-text-primary">{Number(row.forexFeePercent || 0).toLocaleString("en-IN")}%</span>
@@ -370,11 +450,26 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                     </div>
                     {isEditing ? (
                       <div className="flex gap-2">
-                        <Button variant="primary" size="sm" onClick={handleSave} loading={savingRowId === row.countryId} disabled={Boolean(convertingRowId === row.countryId)}>
-                          Save
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handleSave}
+                          loading={savingRowId === row.countryId}
+                          disabled={Boolean(convertingRowId === row.countryId)}
+                          className="!px-2"
+                          title="Save"
+                        >
+                          {!savingRowId && <Check size={16} />}
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isBusy}>
-                          Cancel
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCancel}
+                          disabled={isBusy}
+                          className="!px-2"
+                          title="Cancel"
+                        >
+                          <X size={16} />
                         </Button>
                       </div>
                     ) : (
@@ -395,15 +490,55 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                       <>
                         <label className="flex flex-col gap-1.5">
                           <span className="text-xs font-medium text-text-secondary">Currency</span>
-                          <select
-                            value={current.currency}
-                            onChange={(e) => setDraft((prev) => ({ ...prev, currency: e.target.value }))}
-                            className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
-                          >
-                            {currencies.map((currency) => (
-                              <option key={currency} value={currency}>{currency}</option>
-                            ))}
-                          </select>
+                          <div className="relative w-full currency-dropdown-root">
+                            <button
+                              type="button"
+                              className="w-full inline-flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text-primary transition hover:border-cyan focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                              onClick={() => {
+                                setCurrencyMenuRowId((prev) => {
+                                  if (prev === row.countryId) return "";
+                                  setCurrencySearch("");
+                                  return row.countryId;
+                                });
+                              }}
+                            >
+                              <span>{current.currency}</span>
+                              <ChevronDown size={14} className="ml-2 text-text-muted" />
+                            </button>
+                            {currencyMenuRowId === row.countryId && (
+                              <div className="absolute left-0 top-full mt-2 z-[60] w-[280px] max-w-[90vw] flex flex-col rounded-2xl border border-border bg-surface-2 shadow-xl overflow-hidden">
+                                <div className="p-2 border-b border-border bg-surface-2">
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    placeholder="Search..."
+                                    value={currencySearch}
+                                    onChange={(e) => setCurrencySearch(e.target.value)}
+                                    className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-text-primary focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan/20"
+                                  />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto">
+                                  {currencies.filter((c) => getCurrencyLabel(c).toLowerCase().includes(currencySearch.toLowerCase())).map((currency) => (
+                                    <button
+                                      key={currency}
+                                      type="button"
+                                      onClick={() => {
+                                        setDraft((prev) => ({ ...prev, currency }));
+                                        setCurrencyMenuRowId("");
+                                        setCurrencySearch("");
+                                      }}
+                                      className={`w-full px-3 py-2 text-left text-sm whitespace-nowrap overflow-hidden text-ellipsis hover:bg-surface-3 ${current.currency === currency ? "text-cyan font-medium bg-cyan/5" : "text-text-primary"}`}
+                                    >
+                                      {getCurrencyLabel(currency)}
+                                    </button>
+                                  ))}
+                                  {currencies.filter((c) => getCurrencyLabel(c).toLowerCase().includes(currencySearch.toLowerCase())).length === 0 && (
+                                    <div className="px-3 py-4 text-center text-xs text-text-muted">No results found</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </label>
                         <label className="flex flex-col gap-1.5">
                           <span className="text-xs font-medium text-text-secondary">Amount</span>
