@@ -35,7 +35,7 @@ const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
       {[
         { label: "Total Bookings", value: liveAnalytics.total, icon: FileText, color: "text-cyan", bg: "bg-cyan/10", suffix: "" },
         { label: "Total Revenue", value: `₹${liveAnalytics.revenue}`, icon: IndianRupee, color: "text-gold", bg: "bg-gold/10", suffix: "" },
-        { label: "Pending Review", value: liveAnalytics.pending, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10", suffix: "" },
+        { label: "Pending Review", value: liveAnalytics.pendingReview, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10", suffix: "" },
         { label: "Approval Rate", value: liveAnalytics.approvalRate, icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10", suffix: "%" },
       ].map(({ label, value, icon: Icon, color, bg, suffix }, index) => (
         <motion.div
@@ -133,7 +133,7 @@ const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
       {[
         { label: "Approved", count: liveAnalytics.statusCounts.approved, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
         { label: "Under Review", count: liveAnalytics.statusCounts.review, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-        { label: "Pending", count: liveAnalytics.statusCounts.pending, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { label: "Pending", count: liveAnalytics.pendingPayment, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
         { label: "Rejected", count: liveAnalytics.statusCounts.rejected, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
       ].map(({ label, count, color, bg, border }) => (
         <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>

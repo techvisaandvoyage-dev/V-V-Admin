@@ -26,6 +26,10 @@ const Input = ({
 }) => {
   // Generate a unique id if not provided (for label association)
   const inputId = id || `input-${label?.toLowerCase().replace(/\s+/g, "-")}`;
+  const numberInputClass =
+    type === "number"
+      ? "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      : "";
 
   return (
     <div className={`flex flex-col gap-1.5 ${fullWidth ? "w-full" : ""}`}>
@@ -60,6 +64,7 @@ const Input = ({
             ${rightIcon ? "pr-10" : "pr-4"}
             py-2.5 text-sm
             focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan
+            ${numberInputClass}
             ${className}
           `}
           {...props}

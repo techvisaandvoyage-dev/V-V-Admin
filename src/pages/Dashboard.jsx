@@ -12,7 +12,7 @@ import {
   Search, Filter, ChevronDown, Plus, Edit3,
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle, BookOpen,
   ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays, MessageSquare,
-  Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2,
+  Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2, Zap, Lock,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -30,6 +30,8 @@ import AnalyticsPage from "./admin/AnalyticsPage";
 import PaymentsPage from "./admin/PaymentsPage";
 import VisaTypesManager from "../components/controls/VisaTypesManager";
 import CountryVisibilitySelector from "../components/controls/CountryVisibilitySelector";
+import FeeUpdateManager from "../components/controls/FeeUpdateManager";
+import FeeScopeConfigSection from "../components/controls/FeeScopeConfigSection";
 import AdminLayout from "../layouts/AdminLayout";
 import { ADMIN_DASHBOARD_TABS } from "../constants/adminMenu";
 import { useUIStore } from "../store/uiStore";
@@ -199,6 +201,61 @@ const formatPriceINR = (value) => {
   if (!Number.isFinite(amount)) return "Not set yet";
   return `₹${amount.toLocaleString("en-IN")}`;
 };
+
+const normalizeScopeFeeValues = (value, fallback = null) => ({
+  all:
+    Number.isFinite(Number(value?.all))
+      ? Number(value.all)
+      : Number.isFinite(Number(fallback))
+        ? Number(fallback)
+        : null,
+  single: Number.isFinite(Number(value?.single)) ? Number(value.single) : null,
+  some: Number.isFinite(Number(value?.some)) ? Number(value.some) : null,
+});
+
+const normalizeFeeScopeTargets = (value, availableCountryIds = []) => {
+  const availableIds = new Set((availableCountryIds || []).map((id) => String(id ?? "").trim()).filter(Boolean));
+  const singleCountryId = String(value?.singleCountryId ?? "").trim();
+  const someCountryIds = normalizeCountrySelectorIds(value?.someCountryIds).filter((id) => availableIds.has(id));
+  return {
+    singleCountryId: availableIds.has(singleCountryId) ? singleCountryId : "",
+    someCountryIds,
+  };
+};
+
+const buildFeeSaveAllDraft = (scopeValues, scopeTargets, fallbackAll = null) => ({
+  allCountries: {
+    amount:
+      Number.isFinite(Number(scopeValues?.all))
+        ? String(Number(scopeValues.all))
+        : Number.isFinite(Number(fallbackAll))
+          ? String(Number(fallbackAll))
+          : "",
+  },
+  singleCountry: {
+    countryId: String(scopeTargets?.singleCountryId ?? "").trim(),
+    amount: Number.isFinite(Number(scopeValues?.single)) ? String(Number(scopeValues.single)) : "",
+  },
+  someCountries: {
+    countryIds: normalizeCountrySelectorIds(scopeTargets?.someCountryIds),
+    amount: Number.isFinite(Number(scopeValues?.some)) ? String(Number(scopeValues.some)) : "",
+  },
+});
+
+const serializeFeeSaveAllDraft = (draft) =>
+  JSON.stringify({
+    allCountries: {
+      amount: String(draft?.allCountries?.amount ?? "").trim(),
+    },
+    singleCountry: {
+      countryId: String(draft?.singleCountry?.countryId ?? "").trim(),
+      amount: String(draft?.singleCountry?.amount ?? "").trim(),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      amount: String(draft?.someCountries?.amount ?? "").trim(),
+    },
+  });
 
 /** Resolve `Country.imageUrl` for `<img src>` (https vs relative upload path). */
 const resolveCountryBannerSrc = (imageUrl) => {
@@ -644,6 +701,12 @@ const LANDING_HERO_HIGHLIGHTS_DEFAULT = [
   },
 ];
 
+const LANDING_HIGHLIGHT_ICONS = ["Zap", "ShieldCheck", "FileText", "Lock"];
+const AVAILABLE_ICONS = {
+  Zap, ShieldCheck, FileText, Lock, CheckCircle, Clock,
+  Globe, Users, CreditCard, MapPin, Plane, HeartHandshake, Smile, Search
+};
+
 const normalizeCountrySelectorIds = (list) =>
   Array.isArray(list)
     ? list.map((item) => String(item ?? "").trim()).filter(Boolean)
@@ -663,6 +726,22 @@ const withCountryApplyMeta = (item, activeCountryIds = []) => ({
     return applyToAll ? [...activeCountryIds] : selected;
   })(),
 });
+
+const toFeeApplyScope = (item) => {
+  const selectedCountries = normalizeCountrySelectorIds(item?.selectedCountries);
+  if (item?.applyToAllActiveCountries !== false) {
+    return { scope: "all", countryIds: [] };
+  }
+  if (selectedCountries.length === 1) {
+    return { scope: "single", countryIds: selectedCountries };
+  }
+  return { scope: "some", countryIds: selectedCountries };
+};
+
+const countFeeApplyScopeCountries = (scopeState, allCountryIds = []) => {
+  if (scopeState?.scope === "all") return allCountryIds.length;
+  return normalizeCountrySelectorIds(scopeState?.countryIds).length;
+};
 
 const withCountryVisibilityMeta = (item, activeCountryIds = []) => {
   const selected = normalizeCountrySelectorIds(item?.selectedCountries);
@@ -976,6 +1055,36 @@ const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
       <span
         className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
           active ? "bg-emerald-500" : "bg-surface-2 border border-border"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+            active ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+};
+
+const CountryCardTrendingToggle = ({ active, busy, onClick, countryName }) => {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className={`inline-flex items-center rounded-full border p-1 transition-colors ${
+        active
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:border-amber-400/60"
+          : "border-border bg-surface-3 text-text-muted hover:border-cyan/30"
+      } ${busy ? "cursor-wait opacity-60" : "cursor-pointer"}`}
+      aria-label={`${active ? "Disable" : "Enable"} trending for ${countryName}`}
+      aria-pressed={active}
+      title={active ? "Shown as trending" : "Not shown as trending"}
+    >
+      <span
+        className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
+          active ? "bg-amber-500" : "bg-surface-2 border border-border"
         }`}
       >
         <span
@@ -1622,6 +1731,12 @@ const Dashboard = () => {
         .filter(Boolean),
     [activeCountryOptions]
   );
+  const allCountryOptions = useMemo(
+    () =>
+      [...activeCountryOptions].sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || ""))),
+    [activeCountryOptions]
+  );
+  const allCountryIds = useMemo(() => [...activeCountryIds], [activeCountryIds]);
 
   // ── Local state ──────────────────────────────────────────
   const [searchQuery, setSearchQuery]        = useState("");
@@ -1685,8 +1800,12 @@ const Dashboard = () => {
   const [globalDefaults, setGlobalDefaults] = useState({
     globalBasePrice: null,
     globalBasePriceVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
+    serviceFeeScopeValues: { all: null, single: null, some: null },
+    serviceFeeScopeTargets: { singleCountryId: "", someCountryIds: [] },
     globalGovernmentFee: null,
     globalGovernmentFeeVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
+    governmentFeeScopeValues: { all: null, single: null, some: null },
+    governmentFeeScopeTargets: { singleCountryId: "", someCountryIds: [] },
     globalVisaType: "",
     globalValidity: "",
     globalLengthOfStay: "",
@@ -1732,6 +1851,7 @@ const Dashboard = () => {
     { key: "landing-highlights", label: "Landing Highlights" },
     { key: "base-price", label: "Update Service Fee (universal)" },
     { key: "government-fee", label: "Update Government Fee (universal)" },
+    { key: "fee-update-manager", label: "Fee Update Manager" },
     { key: "visa-type", label: "Update Visa Type (universal)" },
     { key: "manage-visa-types", label: "Manage Visa Types" },
     { key: "length-of-stay", label: "Update Length of Stay (universal)" },
@@ -1746,6 +1866,20 @@ const Dashboard = () => {
     { key: "popular-countries", label: "Popular Countries (Landing Page)" },
   ];
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
+  const [expandedControlCards, setExpandedControlCards] = useState({});
+  const selectControlSection = (nextKey) => {
+    setActiveControlSection((prevKey) => {
+      if (prevKey !== nextKey) {
+        setExpandedControlCards({});
+      }
+      return nextKey;
+    });
+  };
+  const getControlCardExpansionProps = (key) => ({
+    expanded: Boolean(expandedControlCards[key]),
+    onExpandedChange: (nextValue) =>
+      setExpandedControlCards((prev) => ({ ...prev, [key]: Boolean(nextValue) })),
+  });
   const [newPopularCountryTag, setNewPopularCountryTag] = useState("");
 
   const addPopularTag = () => {
@@ -1770,6 +1904,21 @@ const Dashboard = () => {
   };
   const [basePriceCustom, setBasePriceCustom] = useState("");
   const [governmentFeeCustom, setGovernmentFeeCustom] = useState("");
+  const [basePriceApplyScope, setBasePriceApplyScope] = useState({ scope: "all", countryIds: [] });
+  const [governmentFeeApplyScope, setGovernmentFeeApplyScope] = useState({ scope: "all", countryIds: [] });
+  const [serviceFeeSaveAllDraft, setServiceFeeSaveAllDraft] = useState(() =>
+    buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [serviceFeeSavedDraft, setServiceFeeSavedDraft] = useState(() =>
+    buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [governmentFeeSaveAllDraft, setGovernmentFeeSaveAllDraft] = useState(() =>
+    buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [governmentFeeSavedDraft, setGovernmentFeeSavedDraft] = useState(() =>
+    buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [feeSaveModalState, setFeeSaveModalState] = useState({ open: false, feeType: "" });
   const [visaTypePicker, setVisaTypePicker] = useState("");
   const [visaTypeCustom, setVisaTypeCustom] = useState("");
   const [validityPicker, setValidityPicker] = useState("");
@@ -1895,6 +2044,33 @@ const Dashboard = () => {
     if (normalizeCountrySelectorIds(item?.selectedCountries).length > 0) return true;
     showToast("Please select at least one country.", "error");
     return false;
+  };
+
+  const validateFeeApplyScope = (scopeState) => {
+    const selected = normalizeCountrySelectorIds(scopeState?.countryIds);
+    if (scopeState?.scope === "all") return true;
+    if (scopeState?.scope === "single" && selected.length === 1) return true;
+    if (scopeState?.scope === "some" && selected.length > 0) return true;
+    showToast("Please select the required country scope.", "error");
+    return false;
+  };
+
+  const confirmFeeScopeUpdate = (label, scopeState) => {
+    const count = countFeeApplyScopeCountries(scopeState, allCountryIds);
+    return window.confirm(`You are about to update ${label} for ${count} countr${count === 1 ? "y" : "ies"}. Continue?`);
+  };
+
+  const getFeeScopeHeading = (scope) => {
+    if (scope === "single") return "For Single Country";
+    if (scope === "some") return "For Some Countries";
+    return "For All Countries";
+  };
+
+  const getScopeFeeInputValue = (scopeValues, scope, fallback = "") => {
+    const nextValue = scopeValues?.[scope];
+    if (Number.isFinite(Number(nextValue))) return String(Number(nextValue));
+    if (scope === "all" && Number.isFinite(Number(fallback))) return String(Number(fallback));
+    return "";
   };
 
   const buildGlobalRequiredDocumentEntriesPayload = () =>
@@ -2371,6 +2547,7 @@ const Dashboard = () => {
   // ── Country Manager handlers ───────────────────────────────
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const [togglingCountryKey, setTogglingCountryKey] = useState(null);
+  const [togglingTrendingCountryKey, setTogglingTrendingCountryKey] = useState(null);
   const [bulkCountryToggleBusy, setBulkCountryToggleBusy] = useState(false);
   const syncVisaInfoCoreField = (field, value) => {
     setCountryForm((prev) => {
@@ -2594,6 +2771,33 @@ const Dashboard = () => {
       showToast(error?.response?.data?.message || "Failed to update country status.", "error");
     } finally {
       setTogglingCountryKey(null);
+    }
+  };
+
+  const toggleCountryTrending = async (country) => {
+    const id = country?._id || country?.id || country?.slug;
+    if (!id) return;
+    const next = country?.trending !== true;
+    setTogglingTrendingCountryKey(String(id));
+    try {
+      const result = await updateCountry(id, { trending: next });
+      if (result?.success) {
+        if ((selectedCountry?._id || selectedCountry?.id || selectedCountry?.slug) === id) {
+          setSelectedCountry((prev) => (prev ? { ...prev, trending: next } : prev));
+          setCountryForm((prev) => ({ ...prev, trending: next }));
+        }
+        showToast("Trending status updated", "success");
+      } else {
+        showToast(result?.message || "Failed to update trending status", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || "Failed to update trending status", "error");
+    } finally {
+      setTogglingTrendingCountryKey(null);
     }
   };
 
@@ -2822,12 +3026,28 @@ const Dashboard = () => {
             data.defaults?.globalBasePriceVisibility || {},
             activeCountryIds
           ),
+          serviceFeeScopeValues: normalizeScopeFeeValues(
+            data.defaults?.serviceFeeScopeValues,
+            data.defaults?.globalBasePrice
+          ),
+          serviceFeeScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.serviceFeeScopeTargets,
+            activeCountryIds
+          ),
           globalGovernmentFee:
             Number.isFinite(Number(data.defaults?.globalGovernmentFee)) && Number(data.defaults?.globalGovernmentFee) >= 0
               ? Number(data.defaults.globalGovernmentFee)
               : null,
           globalGovernmentFeeVisibility: withCountryApplyMeta(
             data.defaults?.globalGovernmentFeeVisibility || {},
+            activeCountryIds
+          ),
+          governmentFeeScopeValues: normalizeScopeFeeValues(
+            data.defaults?.governmentFeeScopeValues,
+            data.defaults?.globalGovernmentFee
+          ),
+          governmentFeeScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.governmentFeeScopeTargets,
             activeCountryIds
           ),
           globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
@@ -2906,8 +3126,22 @@ const Dashboard = () => {
         setRequiredDocsDraft(
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
-        setBasePriceCustom(next.globalBasePrice ?? "");
-        setGovernmentFeeCustom(next.globalGovernmentFee ?? "");
+        setBasePriceApplyScope(toFeeApplyScope(next.globalBasePriceVisibility));
+        setGovernmentFeeApplyScope(toFeeApplyScope(next.globalGovernmentFeeVisibility));
+        const nextServiceFeeDraft = buildFeeSaveAllDraft(
+          next.serviceFeeScopeValues,
+          next.serviceFeeScopeTargets,
+          next.globalBasePrice
+        );
+        const nextGovernmentFeeDraft = buildFeeSaveAllDraft(
+          next.governmentFeeScopeValues,
+          next.governmentFeeScopeTargets,
+          next.globalGovernmentFee
+        );
+        setServiceFeeSaveAllDraft(nextServiceFeeDraft);
+        setServiceFeeSavedDraft(nextServiceFeeDraft);
+        setGovernmentFeeSaveAllDraft(nextGovernmentFeeDraft);
+        setGovernmentFeeSavedDraft(nextGovernmentFeeDraft);
         // Pre-fill the dropdowns with whatever the global currently is so admins can
         // see at a glance what's live without first clicking around.
         if (next.globalVisaType && VISA_TYPE_SUGGESTIONS.includes(next.globalVisaType)) {
@@ -2953,6 +3187,69 @@ const Dashboard = () => {
       // Defaults stay at their initial empty values — the UI will show "Not set yet".
     }
   };
+
+  const serviceFeeHasUnsavedChanges =
+    serializeFeeSaveAllDraft(serviceFeeSaveAllDraft) !== serializeFeeSaveAllDraft(serviceFeeSavedDraft);
+  const governmentFeeHasUnsavedChanges =
+    serializeFeeSaveAllDraft(governmentFeeSaveAllDraft) !== serializeFeeSaveAllDraft(governmentFeeSavedDraft);
+
+  const validateFeeSaveAllDraft = (draft, label) => {
+    const allAmount = Number(draft?.allCountries?.amount);
+    if (!Number.isFinite(allAmount) || allAmount <= 0) {
+      showToast(`Enter a valid ${label} for All Countries.`, "error");
+      return false;
+    }
+
+    const singleCountryId = String(draft?.singleCountry?.countryId ?? "").trim();
+    const singleAmountRaw = String(draft?.singleCountry?.amount ?? "").trim();
+    const singleHasAnyValue = singleCountryId || singleAmountRaw;
+    if (singleHasAnyValue) {
+      if (!singleCountryId) {
+        showToast(`Select one country for Single Country ${label}.`, "error");
+        return false;
+      }
+      const singleAmount = Number(singleAmountRaw);
+      if (!Number.isFinite(singleAmount) || singleAmount <= 0) {
+        showToast(`Enter a valid Single Country ${label}.`, "error");
+        return false;
+      }
+    }
+
+    const someCountryIds = normalizeCountrySelectorIds(draft?.someCountries?.countryIds);
+    const someAmountRaw = String(draft?.someCountries?.amount ?? "").trim();
+    const someHasAnyValue = someCountryIds.length > 0 || someAmountRaw;
+    if (someHasAnyValue) {
+      if (someCountryIds.length === 0) {
+        showToast(`Select at least one country for Some Countries ${label}.`, "error");
+        return false;
+      }
+      const someAmount = Number(someAmountRaw);
+      if (!Number.isFinite(someAmount) || someAmount <= 0) {
+        showToast(`Enter a valid Some Countries ${label}.`, "error");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildFeeSaveAllPayload = (feeType, draft) => ({
+    feeType,
+    allCountries: {
+      amount: Number(draft?.allCountries?.amount),
+    },
+    singleCountry: {
+      countryId: String(draft?.singleCountry?.countryId ?? "").trim(),
+      amount: String(draft?.singleCountry?.amount ?? "").trim(),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      amount: String(draft?.someCountries?.amount ?? "").trim(),
+    },
+  });
+
+  const openFeeSaveModal = (feeType) => setFeeSaveModalState({ open: true, feeType });
+  const closeFeeSaveModal = () => setFeeSaveModalState({ open: false, feeType: "" });
 
   /**
    * Resolve the value the admin actually wants to apply. Custom input wins over the
@@ -3175,25 +3472,29 @@ const Dashboard = () => {
 
   const runUpdateGlobalBasePrice = async () => {
     const parsedBasePrice = Number(basePriceCustom);
-    if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
+    if (!Number.isFinite(parsedBasePrice) || parsedBasePrice <= 0) {
       showToast("Enter a valid global service fee.", "error");
       return;
     }
-    if (!validateCountryApplySelection(globalDefaults.globalBasePriceVisibility)) {
+    if (!validateFeeApplyScope(basePriceApplyScope)) {
+      return;
+    }
+    if (!confirmFeeScopeUpdate("service fee", basePriceApplyScope)) {
       return;
     }
     setSavingControlKey("base-price");
     try {
-      const { data } = await api.post("/admin/control/base-price", {
-        basePrice: parsedBasePrice,
-        applyToAllActiveCountries: globalDefaults.globalBasePriceVisibility?.applyToAllActiveCountries !== false,
-        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalBasePriceVisibility?.selectedCountries),
+      const { data } = await api.put("/admin/fees/bulk-update", {
+        feeType: "serviceFee",
+        scope: basePriceApplyScope.scope,
+        countryIds: normalizeCountrySelectorIds(basePriceApplyScope.countryIds),
+        amount: parsedBasePrice,
       });
       if (data?.success) {
-        showToast(data.message || `Fee set to ${formatPriceINR(parsedBasePrice)}.`, "success");
+        showToast(data?.message || "Service fee updated successfully", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
       } else {
-        showToast(data?.message || "Failed to update global service fee.", "error");
+        showToast(data?.message || "Failed to update fee", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -3202,14 +3503,14 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global service fee.";
+      let toastMsg = serverMsg || error?.message || "Failed to update fee";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/base-price is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      console.error("Update global service fee failed:", { status, serverMsg, error });
+      console.error("Update service fee failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -3218,25 +3519,29 @@ const Dashboard = () => {
 
   const runUpdateGlobalGovernmentFee = async () => {
     const parsedGovernmentFee = Number(governmentFeeCustom);
-    if (!Number.isFinite(parsedGovernmentFee) || parsedGovernmentFee < 0) {
+    if (!Number.isFinite(parsedGovernmentFee) || parsedGovernmentFee <= 0) {
       showToast("Enter a valid global government fee.", "error");
       return;
     }
-    if (!validateCountryApplySelection(globalDefaults.globalGovernmentFeeVisibility)) {
+    if (!validateFeeApplyScope(governmentFeeApplyScope)) {
+      return;
+    }
+    if (!confirmFeeScopeUpdate("government fee", governmentFeeApplyScope)) {
       return;
     }
     setSavingControlKey("government-fee");
     try {
-      const { data } = await api.post("/admin/control/government-fee", {
-        governmentFee: parsedGovernmentFee,
-        applyToAllActiveCountries: globalDefaults.globalGovernmentFeeVisibility?.applyToAllActiveCountries !== false,
-        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalGovernmentFeeVisibility?.selectedCountries),
+      const { data } = await api.put("/admin/fees/bulk-update", {
+        feeType: "governmentFee",
+        scope: governmentFeeApplyScope.scope,
+        countryIds: normalizeCountrySelectorIds(governmentFeeApplyScope.countryIds),
+        amount: parsedGovernmentFee,
       });
       if (data?.success) {
-        showToast(data.message || `Government fee set to ${formatPriceINR(parsedGovernmentFee)}.`, "success");
+        showToast(data?.message || "Government fee updated successfully", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
       } else {
-        showToast(data?.message || "Failed to update global government fee.", "error");
+        showToast(data?.message || "Failed to update fee", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -3245,14 +3550,98 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global government fee.";
+      let toastMsg = serverMsg || error?.message || "Failed to update fee";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found - restart the API locally or redeploy the server so /api/admin/control/government-fee is available.";
+          "Control endpoint not found - restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      console.error("Update global government fee failed:", { status, serverMsg, error });
+      console.error("Update government fee failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  const runSaveAllServiceFeeChanges = async () => {
+    if (!serviceFeeHasUnsavedChanges) {
+      showToast("No unsaved service fee changes.", "warning");
+      return;
+    }
+    if (!validateFeeSaveAllDraft(serviceFeeSaveAllDraft, "service fee")) {
+      return;
+    }
+    setSavingControlKey("base-price");
+    try {
+      const { data } = await api.put(
+        "/admin/fees/save-all",
+        buildFeeSaveAllPayload("serviceFee", serviceFeeSaveAllDraft)
+      );
+      if (data?.success) {
+        showToast(data?.message || "All fee changes saved successfully", "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        closeFeeSaveModal();
+      } else {
+        showToast(data?.message || "Failed to update fee", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update fee";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found - restart the API locally or redeploy the server so /api/admin/fees/save-all is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Save all service fee changes failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  const runSaveAllGovernmentFeeChanges = async () => {
+    if (!governmentFeeHasUnsavedChanges) {
+      showToast("No unsaved government fee changes.", "warning");
+      return;
+    }
+    if (!validateFeeSaveAllDraft(governmentFeeSaveAllDraft, "government fee")) {
+      return;
+    }
+    setSavingControlKey("government-fee");
+    try {
+      const { data } = await api.put(
+        "/admin/fees/save-all",
+        buildFeeSaveAllPayload("governmentFee", governmentFeeSaveAllDraft)
+      );
+      if (data?.success) {
+        showToast(data?.message || "All fee changes saved successfully", "success");
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+        closeFeeSaveModal();
+      } else {
+        showToast(data?.message || "Failed to update fee", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update fee";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found - restart the API locally or redeploy the server so /api/admin/fees/save-all is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Save all government fee changes failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -3714,6 +4103,7 @@ const Dashboard = () => {
       approved: 0,
       rejected: 0,
       cancelled: 0,
+      dash: 0,
     };
 
     for (const booking of bookings) {
@@ -3727,13 +4117,51 @@ const Dashboard = () => {
     const total = bookings.length;
     const approved = statusCounts.approved;
 
+    const isPaymentCompleted = (app) => {
+      return (
+        app.paymentStatus === "paid" ||
+        app.paymentStatus === "success" ||
+        app.paymentStatus === "completed" ||
+        app.isPaid === true ||
+        app.payment?.status === "paid" ||
+        app.payment?.status === "success"
+      );
+    };
+
+    const hasRequiredDocuments = (app) => {
+      return (
+        app.documentsUploaded === true ||
+        app.requiredDocumentsUploaded === true ||
+        app.uploadedDocuments?.length > 0 ||
+        app.documents?.length > 0 ||
+        app.passportFile ||
+        app.passportUrl ||
+        app.travelers?.some(traveler =>
+          traveler.passportFile ||
+          traveler.passportUrl ||
+          traveler.documents?.length > 0 ||
+          traveler.uploadedDocuments?.length > 0
+        )
+      );
+    };
+
+    const pendingReviewApplications = bookings.filter(app =>
+      isPaymentCompleted(app) && !hasRequiredDocuments(app)
+    );
+
+    const pendingPaymentApplications = bookings.filter(app =>
+      !isPaymentCompleted(app)
+    );
+
     return {
       total,
       revenue: bookings.reduce((sum, booking) => {
         const isPaid = booking?.paymentStatus === "completed" || booking?.isPaid === true;
         return isPaid ? sum + Number(booking?.fee || 0) : sum;
       }, 0),
-      pending: statusCounts.pending,
+      pending: pendingPaymentApplications.length, // Keep existing 'pending' for backwards compat
+      pendingReview: pendingReviewApplications.length,
+      pendingPayment: pendingPaymentApplications.length,
       statusCounts,
       approvalRate: total > 0 ? Math.round((approved / total) * 100) : 0,
     };
@@ -3833,7 +4261,7 @@ const Dashboard = () => {
                 {[
                   { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
                   { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
-                  { label: "Pending Payment", value: liveAnalytics.pending,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
+                  { label: "Pending Review", value: liveAnalytics.pendingReview,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
                   { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
                 ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
                   <motion.div
@@ -3936,15 +4364,16 @@ const Dashboard = () => {
                       const progress = getApplicationProgress(b, settingsForm);
                       return resolveApplicationStatus(b, progress) === "review";
                     }).length, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-                  { label: "Doc Pending", count: bookings.filter(b=>{
+                  { label: "Pending Review", count: bookings.filter(b=>{
                       const progress = getApplicationProgress(b, settingsForm);
                       return resolveApplicationStatus(b, progress) === "doc_pending";
                     }).length, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-                  { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
-                  { label: "Pending Payment", count: bookings.filter(b=>{
+                  { label: "Pending", count: bookings.filter(b=>{
                       const progress = getApplicationProgress(b, settingsForm);
-                      return resolveApplicationStatus(b, progress) === "pending";
+                      const status = resolveApplicationStatus(b, progress);
+                      return status === "dash" || status === "pending";
                     }).length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
+                  { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
                 ].map(({ label, count, color, bg, border }) => (
                   <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
                     <div className={`text-3xl font-bold ${color}`}>{count}</div>
@@ -3989,8 +4418,8 @@ const Dashboard = () => {
                       id="admin-status-filter"
                     >
                       <option value="all">All Status</option>
-                      <option value="pending">Pending Payment</option>
-                      <option value="doc_pending">Doc Pending</option>
+                      <option value="dash">Not Paid</option>
+                      <option value="doc_pending">Pending Review</option>
                       <option value="review">Under Review</option>
                       <option value="approved">Approved</option>
                       <option value="rejected">Rejected</option>
@@ -4235,6 +4664,21 @@ const Dashboard = () => {
                           </div>
                       </div>
 
+                      <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/40 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-text-primary">Show as Trending</p>
+                          <p className="mt-0.5 text-[11px] text-text-muted">
+                            {c.trending ? "Visible in trending countries." : "Hidden from trending countries."}
+                          </p>
+                        </div>
+                        <CountryCardTrendingToggle
+                          active={c.trending === true}
+                          busy={togglingTrendingCountryKey === String(c._id || c.id || c.slug)}
+                          onClick={() => toggleCountryTrending(c)}
+                          countryName={c.name}
+                        />
+                      </div>
+
                       {/* Required docs badges */}
                       {c.requiredDocuments?.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-3">
@@ -4285,7 +4729,7 @@ const Dashboard = () => {
                         <button
                           key={section.key}
                           type="button"
-                          onClick={() => setActiveControlSection(section.key)}
+                          onClick={() => selectControlSection(section.key)}
                           className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
                             activeControlSection === section.key
                               ? "border-cyan bg-cyan/10 text-cyan"
@@ -4304,7 +4748,7 @@ const Dashboard = () => {
                           <button
                             key={section.key}
                             type="button"
-                            onClick={() => setActiveControlSection(section.key)}
+                            onClick={() => selectControlSection(section.key)}
                             className={`whitespace-nowrap rounded-2xl border px-3 py-2 text-sm font-medium transition ${
                               activeControlSection === section.key
                                 ? "border-cyan bg-cyan/10 text-cyan"
@@ -4461,19 +4905,36 @@ const Dashboard = () => {
                   The toggle in the header hides the Visa Type tile on every
                   public card / details page when switched off.
                   ══════════════════════════════════════════════════════════ */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-              <div className={activeControlSection === "landing-highlights" ? "" : "hidden"}>
-              <ExpandableAdminControlCard allowBodyOverflow>
+              {activeControlSection === "fee-update-manager" ? (
+                <div className="w-full max-w-none flex-1">
+                  <FeeUpdateManager
+                    isActive={activeControlSection === "fee-update-manager"}
+                    showToast={showToast}
+                    onFeesUpdated={fetchCountries}
+                  />
+                </div>
+              ) : null}
+
+              <div className={activeControlSection === "fee-update-manager" ? "hidden" : "grid grid-cols-1 xl:grid-cols-2 gap-6 items-start"}>
+              <div
+                className={
+                  activeControlSection === "landing-highlights"
+                    ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
+                    : "hidden"
+                }
+              >
+              <Card className="w-full max-w-none flex-1 self-stretch">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-semibold text-text-primary flex items-center gap-2">
                         <FileText size={18} className="text-cyan" />
-                        Landing Highlights
+                        Landing Page Highlights
                       </h2>
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Update the four text cards shown right below the landing page search bar. The icon order stays the same on the client, while these
+                      Manage the highlight cards displayed below the search bar on the landing page.
+                      The icon order stays the same on the client, while these
                       <span className="text-text-primary font-medium"> titles</span> and
                       <span className="text-text-primary font-medium"> descriptions</span> can be changed anytime from here.
                     </p>
@@ -4486,55 +4947,106 @@ const Dashboard = () => {
                     loading={savingSettingsKey === "landing-highlights"}
                     onClick={() => {
                       const landingHeroHighlights = (settingsForm.landingHeroHighlights || []).map((item, index) => ({
+                        icon: String(item?.icon ?? "").trim() || LANDING_HIGHLIGHT_ICONS[index],
                         title: String(item?.title ?? LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title ?? "").trim(),
                         body: String(item?.body ?? LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body ?? "").trim(),
                       }));
-                      saveSettingsPartial("landing-highlights", { landingHeroHighlights }, "Landing highlights updated");
+                      saveSettingsPartial("landing-highlights", { landingHeroHighlights }, "Landing page highlights updated successfully", "Failed to update landing page highlights");
                     }}
                   >
                     Save Landing Highlights
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {(settingsForm.landingHeroHighlights || []).map((item, index) => (
-                    <div key={`landing-highlight-${index}`} className="rounded-2xl border border-border bg-surface-2/60 p-4 space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-                        Card {index + 1}
-                      </p>
-                      <Input
-                        label="Title"
-                        value={item?.title ?? ""}
-                        onChange={(e) =>
-                          setSettingsForm((p) => {
-                            const next = [...(p.landingHeroHighlights || [])];
-                            next[index] = { ...(next[index] || {}), title: e.target.value };
-                            return { ...p, landingHeroHighlights: next };
-                          })
-                        }
-                        placeholder={LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title || "Enter card title"}
-                      />
-                      <Textarea
-                        label="Description"
-                        rows={3}
-                        value={item?.body ?? ""}
-                        onChange={(e) =>
-                          setSettingsForm((p) => {
-                            const next = [...(p.landingHeroHighlights || [])];
-                            next[index] = { ...(next[index] || {}), body: e.target.value };
-                            return { ...p, landingHeroHighlights: next };
-                          })
-                        }
-                        placeholder={LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body || "Enter card description"}
-                      />
+                <div className="grid grid-cols-1 lg:grid-cols-[60%_40%] gap-8">
+                  {/* Left Side: Form */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-fit">
+                    {(settingsForm.landingHeroHighlights || []).map((item, index) => (
+                      <div key={`landing-highlight-${index}`} className="rounded-2xl border border-border bg-surface-2/60 p-4 space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
+                          Card {index + 1}
+                        </p>
+                        <Select
+                          label="Icon"
+                          value={item?.icon || LANDING_HIGHLIGHT_ICONS[index]}
+                          onChange={(e) =>
+                            setSettingsForm((p) => {
+                              const next = [...(p.landingHeroHighlights || [])];
+                              next[index] = { ...(next[index] || {}), icon: e.target.value };
+                              return { ...p, landingHeroHighlights: next };
+                            })
+                          }
+                          options={Object.keys(AVAILABLE_ICONS).map(k => ({ value: k, label: k }))}
+                        />
+                        <Input
+                          label="Title"
+                          value={item?.title ?? ""}
+                          onChange={(e) =>
+                            setSettingsForm((p) => {
+                              const next = [...(p.landingHeroHighlights || [])];
+                              next[index] = { ...(next[index] || {}), title: e.target.value };
+                              return { ...p, landingHeroHighlights: next };
+                            })
+                          }
+                          placeholder={LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title || "Enter card title"}
+                        />
+                        <Textarea
+                          label="Description"
+                          rows={3}
+                          value={item?.body ?? ""}
+                          onChange={(e) =>
+                            setSettingsForm((p) => {
+                              const next = [...(p.landingHeroHighlights || [])];
+                              next[index] = { ...(next[index] || {}), body: e.target.value };
+                              return { ...p, landingHeroHighlights: next };
+                            })
+                          }
+                          placeholder={LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body || "Enter card description"}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Right Side: Live Preview */}
+                  <div className="rounded-2xl border border-border bg-surface-2/30 p-5 space-y-4">
+                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 flex items-center gap-2">
+                      <ImageIcon size={16} className="text-cyan" />
+                      Live Preview
+                    </h3>
+                    <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {(settingsForm.landingHeroHighlights || []).map((item, index) => {
+                          const iconName = item?.icon || LANDING_HIGHLIGHT_ICONS[index] || "Zap";
+                          const Icon = AVAILABLE_ICONS[iconName] || AVAILABLE_ICONS["Zap"];
+                          const title = String(item?.title ?? "").trim() || LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.title;
+                          const body = String(item?.body ?? "").trim() || LANDING_HERO_HIGHLIGHTS_DEFAULT[index]?.body;
+                          return (
+                            <div key={`preview-${index}`} className="flex items-start gap-3 px-1">
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-cyan">
+                                <Icon size={18} />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-[#16325f]">{title}</p>
+                                <p className="mt-1 text-xs leading-5 text-[#7388a8]">{body}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </ExpandableAdminControlCard>
+              </Card>
               </div>
 
-              <div className={activeControlSection === "base-price" ? "" : "hidden"}>
-              <ExpandableAdminControlCard forceShowToggle>
+              <div
+                className={
+                  activeControlSection === "base-price"
+                    ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
+                    : "hidden"
+                }
+              >
+              <Card className="w-full max-w-none flex-1 self-stretch">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4542,11 +5054,16 @@ const Dashboard = () => {
                         <IndianRupee size={18} className="text-cyan" />
                         Update Service Fee (universal)
                       </h2>
+                      {serviceFeeHasUnsavedChanges && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
+                          <span className="h-2 w-2 rounded-full bg-amber-300" />
+                          Unsaved Changes
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
                       Sets one global <span className="text-text-primary font-medium">Service Fee</span> for every country.
-                      Per-country service fees in <span className="text-text-primary font-medium">Country Manager</span> can still
-                      override it manually, and typing the same amount again switches that country back to the global service fee.
+                      Configure all three scopes first, then save them together in one final action.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -4558,47 +5075,94 @@ const Dashboard = () => {
                           {" "}· {globalDefaultStats.usingGlobalBasePrice}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingBasePrice}</span> override it.
                         </>
-                      )}
+                        )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <FeeScopeConfigSection
+                    title="All Countries"
+                    description="Set the shared service fee applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    amount={serviceFeeSaveAllDraft.allCountries.amount}
+                    onAmountChange={(value) =>
+                      setServiceFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, amount: value },
+                      }))
+                    }
+                  />
+                  <FeeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and define its service-fee override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    countryId={serviceFeeSaveAllDraft.singleCountry.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setServiceFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountry: { ...prev.singleCountry, countryId },
+                      }))
+                    }
+                    amount={serviceFeeSaveAllDraft.singleCountry.amount}
+                    onAmountChange={(value) =>
+                      setServiceFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountry: { ...prev.singleCountry, amount: value },
+                      }))
+                    }
+                  />
+                  <FeeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same service fee."
+                    mode="some"
+                    countries={allCountryOptions}
+                    countryIds={serviceFeeSaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setServiceFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    amount={serviceFeeSaveAllDraft.someCountries.amount}
+                    onAmountChange={(value) =>
+                      setServiceFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, amount: value },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review all three service fee sections, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "base-price"}
-                    disabled={!String(basePriceCustom).trim()}
-                    onClick={runUpdateGlobalBasePrice}
+                    disabled={!serviceFeeHasUnsavedChanges}
+                    onClick={() => openFeeSaveModal("serviceFee")}
                   >
-                    Update All Service Fees
+                    Save All Changes
                   </Button>
                 </div>
-
-                <Input
-                  label="Global Service Fee (₹)"
-                  type="number"
-                  value={basePriceCustom}
-                  onChange={(e) => setBasePriceCustom(e.target.value)}
-                  placeholder="e.g. 4999"
-                  id="control-base-price"
-                  helper="Saving this updates every country to use the global service fee until a country is manually given a different amount."
-                />
-                <div className="mt-4">
-                  <CountryVisibilitySelector
-                    item={globalDefaults.globalBasePriceVisibility}
-                    activeCountries={activeCountryOptions}
-                    itemLabel="this service fee"
-                    mode="applied"
-                    allKey="applyToAllActiveCountries"
-                    selectedKey="selectedCountries"
-                    onChange={(next) => setGlobalDefaults((prev) => ({ ...prev, globalBasePriceVisibility: next }))}
-                  />
-                </div>
-              </ExpandableAdminControlCard>
+              </Card>
               </div>
 
-              <div className={activeControlSection === "government-fee" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <div
+                className={
+                  activeControlSection === "government-fee"
+                    ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
+                    : "hidden"
+                }
+              >
+              <Card className="w-full max-w-none flex-1 self-stretch">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4606,11 +5170,16 @@ const Dashboard = () => {
                         <IndianRupee size={18} className="text-cyan" />
                         Update Government Fee (universal)
                       </h2>
+                      {governmentFeeHasUnsavedChanges && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
+                          <span className="h-2 w-2 rounded-full bg-amber-300" />
+                          Unsaved Changes
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
                       Sets one global <span className="text-text-primary font-medium">Government Fee</span> for every country.
-                      Per-country government fees in <span className="text-text-primary font-medium">Country Manager</span> can still
-                      override it manually, and matching the same amount again switches that country back to the global government fee.
+                      Configure all three scopes first, then save them together in one final action.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -4622,50 +5191,90 @@ const Dashboard = () => {
                           {" "}� {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingGovernmentFee}</span> override it.
                         </>
-                      )}
+                        )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <FeeScopeConfigSection
+                    title="All Countries"
+                    description="Set the shared government fee applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    amount={governmentFeeSaveAllDraft.allCountries.amount}
+                    onAmountChange={(value) =>
+                      setGovernmentFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, amount: value },
+                      }))
+                    }
+                  />
+                  <FeeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and define its government-fee override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    countryId={governmentFeeSaveAllDraft.singleCountry.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setGovernmentFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountry: { ...prev.singleCountry, countryId },
+                      }))
+                    }
+                    amount={governmentFeeSaveAllDraft.singleCountry.amount}
+                    onAmountChange={(value) =>
+                      setGovernmentFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountry: { ...prev.singleCountry, amount: value },
+                      }))
+                    }
+                  />
+                  <FeeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same government fee."
+                    mode="some"
+                    countries={allCountryOptions}
+                    countryIds={governmentFeeSaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setGovernmentFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    amount={governmentFeeSaveAllDraft.someCountries.amount}
+                    onAmountChange={(value) =>
+                      setGovernmentFeeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, amount: value },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review all three government fee sections, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "government-fee"}
-                    disabled={!String(governmentFeeCustom).trim()}
-                    onClick={runUpdateGlobalGovernmentFee}
+                    disabled={!governmentFeeHasUnsavedChanges}
+                    onClick={() => openFeeSaveModal("governmentFee")}
                   >
-                    Update All Government Fees
+                    Save All Changes
                   </Button>
                 </div>
-
-                <Input
-                  label="Global Government Fee (INR)"
-                  type="number"
-                  value={governmentFeeCustom}
-                  onChange={(e) => setGovernmentFeeCustom(e.target.value)}
-                  placeholder="e.g. 2500"
-                  id="control-government-fee"
-                  helper="Landing page and destination cards will show this government fee unless a country has its own override."
-                />
-                <div className="mt-4">
-                  <CountryVisibilitySelector
-                    item={globalDefaults.globalGovernmentFeeVisibility}
-                    activeCountries={activeCountryOptions}
-                    itemLabel="this government fee"
-                    mode="applied"
-                    allKey="applyToAllActiveCountries"
-                    selectedKey="selectedCountries"
-                    onChange={(next) =>
-                      setGlobalDefaults((prev) => ({ ...prev, globalGovernmentFeeVisibility: next }))
-                    }
-                  />
-                </div>
-              </ExpandableAdminControlCard>
+              </Card>
               </div>
+
               </div>
 
               <div className={activeControlSection === "visa-type" ? "" : "hidden"}>
-              <ExpandableAdminControlCard expandMode="fullscreen">
+              <ExpandableAdminControlCard expandMode="fullscreen" {...getControlCardExpansionProps("visa-type")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4743,7 +5352,7 @@ const Dashboard = () => {
               </div>
 
               <div className={activeControlSection === "length-of-stay" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard {...getControlCardExpansionProps("length-of-stay")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4818,7 +5427,7 @@ const Dashboard = () => {
               </div>
 
               <div className={activeControlSection === "entry-type" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard {...getControlCardExpansionProps("entry-type")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4908,7 +5517,7 @@ const Dashboard = () => {
                   Universal Validity control — mirror of the Visa Type card.
                   ══════════════════════════════════════════════════════════ */}
               <div className={activeControlSection === "validity" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard {...getControlCardExpansionProps("validity")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -4988,7 +5597,7 @@ const Dashboard = () => {
                   The toggle hides the Processing tile on the public client.
                   ══════════════════════════════════════════════════════════ */}
               <div className={activeControlSection === "processing-days" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard {...getControlCardExpansionProps("processing-days")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -5084,7 +5693,7 @@ const Dashboard = () => {
                   the public client.
                   ══════════════════════════════════════════════════════════ */}
               <div className={activeControlSection === "required-docs" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard {...getControlCardExpansionProps("required-docs")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -5463,7 +6072,7 @@ const Dashboard = () => {
               </div>
 
               <div className={activeControlSection === "other-docs" ? "" : "hidden"}>
-              <ExpandableAdminControlCard>
+              <ExpandableAdminControlCard {...getControlCardExpansionProps("other-docs")}>
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/40 pb-4 mb-5">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
@@ -6047,7 +6656,7 @@ const Dashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                  <ExpandableAdminControlCard previewHeight={360}>
+                  <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-why-book-now")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <BadgeCheck size={18} className="text-cyan" />
@@ -6144,7 +6753,7 @@ const Dashboard = () => {
                   </div>
                   </ExpandableAdminControlCard>
 
-                  <ExpandableAdminControlCard previewHeight={360}>
+                  <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-whats-included")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <CheckCircle size={18} className="text-cyan" />
@@ -6305,7 +6914,7 @@ const Dashboard = () => {
                   </div>
                   </ExpandableAdminControlCard>
 
-                  <ExpandableAdminControlCard previewHeight={360}>
+                  <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-faq")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <HelpCircle size={18} className="text-cyan" />
@@ -6412,7 +7021,7 @@ const Dashboard = () => {
                   </div>
                   </ExpandableAdminControlCard>
 
-                  <ExpandableAdminControlCard previewHeight={360}>
+                  <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-how-it-works")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <ListChecks size={18} className="text-cyan" />
@@ -6522,7 +7131,7 @@ const Dashboard = () => {
                   </div>
                   </ExpandableAdminControlCard>
 
-                  <ExpandableAdminControlCard previewHeight={360}>
+                  <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-visa-requirements")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
                       <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -7355,6 +7964,36 @@ const Dashboard = () => {
             </div>
           )}
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={feeSaveModalState.open}
+        onClose={savingControlKey ? undefined : closeFeeSaveModal}
+        title="Save All Changes"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={closeFeeSaveModal} disabled={Boolean(savingControlKey)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              leftIcon={<Save size={15} />}
+              loading={savingControlKey === "base-price" || savingControlKey === "government-fee"}
+              onClick={() =>
+                feeSaveModalState.feeType === "governmentFee"
+                  ? runSaveAllGovernmentFeeChanges()
+                  : runSaveAllServiceFeeChanges()
+              }
+            >
+              Save Changes
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm leading-relaxed text-text-secondary">
+          You are about to save all fee updates. Continue?
+        </p>
       </Modal>
 
       <Modal
@@ -8990,3 +9629,7 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+
+

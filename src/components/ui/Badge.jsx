@@ -81,15 +81,19 @@ const Badge = ({ children, variant = "pending", dot = false, size = "md", classN
 
 // ── Convenience exports for specific statuses ──────────────
 export const StatusBadge = ({ status, ...props }) => {
+  if (status === "dash") {
+    return <span className="text-text-muted px-2 py-1">-</span>;
+  }
+
   const labels = {
-    pending:   "Pending Upload Doc",
+    pending:   "Pending Payment",
     approved:  "Approved",
     review:    "Under Review",
     rejected:  "Rejected",
     submitted: "Submitted",
     cancelled: "Cancelled",
     pending_payment: "Pending Payment",
-    doc_pending: "Pending Upload Doc",
+    doc_pending: "Missing Documents",
   };
   return (
     <Badge variant={status} dot {...props}>

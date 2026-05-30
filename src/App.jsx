@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
 import AppRoutes from "./routes/AppRoutes";
 import { useUIStore } from "./store/uiStore";
@@ -8,6 +9,16 @@ function App() {
   const { toast, hideToast } = useUIStore();
   const configuredBase = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
   const routerBase = configuredBase && configuredBase !== "/" ? configuredBase : undefined;
+
+  useEffect(() => {
+    if (!toast?.show) return undefined;
+
+    const timer = window.setTimeout(() => {
+      hideToast();
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [toast?.show, toast?.message, toast?.type, hideToast]);
 
   return (
     <BrowserRouter
@@ -30,10 +41,14 @@ function App() {
                 <div className={`
                   w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
                   ${toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 
-                    toast.type === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'}
+                    toast.type === 'error' ? 'bg-red-500/10 text-red-400' :
+                    toast.type === 'warning' ? 'bg-amber-500/10 text-amber-400' :
+                    'bg-blue-500/10 text-blue-400'}
                 `}>
                   {toast.type === 'success' ? <CheckCircle size={20} /> : 
-                   toast.type === 'error' ? <AlertCircle size={20} /> : <Info size={20} />}
+                   toast.type === 'error' ? <AlertCircle size={20} /> :
+                   toast.type === 'warning' ? <AlertCircle size={20} /> :
+                   <Info size={20} />}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-text-primary">{toast.message}</p>

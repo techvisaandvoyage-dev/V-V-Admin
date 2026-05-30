@@ -122,6 +122,7 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
 
 export const resolveApplicationStatus = (application, progress) => {
   if (!application || typeof application !== "object") return "pending";
+  
   if (
     application.status === "approved" ||
     application.status === "rejected" ||

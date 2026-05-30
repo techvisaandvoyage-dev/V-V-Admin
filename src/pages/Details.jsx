@@ -11,7 +11,8 @@ import { StatusBadge } from "../components/ui/Badge";
 import { api, SERVER_URL } from "../store/authStore";
 import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 import { fmtDate } from "../utils/formatDate";
-
+import { getFileUrl } from "../utils/fileUrl";
+import FilePreviewModal from "../components/ui/FilePreviewModal";
 const getTravelerNoFromDocumentPath = (path) => {
   const fileName = String(path || "").split("/").pop() || "";
   const match = fileName.match(/^traveler-(\d+)_/i);
@@ -85,19 +86,13 @@ const getDocumentLabelFromPath = (path, fallback = "Document") => {
   return docKey ? formatDocumentKeyLabel(docKey) : fallback;
 };
 
-const resolveDocumentUrl = (path) => {
-  const value = String(path || "").trim();
-  if (!value) return "";
-  if (/^https?:\/\//i.test(value)) return value;
-  const base = SERVER_URL.replace(/\/+$/, "");
-  return `${base}${value.startsWith("/") ? value : `/${value}`}`;
-};
 
 const Details = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useUIStore();
   const bookings = useDataStore((state) => state.bookings);
+  const [documentPreview, setDocumentPreview] = useState(null);
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [visaFileUploading, setVisaFileUploading] = useState(false);
@@ -356,12 +351,12 @@ const Details = () => {
   };
 
   const handleOpenDocument = (docUrl) => {
-    const fullUrl = resolveDocumentUrl(docUrl);
+    const fullUrl = getFileUrl(docUrl);
     if (!fullUrl) {
       showToast("Document URL is missing.", "error");
       return;
     }
-    window.open(fullUrl, "_blank", "noopener,noreferrer");
+    setDocumentPreview({ url: fullUrl, name: getDocumentLabelFromPath(docUrl), type: "application/pdf" });
   };
 
   const handleUpdateStatus = async (newStatus) => {
@@ -1129,7 +1124,7 @@ const Details = () => {
                       variant="secondary"
                       fullWidth
                       leftIcon={<Download size={14} />}
-                      onClick={() => window.open(`${SERVER_URL}${application.visaFilePath}`, "_blank")}
+                      onClick={() => setDocumentPreview({ url: getFileUrl(application.visaFilePath), name: "Visa File", type: "application/pdf" })}
                     >
                       Open file
                     </Button>
@@ -1167,6 +1162,12 @@ const Details = () => {
           </div>
         </div>
       </main>
+
+      <FilePreviewModal
+        isOpen={Boolean(documentPreview)}
+        onClose={() => setDocumentPreview(null)}
+        previewFile={documentPreview}
+      />
     </div>
   );
 };
