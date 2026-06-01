@@ -4463,6 +4463,9 @@ const Dashboard = () => {
     if (!passwordForm.currentPassword || !passwordForm.newPassword) {
       return showToast("Please fill all password fields", "error");
     }
+    if (passwordForm.newPassword.length < 8) {
+      return showToast("New password must be at least 8 characters", "error");
+    }
     setIsChangingPassword(true);
     const { success, message } = await changeAdminPassword(passwordForm.currentPassword, passwordForm.newPassword);
     if (success) {
