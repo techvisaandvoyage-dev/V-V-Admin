@@ -11,8 +11,9 @@ import {
   BarChart2, TrendingUp, DollarSign, Clock, CheckCircle, CheckCheck, Smile, Send, MoreVertical,
   Search, Filter, ChevronDown, Plus, Edit3,
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle, BookOpen,
-  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays, MessageSquare,
+  ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays, MessageSquare, RotateCcw,
   Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2, Zap, Lock,
+  Mail, Youtube, Linkedin, Link as LinkIcon, MessageCircle, Trash2, Loader2,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -202,6 +203,11 @@ const formatPriceINR = (value) => {
   return `₹${amount.toLocaleString("en-IN")}`;
 };
 
+const formatVisitCount = (value) => {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? count.toLocaleString("en-IN") : "0";
+};
+
 const normalizeScopeFeeValues = (value, fallback = null) => ({
   all:
     Number.isFinite(Number(value?.all))
@@ -284,6 +290,133 @@ const bannerSourceLabel = (imageUrl) => {
   if (/unsplash\.com/i.test(u)) return "Unsplash";
   if (u.startsWith("/uploads/") || /\/uploads\//i.test(u)) return "Upload";
   return "Other URL";
+};
+
+const FooterInstagramIcon = ({ size = 18, className = "" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" />
+    <circle cx="12" cy="12" r="4.2" />
+    <circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const FooterFacebookIcon = ({ size = 18, className = "" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <path d="M13.5 21v-7h2.4l.36-2.76H13.5V9.48c0-.8.22-1.35 1.37-1.35h1.47V5.66c-.25-.03-1.11-.11-2.11-.11-2.09 0-3.52 1.27-3.52 3.61v2.08H8.34V14h2.37v7h2.79Z" />
+  </svg>
+);
+
+const FooterTwitterIcon = ({ size = 18, className = "" }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    width={size}
+    height={size}
+    aria-hidden="true"
+  >
+    <path d="M18.9 3H22l-6.77 7.74L23 21h-6.08l-4.76-6.22L6.72 21H3.6l7.24-8.28L1 3h6.23l4.3 5.68L18.9 3Zm-1.07 16.18h1.69L6.31 4.73H4.5l13.33 14.45Z" />
+  </svg>
+);
+
+const FOOTER_SOCIAL_ICON_TYPE_OPTIONS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "twitter", label: "Twitter / X" },
+  { value: "youtube", label: "YouTube" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "telegram", label: "Telegram" },
+  { value: "email", label: "Email" },
+  { value: "website", label: "Website" },
+  { value: "custom", label: "Custom Link" },
+];
+
+const FOOTER_SOCIAL_ICON_TYPE_LABELS = Object.fromEntries(
+  FOOTER_SOCIAL_ICON_TYPE_OPTIONS.map((option) => [option.value, option.label])
+);
+
+const FOOTER_SOCIAL_ICON_COMPONENTS = {
+  instagram: FooterInstagramIcon,
+  facebook: FooterFacebookIcon,
+  twitter: FooterTwitterIcon,
+  youtube: Youtube,
+  linkedin: Linkedin,
+  whatsapp: MessageCircle,
+  telegram: Send,
+  email: Mail,
+  website: Globe,
+  custom: LinkIcon,
+};
+
+const DEFAULT_FOOTER_SOCIAL_ICON_FORM = {
+  label: "",
+  type: "instagram",
+  url: "",
+  isActive: true,
+};
+
+const normalizeFooterSocialIconType = (value) => String(value ?? "").trim().toLowerCase();
+const normalizeFooterEmailValue = (value) => String(value ?? "").trim().replace(/^mailto:/i, "");
+const buildFooterEmailUrl = (value) => {
+  const email = normalizeFooterEmailValue(value);
+  return email ? `mailto:${email}` : "";
+};
+const isValidFooterHttpsUrl = (value) => /^https:\/\/.+/i.test(String(value || "").trim());
+const isValidFooterMailto = (value) => /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(String(value || "").trim());
+const isValidFooterEmailAddress = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(normalizeFooterEmailValue(value));
+const isValidFooterWhatsapp = (value) => /^https:\/\/wa\.me\/[0-9]{6,20}(?:\?.*)?$/i.test(String(value || "").trim());
+
+const validateFooterSocialIconFormValues = (values) => {
+  const nextErrors = {};
+  const label = String(values?.label ?? "").trim();
+  const type = normalizeFooterSocialIconType(values?.type);
+  const url = String(values?.url ?? "").trim();
+
+  if (!label) nextErrors.label = "Icon name is required.";
+  if (!type || !FOOTER_SOCIAL_ICON_TYPE_LABELS[type]) {
+    nextErrors.type = "Please choose a valid icon type.";
+  }
+  if (!url) {
+    nextErrors.url = "Icon URL is required.";
+  } else if (type === "email" && !isValidFooterMailto(url) && !isValidFooterEmailAddress(url)) {
+    nextErrors.url = "Use a valid email address or mailto: link.";
+  } else if (type === "whatsapp" && !isValidFooterWhatsapp(url)) {
+    nextErrors.url = "Use a valid https://wa.me/ link.";
+  } else if (type !== "email" && type !== "whatsapp" && !isValidFooterHttpsUrl(url)) {
+    nextErrors.url = "Use a valid https:// URL.";
+  }
+
+  return nextErrors;
+};
+
+const getFooterSocialIconTypeHelper = (type) => {
+  switch (normalizeFooterSocialIconType(type)) {
+    case "email":
+      return "Example: support@visavoyage.com";
+    case "whatsapp":
+      return "Example: https://wa.me/919999999999";
+    default:
+      return "Example: https://example.com/profile";
+  }
 };
 
 /** One integration block: title, hints, fields, and its own Save button. */
@@ -992,6 +1125,9 @@ const mapApiSettingsToFormState = (s, activeCountryIds = []) => ({
   customerChatDescription: s.customerChatDescription || "Get instant support from our visa team",
   customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
   customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
+  footerBrandPrimaryText: s.footerBrandPrimaryText || "",
+  footerBrandAccentText: s.footerBrandAccentText || "",
+  footerDescription: s.footerDescription || "",
   whatsappTemplate: s.whatsappTemplate || "",
   popularCountries: Array.isArray(s?.popularCountries) && s.popularCountries.length > 0
     ? s.popularCountries
@@ -1068,36 +1204,6 @@ const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
       <span
         className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
           active ? "bg-emerald-500" : "bg-surface-2 border border-border"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-            active ? "translate-x-4" : "translate-x-0.5"
-          }`}
-        />
-      </span>
-    </button>
-  );
-};
-
-const CountryCardTrendingToggle = ({ active, busy, onClick, countryName }) => {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      className={`inline-flex items-center rounded-full border p-1 transition-colors ${
-        active
-          ? "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:border-amber-400/60"
-          : "border-border bg-surface-3 text-text-muted hover:border-cyan/30"
-      } ${busy ? "cursor-wait opacity-60" : "cursor-pointer"}`}
-      aria-label={`${active ? "Disable" : "Enable"} trending for ${countryName}`}
-      aria-pressed={active}
-      title={active ? "Shown as trending" : "Not shown as trending"}
-    >
-      <span
-        className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
-          active ? "bg-amber-500" : "bg-surface-2 border border-border"
         }`}
       >
         <span
@@ -1798,6 +1904,9 @@ const Dashboard = () => {
     customerChatDescription: "Get instant support from our visa team",
     customerChatHeaderTitle: "Chat with us",
     customerChatHeaderSubtitle: "We typically reply in a few minutes",
+    footerBrandPrimaryText: "",
+    footerBrandAccentText: "",
+    footerDescription: "",
     whatsappTemplate: "",
     popularCountries: ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
     showPopularCountries: true,
@@ -1873,6 +1982,7 @@ const Dashboard = () => {
     { key: "processing-days", label: "Update Processing Days (universal)" },
     { key: "required-docs", label: "Documents Required (global)" },
     { key: "other-docs", label: "Other Documents Catalog (global)" },
+    { key: "footer-social-icons", label: "Footer Manager" },
     { key: "maintenance-mode", label: "Site maintenance mode" },
     { key: "customer-support", label: "Customer Support Widget" },
     { key: "destination-pages", label: "Destination pages (all countries)" },
@@ -1894,6 +2004,14 @@ const Dashboard = () => {
       setExpandedControlCards((prev) => ({ ...prev, [key]: Boolean(nextValue) })),
   });
   const [newPopularCountryTag, setNewPopularCountryTag] = useState("");
+  const [footerSocialIcons, setFooterSocialIcons] = useState([]);
+  const [footerSocialIconsLoading, setFooterSocialIconsLoading] = useState(false);
+  const [footerSocialIconModalOpen, setFooterSocialIconModalOpen] = useState(false);
+  const [footerSocialIconForm, setFooterSocialIconForm] = useState(DEFAULT_FOOTER_SOCIAL_ICON_FORM);
+  const [footerSocialIconErrors, setFooterSocialIconErrors] = useState({});
+  const [footerSocialIconEditingId, setFooterSocialIconEditingId] = useState("");
+  const [savingFooterSocialIcon, setSavingFooterSocialIcon] = useState(false);
+  const [footerSocialIconActionId, setFooterSocialIconActionId] = useState("");
 
   const addPopularTag = () => {
     const val = String(newPopularCountryTag || "").trim();
@@ -1915,6 +2033,149 @@ const Dashboard = () => {
       popularCountries: (prev.popularCountries || []).filter((_, index) => index !== indexToRemove),
     }));
   };
+
+  const resetFooterSocialIconForm = () => {
+    setFooterSocialIconForm(DEFAULT_FOOTER_SOCIAL_ICON_FORM);
+    setFooterSocialIconErrors({});
+    setFooterSocialIconEditingId("");
+  };
+
+  const closeFooterSocialIconModal = () => {
+    setFooterSocialIconModalOpen(false);
+    resetFooterSocialIconForm();
+  };
+
+  const openCreateFooterSocialIconModal = () => {
+    resetFooterSocialIconForm();
+    setFooterSocialIconModalOpen(true);
+  };
+
+  const openEditFooterSocialIconModal = (icon) => {
+    const type = normalizeFooterSocialIconType(icon?.type) || "instagram";
+    setFooterSocialIconEditingId(String(icon?._id || ""));
+    setFooterSocialIconForm({
+      label: String(icon?.label || ""),
+      type,
+      url: type === "email" ? normalizeFooterEmailValue(icon?.url) : String(icon?.url || ""),
+      isActive: icon?.isActive !== false,
+    });
+    setFooterSocialIconErrors({});
+    setFooterSocialIconModalOpen(true);
+  };
+
+  const fetchFooterSocialIcons = async ({ silent = false } = {}) => {
+    try {
+      if (!silent) setFooterSocialIconsLoading(true);
+      const { data } = await api.get("/admin/footer-social-icons");
+      if (data?.success) {
+        setFooterSocialIcons(Array.isArray(data.icons) ? data.icons : []);
+      } else {
+        setFooterSocialIcons([]);
+        if (!silent) showToast(data?.message || "Failed to load footer social icons.", "error");
+      }
+    } catch (error) {
+      setFooterSocialIcons([]);
+      if (!silent) {
+        showToast(error?.response?.data?.message || "Failed to load footer social icons.", "error");
+      }
+    } finally {
+      if (!silent) setFooterSocialIconsLoading(false);
+    }
+  };
+
+  const submitFooterSocialIcon = async () => {
+    const type = normalizeFooterSocialIconType(footerSocialIconForm.type);
+    const payload = {
+      label: String(footerSocialIconForm.label || "").trim(),
+      type,
+      url:
+        type === "email"
+          ? buildFooterEmailUrl(footerSocialIconForm.url)
+          : String(footerSocialIconForm.url || "").trim(),
+      isActive: footerSocialIconForm.isActive !== false,
+    };
+    const nextErrors = validateFooterSocialIconFormValues(payload);
+    setFooterSocialIconErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      showToast("Please fix the footer icon form errors.", "error");
+      return;
+    }
+
+    try {
+      setSavingFooterSocialIcon(true);
+      const request = footerSocialIconEditingId
+        ? api.put(`/admin/footer-social-icons/${footerSocialIconEditingId}`, payload)
+        : api.post("/admin/footer-social-icons", payload);
+      const { data } = await request;
+      if (data?.success) {
+        showToast(
+          data.message || (footerSocialIconEditingId ? "Footer icon updated." : "Footer icon created."),
+          "success"
+        );
+        closeFooterSocialIconModal();
+        await fetchFooterSocialIcons({ silent: true });
+      } else {
+        showToast(data?.message || "Failed to save footer social icon.", "error");
+      }
+    } catch (error) {
+      showToast(error?.response?.data?.message || "Failed to save footer social icon.", "error");
+    } finally {
+      setSavingFooterSocialIcon(false);
+    }
+  };
+
+  const handleFooterSocialIconStatusToggle = async (icon) => {
+    const iconId = String(icon?._id || "");
+    if (!iconId) return;
+
+    try {
+      setFooterSocialIconActionId(iconId);
+      const payload = {
+        label: String(icon?.label || ""),
+        type: normalizeFooterSocialIconType(icon?.type),
+        url: String(icon?.url || ""),
+        isActive: icon?.isActive === false,
+        order: Number.isFinite(Number(icon?.order)) ? Number(icon.order) : 0,
+      };
+      const { data } = await api.put(`/admin/footer-social-icons/${iconId}`, payload);
+      if (data?.success) {
+        showToast(
+          data.message || `"${payload.label}" ${payload.isActive ? "enabled" : "disabled"}.`,
+          "success"
+        );
+        await fetchFooterSocialIcons({ silent: true });
+      } else {
+        showToast(data?.message || "Failed to update footer social icon.", "error");
+      }
+    } catch (error) {
+      showToast(error?.response?.data?.message || "Failed to update footer social icon.", "error");
+    } finally {
+      setFooterSocialIconActionId("");
+    }
+  };
+
+  const deleteFooterSocialIconItem = async (icon) => {
+    const iconId = String(icon?._id || "");
+    const label = String(icon?.label || "this icon").trim();
+    if (!iconId) return;
+    if (!window.confirm(`Delete "${label}" from the footer social icons?`)) return;
+
+    try {
+      setFooterSocialIconActionId(iconId);
+      const { data } = await api.delete(`/admin/footer-social-icons/${iconId}`);
+      if (data?.success) {
+        showToast(data.message || `"${label}" deleted successfully.`, "success");
+        await fetchFooterSocialIcons({ silent: true });
+      } else {
+        showToast(data?.message || "Failed to delete footer social icon.", "error");
+      }
+    } catch (error) {
+      showToast(error?.response?.data?.message || "Failed to delete footer social icon.", "error");
+    } finally {
+      setFooterSocialIconActionId("");
+    }
+  };
+
   const [basePriceCustom, setBasePriceCustom] = useState("");
   const [governmentFeeCustom, setGovernmentFeeCustom] = useState("");
   const [basePriceApplyScope, setBasePriceApplyScope] = useState({ scope: "all", countryIds: [] });
@@ -2353,6 +2614,9 @@ const Dashboard = () => {
               customerChatDescription: s.customerChatDescription || "Get instant support from our visa team",
               customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
               customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
+              footerBrandPrimaryText: s.footerBrandPrimaryText || "",
+              footerBrandAccentText: s.footerBrandAccentText || "",
+              footerDescription: s.footerDescription || "",
               whatsappTemplate: s.whatsappTemplate || "",
               popularCountries: Array.isArray(s?.popularCountries) && s.popularCountries.length > 0
                 ? s.popularCountries
@@ -2360,6 +2624,7 @@ const Dashboard = () => {
               showPopularCountries: s.showPopularCountries !== false,
             }));
           }
+          await fetchFooterSocialIcons();
           await loadGlobalCountryDefaults();
         }
       } catch (error) {
@@ -2429,7 +2694,7 @@ const Dashboard = () => {
   const [countryForm, setCountryForm] = useState({
     name: "", flagEmoji: "🌍", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
     visaType: "", validity: "", lengthOfStay: "", entryType: "", continent: "", description: "", requirements: [""], imageUrl: "",
-    requiredDocuments: ["passport"], successRate: "80", trending: false, isActive: true,
+    requiredDocuments: ["passport"], successRate: "80", isActive: true,
     visaInformation: createVisaInformationState({}),
     whyBookNow: [], includedItems: [], faqs: [], howItWorks: [],
     useGlobalGst: true,
@@ -2564,8 +2829,9 @@ const Dashboard = () => {
   // ── Country Manager handlers ───────────────────────────────
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const [togglingCountryKey, setTogglingCountryKey] = useState(null);
-  const [togglingTrendingCountryKey, setTogglingTrendingCountryKey] = useState(null);
   const [bulkCountryToggleBusy, setBulkCountryToggleBusy] = useState(false);
+  const [resettingPopularityKey, setResettingPopularityKey] = useState(null);
+  const [resettingAllPopularity, setResettingAllPopularity] = useState(false);
   const syncVisaInfoCoreField = (field, value) => {
     setCountryForm((prev) => {
       const visaInformation = createVisaInformationState(prev);
@@ -2630,7 +2896,6 @@ const Dashboard = () => {
       basePrice: String(country.basePrice),
       governmentFee: String(country.governmentFee ?? 0),
       successRate: String(country.successRate ?? 80),
-      trending: Boolean(country.trending),
       isActive: country.isActive !== false,
       validity: String(country.validity ?? ""),
       lengthOfStay: String(country.lengthOfStay ?? ""),
@@ -2705,7 +2970,6 @@ const Dashboard = () => {
       requirements: countryForm.requirements.filter(Boolean),
       requiredDocuments: countryForm.requiredDocuments,
       successRate: Number(countryForm.successRate) || 80,
-      trending: Boolean(countryForm.trending),
       isActive: Boolean(countryForm.isActive),
       whyBookNow: (countryForm.whyBookNow || [])
         .map((s) => String(s ?? "").trim())
@@ -2791,33 +3055,6 @@ const Dashboard = () => {
     }
   };
 
-  const toggleCountryTrending = async (country) => {
-    const id = country?._id || country?.id || country?.slug;
-    if (!id) return;
-    const next = country?.trending !== true;
-    setTogglingTrendingCountryKey(String(id));
-    try {
-      const result = await updateCountry(id, { trending: next });
-      if (result?.success) {
-        if ((selectedCountry?._id || selectedCountry?.id || selectedCountry?.slug) === id) {
-          setSelectedCountry((prev) => (prev ? { ...prev, trending: next } : prev));
-          setCountryForm((prev) => ({ ...prev, trending: next }));
-        }
-        showToast("Trending status updated", "success");
-      } else {
-        showToast(result?.message || "Failed to update trending status", "error");
-      }
-    } catch (error) {
-      if (error?.response?.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-      showToast(error?.response?.data?.message || "Failed to update trending status", "error");
-    } finally {
-      setTogglingTrendingCountryKey(null);
-    }
-  };
-
   const bulkSetCountryActive = async (isActive) => {
     setBulkCountryToggleBusy(true);
     try {
@@ -2884,6 +3121,50 @@ const Dashboard = () => {
       );
     } finally {
       setBulkCountryToggleBusy(false);
+    }
+  };
+
+  const resetCountryPopularity = async (country) => {
+    const id = country?._id || country?.id || country?.slug;
+    if (!id) return;
+    setResettingPopularityKey(String(id));
+    try {
+      const { data } = await api.post(`/admin/countries/${id}/reset-popularity`);
+      if (data?.success) {
+        await fetchCountries();
+        showToast(data.message || `Popularity reset for ${country.name}.`, "success");
+      } else {
+        showToast(data?.message || "Failed to reset popularity.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || "Failed to reset popularity.", "error");
+    } finally {
+      setResettingPopularityKey(null);
+    }
+  };
+
+  const resetAllPopularity = async () => {
+    setResettingAllPopularity(true);
+    try {
+      const { data } = await api.post("/admin/countries/reset-popularity");
+      if (data?.success) {
+        await fetchCountries();
+        showToast(data.message || "Popularity reset for all countries.", "success");
+      } else {
+        showToast(data?.message || "Failed to reset popularity.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || "Failed to reset popularity.", "error");
+    } finally {
+      setResettingAllPopularity(false);
     }
   };
 
@@ -4685,6 +4966,15 @@ const Dashboard = () => {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={resetAllPopularity}
+                        disabled={resettingAllPopularity}
+                        id="country-manager-reset-all-popularity"
+                      >
+                        {resettingAllPopularity ? "Resetting..." : "Reset All Popularity"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => bulkSetCountryActive(true)}
                         disabled={bulkCountryToggleBusy}
                         id="country-manager-select-all"
@@ -4758,6 +5048,16 @@ const Dashboard = () => {
                           </div>
                           {/* Actions */}
                           <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => resetCountryPopularity(c)}
+                              disabled={Boolean(resettingPopularityKey && resettingPopularityKey !== String(c._id || c.id || c.slug))}
+                              className="p-1.5 rounded-lg hover:bg-cyan/10 text-text-muted hover:text-cyan transition-colors disabled:opacity-50"
+                              aria-label={`Reset popularity for ${c.name}`}
+                              title="Reset popularity"
+                            >
+                              <RotateCcw size={14} className={resettingPopularityKey === String(c._id || c.id || c.slug) ? "animate-spin" : ""} />
+                            </button>
                             <CountryCardActiveToggle
                               active={c.isActive !== false}
                               busy={togglingCountryKey === String(c._id || c.id || c.slug)}
@@ -4773,21 +5073,6 @@ const Dashboard = () => {
                               <Edit3 size={14} />
                             </button>
                           </div>
-                      </div>
-
-                      <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/40 px-3 py-2.5">
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-text-primary">Show as Trending</p>
-                          <p className="mt-0.5 text-[11px] text-text-muted">
-                            {c.trending ? "Visible in trending countries." : "Hidden from trending countries."}
-                          </p>
-                        </div>
-                        <CountryCardTrendingToggle
-                          active={c.trending === true}
-                          busy={togglingTrendingCountryKey === String(c._id || c.id || c.slug)}
-                          onClick={() => toggleCountryTrending(c)}
-                          countryName={c.name}
-                        />
                       </div>
 
                       {/* Required docs badges */}
@@ -4811,6 +5096,12 @@ const Dashboard = () => {
                         </span>
                         <span className="flex items-center gap-1">
                           <CheckCircle size={11} /> {c.successRate}%
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-text-muted">
+                        <span>Visits: {formatVisitCount(c.visitCount)}</span>
+                        <span className="truncate text-right">
+                          {c.lastVisitedAt ? `Last visit ${fmtDate(c.lastVisitedAt)}` : "No visits yet"}
                         </span>
                       </div>
                     </div>
@@ -6449,6 +6740,219 @@ const Dashboard = () => {
                 </div>
               </ExpandableAdminControlCard>
 
+              </div>
+
+              <div className={activeControlSection === "footer-social-icons" ? "" : "hidden"}>
+              <Card>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                        <Globe size={18} className="text-cyan" />
+                        Footer Manager
+                      </h2>
+                    </div>
+                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                      Manage the footer logo text, description, and social icons from one place. Current live footer content stays as the fallback until you save your own values here.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface-2/20 p-4 mb-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
+                        Footer Content
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Logo Primary Text"
+                          value={settingsForm.footerBrandPrimaryText}
+                          onChange={(e) =>
+                            setSettingsForm((prev) => ({ ...prev, footerBrandPrimaryText: e.target.value }))
+                          }
+                          placeholder='Visa &'
+                          helper="Leave blank to keep the current default footer logo text."
+                        />
+                        <Input
+                          label="Logo Accent Text"
+                          value={settingsForm.footerBrandAccentText}
+                          onChange={(e) =>
+                            setSettingsForm((prev) => ({ ...prev, footerBrandAccentText: e.target.value }))
+                          }
+                          placeholder="Voyage"
+                          helper="This keeps the highlighted second part of the logo."
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <Textarea
+                          label="Footer Description"
+                          rows={3}
+                          value={settingsForm.footerDescription}
+                          onChange={(e) =>
+                            setSettingsForm((prev) => ({ ...prev, footerDescription: e.target.value }))
+                          }
+                          placeholder="Your trusted partner for seamless visa applications worldwide. Fast, secure, and professionally managed."
+                          helper="Leave blank to keep the current footer description."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="w-full lg:w-[280px] rounded-2xl border border-border bg-background p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
+                        Preview
+                      </p>
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <div className="w-8 h-8 rounded-lg bg-cyan flex items-center justify-center">
+                          <Plane size={16} className="text-background" strokeWidth={2.5} />
+                        </div>
+                        <span className="font-bold text-xl text-text-primary">
+                          {String(settingsForm.footerBrandPrimaryText || "").trim() || "Visa &"}{" "}
+                          <span className="text-gradient-cyan">
+                            {String(settingsForm.footerBrandAccentText || "").trim() || "Voyage"}
+                          </span>
+                        </span>
+                      </div>
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {String(settingsForm.footerDescription || "").trim() ||
+                          "Your trusted partner for seamless visa applications worldwide. Fast, secure, and professionally managed."}
+                      </p>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="mt-4 w-full"
+                        leftIcon={<Save size={15} />}
+                        loading={savingSettingsKey === "footer-content"}
+                        onClick={() =>
+                          saveSettingsPartial(
+                            "footer-content",
+                            {
+                              footerBrandPrimaryText: settingsForm.footerBrandPrimaryText,
+                              footerBrandAccentText: settingsForm.footerBrandAccentText,
+                              footerDescription: settingsForm.footerDescription,
+                            },
+                            "Footer content updated successfully."
+                          )
+                        }
+                      >
+                        Save Footer Content
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                      Footer Social Icons
+                    </p>
+                    <p className="text-xs text-text-muted mt-1">
+                      Add, edit, delete, and enable or disable social icons without touching code.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="shrink-0"
+                    leftIcon={<Plus size={15} />}
+                    onClick={openCreateFooterSocialIconModal}
+                  >
+                    Add New Icon
+                  </Button>
+                </div>
+
+                {footerSocialIconsLoading ? (
+                  <div className="rounded-2xl border border-border bg-surface-2/40 px-4 py-10 text-center text-sm text-text-muted">
+                    Loading footer social icons...
+                  </div>
+                ) : footerSocialIcons.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border bg-surface-2/20 px-4 py-10 text-center">
+                    <p className="text-sm font-medium text-text-primary">No footer social icons added yet.</p>
+                    <p className="mt-1 text-xs text-text-muted">Create your first icon and it will appear automatically in the website footer when active.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {footerSocialIcons.map((icon) => {
+                      const iconId = String(icon?._id || "");
+                      const PreviewIcon = FOOTER_SOCIAL_ICON_COMPONENTS[normalizeFooterSocialIconType(icon?.type)] || LinkIcon;
+                      const isBusy = footerSocialIconActionId === iconId;
+                      return (
+                        <div
+                          key={iconId}
+                          className="rounded-2xl border border-border bg-surface-2/20 p-4"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 text-cyan">
+                                <PreviewIcon size={18} />
+                              </div>
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold text-text-primary">{icon.label}</p>
+                                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                    icon.isActive !== false
+                                      ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                                      : "bg-slate-500/10 text-text-muted border border-border"
+                                  }`}>
+                                    {icon.isActive !== false ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-text-muted">
+                                  {FOOTER_SOCIAL_ICON_TYPE_LABELS[normalizeFooterSocialIconType(icon.type)] || "Custom Link"}
+                                </p>
+                                <a
+                                  href={icon.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex max-w-full items-center gap-1.5 text-xs text-cyan hover:text-cyan/80"
+                                >
+                                  <span className="truncate">
+                                    {normalizeFooterSocialIconType(icon.type) === "email"
+                                      ? normalizeFooterEmailValue(icon.url)
+                                      : icon.url}
+                                  </span>
+                                  <ExternalLink size={12} className="shrink-0" />
+                                </a>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                leftIcon={<Edit3 size={14} />}
+                                onClick={() => openEditFooterSocialIconModal(icon)}
+                                disabled={isBusy}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                leftIcon={isBusy ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                                onClick={() => handleFooterSocialIconStatusToggle(icon)}
+                                disabled={isBusy}
+                              >
+                                {icon.isActive !== false ? "Disable" : "Enable"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                leftIcon={isBusy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                onClick={() => deleteFooterSocialIconItem(icon)}
+                                disabled={isBusy}
+                                className="text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
               </div>
 
               <div className={activeControlSection === "popular-countries" ? "" : "hidden"}>
@@ -8508,8 +9012,8 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Success rate + Trending */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Success rate */}
+          <div className="grid grid-cols-1 gap-3">
             <Input
               label="Success Rate (%)"
               type="number"
@@ -8517,16 +9021,6 @@ const Dashboard = () => {
               onChange={(e) => setCountryForm((p) => ({ ...p, successRate: e.target.value }))}
               id="country-success-rate"
               placeholder="80"
-            />
-            <Select
-              label="Featured / Trending"
-              value={countryForm.trending ? "true" : "false"}
-              onChange={(e) => setCountryForm((p) => ({ ...p, trending: e.target.value === "true" }))}
-              options={[
-                { value: "true", label: "Show as trending" },
-                { value: "false", label: "Normal country" },
-              ]}
-              id="country-trending"
             />
           </div>
 
@@ -9798,6 +10292,113 @@ const Dashboard = () => {
             );
           })()}
           </div>{/* /RIGHT column */}
+        </div>
+      </Modal>
+      <Modal
+        isOpen={footerSocialIconModalOpen}
+        onClose={savingFooterSocialIcon ? undefined : closeFooterSocialIconModal}
+        title={footerSocialIconEditingId ? "Edit Footer Social Icon" : "Add Footer Social Icon"}
+        size="lg"
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Icon Name / Label"
+              value={footerSocialIconForm.label}
+              onChange={(e) => {
+                setFooterSocialIconForm((prev) => ({ ...prev, label: e.target.value }));
+                if (footerSocialIconErrors.label) {
+                  setFooterSocialIconErrors((prev) => ({ ...prev, label: "" }));
+                }
+              }}
+              placeholder="Instagram"
+              error={footerSocialIconErrors.label}
+            />
+            <Select
+              label="Icon Type"
+              value={footerSocialIconForm.type}
+              onChange={(e) => {
+                const nextType = normalizeFooterSocialIconType(e.target.value) || "instagram";
+                setFooterSocialIconForm((prev) => ({ ...prev, type: nextType }));
+                setFooterSocialIconErrors((prev) => ({ ...prev, type: "", url: "" }));
+              }}
+              options={FOOTER_SOCIAL_ICON_TYPE_OPTIONS}
+              error={footerSocialIconErrors.type}
+            />
+          </div>
+
+          <Input
+            label="Icon URL / Link"
+            value={footerSocialIconForm.url}
+            onChange={(e) => {
+              setFooterSocialIconForm((prev) => ({ ...prev, url: e.target.value }));
+              if (footerSocialIconErrors.url) {
+                setFooterSocialIconErrors((prev) => ({ ...prev, url: "" }));
+              }
+            }}
+            placeholder={getFooterSocialIconTypeHelper(footerSocialIconForm.type)}
+            helper={getFooterSocialIconTypeHelper(footerSocialIconForm.type)}
+            error={footerSocialIconErrors.url}
+          />
+
+          <div className="rounded-2xl border border-border bg-surface-2/30 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Status</p>
+              <p className="text-xs text-text-muted mt-1">Inactive icons stay saved in MongoDB but stay hidden from the public footer.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setFooterSocialIconForm((prev) => ({ ...prev, isActive: prev.isActive === false }))
+              }
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                footerSocialIconForm.isActive !== false
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : "border-border bg-background text-text-muted"
+              }`}
+            >
+              {footerSocialIconForm.isActive !== false ? <CheckCircle size={14} /> : <X size={14} />}
+              {footerSocialIconForm.isActive !== false ? "Active" : "Inactive"}
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface-2/20 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">Preview</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 text-cyan">
+                {(() => {
+                  const PreviewIcon = FOOTER_SOCIAL_ICON_COMPONENTS[normalizeFooterSocialIconType(footerSocialIconForm.type)] || LinkIcon;
+                  return <PreviewIcon size={18} />;
+                })()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text-primary">
+                  {footerSocialIconForm.label.trim() || "Footer social icon"}
+                </p>
+                <p className="text-xs text-text-muted">
+                  {FOOTER_SOCIAL_ICON_TYPE_LABELS[normalizeFooterSocialIconType(footerSocialIconForm.type)] || "Custom Link"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end pt-2">
+            <Button
+              variant="secondary"
+              onClick={closeFooterSocialIconModal}
+              disabled={savingFooterSocialIcon}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              leftIcon={<Save size={15} />}
+              loading={savingFooterSocialIcon}
+              onClick={submitFooterSocialIcon}
+            >
+              {footerSocialIconEditingId ? "Save Changes" : "Create Icon"}
+            </Button>
+          </div>
         </div>
       </Modal>
       <datalist id="remix-icon-suggestions">
