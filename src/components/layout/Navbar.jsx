@@ -8,12 +8,14 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Globe, ChevronDown, User, LayoutDashboard,
-  Shield, LogOut, Menu, X, Plane,
+  Shield, LogOut, Menu, X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import Button from "../ui/Button";
+
+const BRAND_LOGO_SRC = "/images/visa-voyage-logo.png";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -83,15 +85,14 @@ const Navbar = () => {
             {/* ── Logo ── */}
             <Link
               to="/"
-              className="flex items-center gap-2.5 group"
+              className="flex h-16 items-center"
               aria-label="Visa & Voyage Home"
             >
-              <div className="w-8 h-8 rounded-lg bg-cyan flex items-center justify-center group-hover:shadow-cyan-glow transition-shadow duration-300">
-                <Plane size={16} className="text-background" strokeWidth={2.5} />
-              </div>
-              <span className="font-bold text-xl tracking-tight">
-                Visa & <span className="text-gradient-cyan">Voyage</span>
-              </span>
+              <img
+                src={BRAND_LOGO_SRC}
+                alt="Visa & Voyage"
+                className="block h-16 w-auto object-contain scale-[2.2] sm:scale-[2.8] origin-left"
+              />
             </Link>
 
             {/* ── Desktop nav links ── */}

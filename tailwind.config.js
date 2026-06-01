@@ -12,17 +12,18 @@ export default {
       // ── Custom Color Palette ──────────────────────────────
       colors: {
         // Base backgrounds - Light theme
-        background: "#f0f4f8",
-        surface:    "#ffffff",
-        "surface-2":"#f8f9fa",
-        "surface-3":"#e9ecf1",
+        background: "#ffffff",     // Pure white background
+        surface:    "#ffffff",     // White card surfaces
+        "surface-2":"#f4f9ff",     // Very light blue for subtle backgrounds
+        "surface-3":"#e6f0fa",     // Light blue for hover states
 
-        // Primary accent — Cyan (light theme)
+        // Primary accent — Royal Blue (Dark & Light theme)
         cyan: {
-          DEFAULT: "#0284c7",
-          dim:     "#0369a1",
-          glow:    "rgba(2, 132, 199, 0.12)",
-          border:  "rgba(2, 132, 199, 0.25)",
+          light:   "#dbeafe", // Soft light blue for backgrounds
+          DEFAULT: "#0252D5", // Royal blue
+          dim:     "#013b9e", // Darker blue for active/hover
+          glow:    "rgba(2, 82, 213, 0.15)",
+          border:  "rgba(2, 82, 213, 0.3)",
         },
 
         // Secondary accent — Gold
@@ -40,11 +41,11 @@ export default {
           rejected: "#ef4444",
         },
 
-        // Text hierarchy - Light theme
+        // Text hierarchy - High Contrast
         text: {
-          primary:   "#000000",
-          secondary: "#4b5563",
-          muted:     "#9ca3af",
+          primary:   "#000000",   // Pure black for maximum readability
+          secondary: "#334155",   // Dark slate for secondary text
+          muted:     "#64748b",   // Medium slate for disabled/muted (better contrast)
         },
 
         // Border
@@ -73,8 +74,8 @@ export default {
 
       // ── Box Shadows ───────────────────────────────────────
       boxShadow: {
-        "cyan-glow":   "0 0 20px rgba(2, 132, 199, 0.2)",
-        "cyan-glow-lg":"0 0 40px rgba(2, 132, 199, 0.25)",
+        "cyan-glow":   "0 0 20px rgba(2, 82, 213, 0.2)",
+        "cyan-glow-lg":"0 0 40px rgba(2, 82, 213, 0.25)",
         "gold-glow":   "0 0 20px rgba(217, 119, 6, 0.2)",
         "card":        "0 2px 8px rgba(0, 0, 0, 0.08)",
         "modal":       "0 4px 16px rgba(0, 0, 0, 0.12)",
@@ -101,8 +102,8 @@ export default {
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
         pulseCyan: {
-          "0%, 100%": { boxShadow: "0 0 10px rgba(2, 132, 199, 0.2)" },
-          "50%":      { boxShadow: "0 0 30px rgba(2, 132, 199, 0.4)" },
+          "0%, 100%": { boxShadow: "0 0 10px rgba(2, 82, 213, 0.2)" },
+          "50%":      { boxShadow: "0 0 30px rgba(2, 82, 213, 0.4)" },
         },
       },
 

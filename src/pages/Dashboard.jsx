@@ -6802,16 +6802,12 @@ const Dashboard = () => {
                       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
                         Preview
                       </p>
-                      <div className="flex items-center gap-2.5 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-cyan flex items-center justify-center">
-                          <Plane size={16} className="text-background" strokeWidth={2.5} />
-                        </div>
-                        <span className="font-bold text-xl text-text-primary">
-                          {String(settingsForm.footerBrandPrimaryText || "").trim() || "Visa &"}{" "}
-                          <span className="text-gradient-cyan">
-                            {String(settingsForm.footerBrandAccentText || "").trim() || "Voyage"}
-                          </span>
-                        </span>
+                      <div className="mb-3 flex items-center">
+                        <img
+                          src="/images/visa-voyage-logo.png"
+                          alt="Visa & Voyage"
+                          className="block h-12 max-h-12 w-auto object-contain"
+                        />
                       </div>
                       <p className="text-sm text-text-secondary leading-relaxed">
                         {String(settingsForm.footerDescription || "").trim() ||
