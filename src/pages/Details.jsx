@@ -792,7 +792,7 @@ const Details = () => {
                       )}
                       {otherDocs.length > 0 && (
                         <div className="mt-2">
-                          <p className="text-[11px] text-text-muted mb-1.5">Other Documents ({otherDocs.length})</p>
+                          <p className="text-[11px] text-text-muted mb-1.5">Optional Documents ({otherDocs.length})</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                             {otherDocs.map((path, docIdx) => {
                               const fileName = String(path).split("/").pop();

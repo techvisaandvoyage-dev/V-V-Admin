@@ -1129,10 +1129,6 @@ const mapApiSettingsToFormState = (s, activeCountryIds = []) => ({
   footerBrandAccentText: s.footerBrandAccentText || "",
   footerDescription: s.footerDescription || "",
   whatsappTemplate: s.whatsappTemplate || "",
-  popularCountries: Array.isArray(s?.popularCountries) && s.popularCountries.length > 0
-    ? s.popularCountries
-    : ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
-  showPopularCountries: s.showPopularCountries !== false,
 });
 
 const integrationFlagsFromSettings = (s) => {
@@ -1908,8 +1904,6 @@ const Dashboard = () => {
     footerBrandAccentText: "",
     footerDescription: "",
     whatsappTemplate: "",
-    popularCountries: ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
-    showPopularCountries: true,
   });
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
@@ -1981,12 +1975,11 @@ const Dashboard = () => {
     { key: "validity", label: "Update Validity (universal)" },
     { key: "processing-days", label: "Update Processing Days (universal)" },
     { key: "required-docs", label: "Documents Required (global)" },
-    { key: "other-docs", label: "Other Documents Catalog (global)" },
+    { key: "other-docs", label: "Optional Documents Catalog (global)" },
     { key: "footer-social-icons", label: "Footer Manager" },
     { key: "maintenance-mode", label: "Site maintenance mode" },
     { key: "customer-support", label: "Customer Support Widget" },
     { key: "destination-pages", label: "Destination pages (all countries)" },
-    { key: "popular-countries", label: "Popular Countries (Landing Page)" },
   ];
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
   const [expandedControlCards, setExpandedControlCards] = useState({});
@@ -2003,7 +1996,6 @@ const Dashboard = () => {
     onExpandedChange: (nextValue) =>
       setExpandedControlCards((prev) => ({ ...prev, [key]: Boolean(nextValue) })),
   });
-  const [newPopularCountryTag, setNewPopularCountryTag] = useState("");
   const [footerSocialIcons, setFooterSocialIcons] = useState([]);
   const [footerSocialIconsLoading, setFooterSocialIconsLoading] = useState(false);
   const [footerSocialIconModalOpen, setFooterSocialIconModalOpen] = useState(false);
@@ -2012,27 +2004,6 @@ const Dashboard = () => {
   const [footerSocialIconEditingId, setFooterSocialIconEditingId] = useState("");
   const [savingFooterSocialIcon, setSavingFooterSocialIcon] = useState(false);
   const [footerSocialIconActionId, setFooterSocialIconActionId] = useState("");
-
-  const addPopularTag = () => {
-    const val = String(newPopularCountryTag || "").trim();
-    if (!val) return;
-    if (settingsForm.popularCountries?.includes(val)) {
-      showToast("This country tag already exists.", "warning");
-      return;
-    }
-    setSettingsForm((prev) => ({
-      ...prev,
-      popularCountries: [...(prev.popularCountries || []), val],
-    }));
-    setNewPopularCountryTag("");
-  };
-
-  const removePopularTag = (indexToRemove) => {
-    setSettingsForm((prev) => ({
-      ...prev,
-      popularCountries: (prev.popularCountries || []).filter((_, index) => index !== indexToRemove),
-    }));
-  };
 
   const resetFooterSocialIconForm = () => {
     setFooterSocialIconForm(DEFAULT_FOOTER_SOCIAL_ICON_FORM);
@@ -2618,10 +2589,6 @@ const Dashboard = () => {
               footerBrandAccentText: s.footerBrandAccentText || "",
               footerDescription: s.footerDescription || "",
               whatsappTemplate: s.whatsappTemplate || "",
-              popularCountries: Array.isArray(s?.popularCountries) && s.popularCountries.length > 0
-                ? s.popularCountries
-                : ["USA", "UK", "EU Schengen", "Dubai", "Japan"],
-              showPopularCountries: s.showPopularCountries !== false,
             }));
           }
           await fetchFooterSocialIcons();
@@ -6363,11 +6330,7 @@ const Dashboard = () => {
                               value={label}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                setDocumentCatalog((prev) => {
-                                  const next = [...prev];
-                                  next[index] = { ...next[index], label: value };
-                                  return next;
-                                });
+                                setDocumentCatalog(prev => prev.map(d => d.key === key ? { ...d, label: value } : d));
                               }}
                               placeholder="Document name"
                             />
@@ -6377,11 +6340,7 @@ const Dashboard = () => {
                               value={description}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                setDocumentCatalog((prev) => {
-                                  const next = [...prev];
-                                  next[index] = { ...next[index], description: value };
-                                  return next;
-                                });
+                                setDocumentCatalog(prev => prev.map(d => d.key === key ? { ...d, description: value } : d));
                               }}
                               placeholder="Short document description shown to applicants"
                             />
@@ -6410,11 +6369,7 @@ const Dashboard = () => {
                                   value={icon}
                                   onChange={(e) => {
                                     const value = e.target.value;
-                                    setDocumentCatalog((prev) => {
-                                      const next = [...prev];
-                                      next[index] = { ...next[index], icon: value };
-                                      return next;
-                                    });
+                                    setDocumentCatalog(prev => prev.map(d => d.key === key ? { ...d, icon: value } : d));
                                   }}
                                   placeholder="ri-passport-line"
                                   list="custom-document-icon-suggestions"
@@ -6437,7 +6392,7 @@ const Dashboard = () => {
                                   size="sm"
                                   className="h-[46px] px-4"
                                   loading={savingDocumentMetaKey === key}
-                                  onClick={() => runSaveDocumentCatalogEntry(documentCatalog[index])}
+                                  onClick={() => runSaveDocumentCatalogEntry(doc)}
                                   leftIcon={<Save size={14} />}
                                 >
                                   Save
@@ -6553,11 +6508,11 @@ const Dashboard = () => {
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-semibold text-text-primary flex items-center gap-2">
                         <ScrollText size={18} className="text-cyan" />
-                        Other Documents Catalog (global)
+                        Optional Documents Catalog (global)
                       </h2>
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Manage the global supporting-document library separately from required documents. Add, edit, or remove other documents here and assign a Remix icon for each item.
+                      Manage the global supporting-document library separately from required documents. Add, edit, or remove optional documents here and assign a Remix icon for each item.
                     </p>
                   </div>
                   <Button
@@ -6663,11 +6618,7 @@ const Dashboard = () => {
                               value={label}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                setDocumentCatalog((prev) => {
-                                  const next = [...prev];
-                                  next[index] = { ...next[index], label: value };
-                                  return next;
-                                });
+                                setDocumentCatalog(prev => prev.map(d => d.key === key ? { ...d, label: value } : d));
                               }}
                               placeholder="Document name"
                             />
@@ -6677,11 +6628,7 @@ const Dashboard = () => {
                               value={description}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                setDocumentCatalog((prev) => {
-                                  const next = [...prev];
-                                  next[index] = { ...next[index], description: value };
-                                  return next;
-                                });
+                                setDocumentCatalog(prev => prev.map(d => d.key === key ? { ...d, description: value } : d));
                               }}
                               placeholder="Short document description shown to applicants"
                             />
@@ -6692,11 +6639,7 @@ const Dashboard = () => {
                                   value={icon}
                                   onChange={(e) => {
                                     const value = e.target.value;
-                                    setDocumentCatalog((prev) => {
-                                      const next = [...prev];
-                                      next[index] = { ...next[index], icon: value };
-                                      return next;
-                                    });
+                                    setDocumentCatalog(prev => prev.map(d => d.key === key ? { ...d, icon: value } : d));
                                   }}
                                   placeholder="ri-passport-line"
                                   list="custom-document-icon-suggestions"
@@ -6719,7 +6662,7 @@ const Dashboard = () => {
                                   size="sm"
                                   className="h-[46px] px-4"
                                   loading={savingDocumentMetaKey === key}
-                                  onClick={() => runSaveDocumentCatalogEntry(documentCatalog[index])}
+                                  onClick={() => runSaveDocumentCatalogEntry(doc)}
                                   leftIcon={<Save size={14} />}
                                 >
                                   Save
@@ -6951,117 +6894,6 @@ const Dashboard = () => {
                     })}
                   </div>
                 )}
-              </Card>
-              </div>
-
-              <div className={activeControlSection === "popular-countries" ? "" : "hidden"}>
-              <Card>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <MapPin size={18} className="text-cyan" />
-                        Popular Countries (Landing Page Search Bar)
-                      </h2>
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Manage the popular countries tags shown directly under the search bar in the landing page hero section. These tags allow users to search and filter instantly by clicking them.
-                    </p>
-                    <div className="mt-4">
-                      <DisplayToggle
-                        active={settingsForm.showPopularCountries}
-                        onClick={() =>
-                          setSettingsForm((prev) => ({
-                            ...prev,
-                            showPopularCountries: !prev.showPopularCountries,
-                          }))
-                        }
-                        labelOn="Popular Countries Block Visible"
-                        labelOff="Popular Countries Block Hidden"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingSettingsKey === "popular-countries"}
-                    onClick={() => {
-                      saveSettingsPartial(
-                        "popular-countries",
-                        {
-                          popularCountries: settingsForm.popularCountries,
-                          showPopularCountries: settingsForm.showPopularCountries,
-                        },
-                        "Popular countries tags saved successfully."
-                      );
-                    }}
-                  >
-                    Save Changes
-                  </Button>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
-                      Current Tags
-                    </label>
-                    {Array.isArray(settingsForm.popularCountries) && settingsForm.popularCountries.length > 0 ? (
-                      <div className="flex flex-wrap gap-2.5">
-                        {settingsForm.popularCountries.map((tag, idx) => (
-                          <span
-                            key={`popular-tag-${idx}`}
-                            className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-[#146fd8] shadow-sm transition-all hover:bg-sky-100"
-                          >
-                            {tag}
-                            <button
-                              type="button"
-                              onClick={() => removePopularTag(idx)}
-                              className="text-sky-400 hover:text-red-500 font-bold transition-all text-sm pl-1"
-                              title={`Remove ${tag}`}
-                            >
-                              &times;
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-text-muted">
-                        No popular country tags configured. The landing page will fall back to default values.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-border pt-4">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
-                      Add New Tag
-                    </label>
-                    <div className="flex items-center gap-3 max-w-md">
-                      <Input
-                        id="new-popular-tag-input"
-                        placeholder="e.g. Canada, Germany, Singapore..."
-                        value={newPopularCountryTag}
-                        onChange={(e) => setNewPopularCountryTag(e.target.value)}
-                        className="flex-1"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addPopularTag();
-                          }
-                        }}
-                      />
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={addPopularTag}
-                        className="h-10 px-5 rounded-xl border border-sky-100 hover:bg-sky-50 text-cyan font-semibold shrink-0"
-                      >
-                        Add Tag
-                      </Button>
-                    </div>
-                  </div>
-                </div>
               </Card>
               </div>
 
