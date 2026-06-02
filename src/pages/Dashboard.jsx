@@ -1147,6 +1147,22 @@ const integrationFlagsFromSettings = (s) => {
   };
 };
 
+const DEFAULT_OTP_SETTINGS = {
+  sms: { enabled: false, provider: "MSG91", authKey: "", templateId: "", otpLength: "6" },
+  whatsapp: { enabled: false, provider: "MSG91 WhatsApp", authKey: "", templateId: "", businessNumber: "", otpLength: "6" },
+  email: { enabled: true, provider: "Custom SMTP", apiKey: "", senderEmail: "", senderName: "", templateId: "", otpLength: "6" },
+  priority: { primary: "whatsapp", fallback1: "sms", fallback2: "email" },
+  testing: { enabled: false, autofillEnabled: true },
+};
+
+const mapApiOtpSettingsToFormState = (settings = {}) => ({
+  sms: { ...DEFAULT_OTP_SETTINGS.sms, ...(settings.sms || {}) },
+  whatsapp: { ...DEFAULT_OTP_SETTINGS.whatsapp, ...(settings.whatsapp || {}) },
+  email: { ...DEFAULT_OTP_SETTINGS.email, ...(settings.email || {}) },
+  priority: { ...DEFAULT_OTP_SETTINGS.priority, ...(settings.priority || {}) },
+  testing: { ...DEFAULT_OTP_SETTINGS.testing, ...(settings.testing || {}) },
+});
+
 /**
  * Compact "switch" used inside each universal control card header. Renders as a
  * pill with an animated knob — green when the field is visible on the public
@@ -1905,6 +1921,7 @@ const Dashboard = () => {
     footerDescription: "",
     whatsappTemplate: "",
   });
+  const [otpSettingsForm, setOtpSettingsForm] = useState(DEFAULT_OTP_SETTINGS);
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
   /**
@@ -2434,6 +2451,10 @@ const Dashboard = () => {
           setIsSms91Configured(flags.isSms91Configured);
           setIsUnsplashConfigured(flags.isUnsplashConfigured);
           setSettingsForm(mapApiSettingsToFormState(s, latestActiveCountryIds));
+        }
+        const otpRes = await api.get("/admin/auth-settings");
+        if (otpRes.data?.success && otpRes.data?.settings) {
+          setOtpSettingsForm(mapApiOtpSettingsToFormState(otpRes.data.settings));
         }
       } catch (error) {
         console.error("Error initializing settings:", error);
@@ -3454,6 +3475,30 @@ const Dashboard = () => {
         handleUnauthorized();
       }
       // Defaults stay at their initial empty values — the UI will show "Not set yet".
+    }
+  };
+
+  const saveOtpSettingsCard = async (sectionKey, endpoint, payload, successMessage) => {
+    setSavingSettingsKey(sectionKey);
+    try {
+      const { data } = await api.put(endpoint, payload);
+      if (!data.success) {
+        showToast(data.message || "Failed to save OTP settings", "error");
+        return;
+      }
+      if (data.settings) {
+        setOtpSettingsForm(mapApiOtpSettingsToFormState(data.settings));
+      }
+      showToast(successMessage, "success");
+    } catch (error) {
+      console.error("Error saving OTP settings:", error);
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error.response?.data?.message || "Failed to save OTP settings", "error");
+    } finally {
+      setSavingSettingsKey(null);
     }
   };
 
@@ -8121,129 +8166,154 @@ const Dashboard = () => {
                 </div>
               </SettingsSectionCard>
 
-              <SettingsSectionCard
-                title="Email OTP — SMTP"
-                description="Used to send signup, login, and forgot-password OTP (same Nodemailer path for all). Save both email and app password on this card, or keep the app password only in server .env (EMAIL_PASS) with the mailbox here."
-                whereToFind={
-                  <>
-                    Use your mail provider's SMTP settings (e.g. Gmail: Google Account &gt; Security &gt; App passwords, or Brevo SMTP credentials). Paste the mailbox address and app password below. Service is usually <strong className="text-text-primary">gmail</strong> or <strong className="text-text-primary">brevo</strong>.
-                  </>
-                }
-                statusSlot={
-                  <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isSmtpConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
-                    {isSmtpConfigured
-                      ? "SMTP email + password are on file."
-                      : "Paste SMTP email and password, then save this card (or set EMAIL_USER / EMAIL_PASS on the server)."}
+              <div className="rounded-2xl border border-border bg-surface p-5">
+                <div className="mb-5 flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan/10 text-cyan">
+                    <Lock size={18} />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">OTP &amp; Authentication Settings</h3>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      Control SMS, WhatsApp, and Email OTP delivery for the popup login and older signup/register flow.
+                    </p>
                   </div>
-                }
-                saveLabel="Save SMTP"
-                saveButtonId="save-settings-smtp"
-                isSaving={savingSettingsKey === "smtp"}
-                onSave={() =>
-                  saveSettingsPartial(
-                    "smtp",
-                    {
-                      smtpEmailUser: settingsForm.smtpEmailUser,
-                      smtpEmailPass: settingsForm.smtpEmailPass,
-                      smtpFromEmail: settingsForm.smtpFromEmail,
-                      smtpEmailService: settingsForm.smtpEmailService,
-                    },
-                    "SMTP settings saved.",
-                  )
-                }
-              >
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <Input
-                    label="SMTP email — paste login address"
-                    type="email"
-                    value={settingsForm.smtpEmailUser}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, smtpEmailUser: e.target.value }))}
-                    id="setting-smtp-user"
-                    placeholder="noreply@yourdomain.com"
-                  />
-                  <Input
-                    label="SMTP password — paste app password"
-                    type="password"
-                    value={settingsForm.smtpEmailPass}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, smtpEmailPass: e.target.value }))}
-                    id="setting-smtp-pass"
-                  />
-                  <Input
-                    label="From email — verified sender"
-                    type="email"
-                    value={settingsForm.smtpFromEmail}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, smtpFromEmail: e.target.value }))}
-                    id="setting-smtp-from"
-                    placeholder="noreply@yourdomain.com"
-                    helper="For Brevo, use a verified sender email here. Do not use the smtp-brevo login as the visible From address."
-                  />
-                  <Input
-                    label="Nodemailer service name"
-                    value={settingsForm.smtpEmailService}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, smtpEmailService: e.target.value }))}
-                    id="setting-smtp-service"
-                    placeholder="gmail"
-                    helper="Use gmail for Gmail SMTP, or brevo for Brevo SMTP relay. Must match the server transport configuration."
-                  />
                 </div>
-              </SettingsSectionCard>
 
-              <SettingsSectionCard
-                title="SMS91 — phone OTP (optional)"
-                description="Real SMS codes for phone login. Leave empty if you only use email OTP."
-                whereToFind={
-                  <>
-                    SMS91 dashboard → copy <strong className="text-text-primary">Auth key</strong> and your OTP <strong className="text-text-primary">Template ID</strong>. Pick OTP length to match your template.
-                  </>
-                }
-                statusSlot={
-                  <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isSms91Configured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
-                    {isSms91Configured
-                      ? "SMS91 auth key + template ID are on file."
-                      : "Paste auth key and template ID, then save this card."}
-                  </div>
-                }
-                saveLabel="Save SMS91"
-                saveButtonId="save-settings-sms91"
-                isSaving={savingSettingsKey === "sms91"}
-                onSave={() =>
-                  saveSettingsPartial(
-                    "sms91",
-                    {
-                      sms91AuthKey: settingsForm.sms91AuthKey,
-                      sms91TemplateId: settingsForm.sms91TemplateId,
-                      sms91OtpLength: settingsForm.sms91OtpLength,
-                    },
-                    "SMS91 settings saved.",
-                  )
-                }
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Input
-                    label="Auth key — paste here"
-                    type="password"
-                    value={settingsForm.sms91AuthKey}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, sms91AuthKey: e.target.value }))}
-                    id="setting-sms91-auth-key"
-                  />
-                  <Input
-                    label="Template ID — paste here"
-                    value={settingsForm.sms91TemplateId}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, sms91TemplateId: e.target.value }))}
-                    id="setting-sms91-template-id"
-                  />
-                  <Select
-                    label="OTP length"
-                    value={settingsForm.sms91OtpLength}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, sms91OtpLength: e.target.value }))}
-                    options={[
-                      { value: "6", label: "6 digits" },
-                      { value: "4", label: "4 digits" },
-                    ]}
-                    id="setting-sms91-otp-length"
-                  />
+                <div className="space-y-5">
+                  <SettingsSectionCard
+                    title="OTP Testing Only"
+                    description="Use local test OTP without SMS, WhatsApp, or email provider setup. Turn this off before using real OTP providers."
+                    saveLabel="Save Testing Settings"
+                    saveButtonId="save-auth-settings-testing"
+                    isSaving={savingSettingsKey === "otp-testing"}
+                    onSave={() =>
+                      saveOtpSettingsCard("otp-testing", "/admin/auth-settings/testing", {
+                        enabled: otpSettingsForm.testing.enabled,
+                        autofillEnabled: otpSettingsForm.testing.autofillEnabled,
+                      }, "OTP testing settings saved.")
+                    }
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <label className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-primary">
+                        <input type="checkbox" checked={otpSettingsForm.testing.enabled} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, testing: { ...p.testing, enabled: e.target.checked } }))} />
+                        Enable testing OTP
+                      </label>
+                      <label className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-primary">
+                        <input type="checkbox" checked={otpSettingsForm.testing.autofillEnabled} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, testing: { ...p.testing, autofillEnabled: e.target.checked } }))} />
+                        Autofill test OTP in popup
+                      </label>
+                    </div>
+                    <p className="mt-3 text-xs text-text-muted">
+                      When enabled, OTP is generated by the server and stored securely for verification, but no real provider is called.
+                    </p>
+                  </SettingsSectionCard>
+
+                  <SettingsSectionCard
+                    title="SMS OTP Settings"
+                    description="Enable SMS OTP through MSG91/SMS91."
+                    saveLabel="Save SMS Settings"
+                    saveButtonId="save-auth-settings-sms"
+                    isSaving={savingSettingsKey === "otp-sms"}
+                    onSave={() =>
+                      saveOtpSettingsCard("otp-sms", "/admin/auth-settings/sms", {
+                        enabled: otpSettingsForm.sms.enabled,
+                        provider: otpSettingsForm.sms.provider,
+                        authKey: otpSettingsForm.sms.authKey,
+                        templateId: otpSettingsForm.sms.templateId,
+                        otpLength: otpSettingsForm.sms.otpLength,
+                      }, "SMS OTP settings saved.")
+                    }
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      <label className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-primary">
+                        <input type="checkbox" checked={otpSettingsForm.sms.enabled} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, sms: { ...p.sms, enabled: e.target.checked } }))} />
+                        Enable SMS OTP
+                      </label>
+                      <Input label="Provider name" value={otpSettingsForm.sms.provider} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, sms: { ...p.sms, provider: e.target.value } }))} placeholder="MSG91 / SMS91" />
+                      <Input label="Auth Key" type="password" value={otpSettingsForm.sms.authKey} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, sms: { ...p.sms, authKey: e.target.value } }))} helper="Paste provider auth key from MSG91 dashboard." />
+                      <Input label="OTP Template ID" value={otpSettingsForm.sms.templateId} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, sms: { ...p.sms, templateId: e.target.value } }))} helper="Paste approved OTP template ID." />
+                      <Select label="OTP Length" value={otpSettingsForm.sms.otpLength} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, sms: { ...p.sms, otpLength: e.target.value } }))} helper="Must match your approved template." options={[{ value: "4", label: "4 digits" }, { value: "6", label: "6 digits" }]} />
+                    </div>
+                  </SettingsSectionCard>
+
+                  <SettingsSectionCard
+                    title="WhatsApp OTP Settings"
+                    description="Enable WhatsApp OTP through MSG91 WhatsApp templates."
+                    saveLabel="Save WhatsApp Settings"
+                    saveButtonId="save-auth-settings-whatsapp"
+                    isSaving={savingSettingsKey === "otp-whatsapp"}
+                    onSave={() =>
+                      saveOtpSettingsCard("otp-whatsapp", "/admin/auth-settings/whatsapp", {
+                        enabled: otpSettingsForm.whatsapp.enabled,
+                        provider: otpSettingsForm.whatsapp.provider,
+                        authKey: otpSettingsForm.whatsapp.authKey,
+                        templateId: otpSettingsForm.whatsapp.templateId,
+                        businessNumber: otpSettingsForm.whatsapp.businessNumber,
+                        otpLength: otpSettingsForm.whatsapp.otpLength,
+                      }, "WhatsApp OTP settings saved.")
+                    }
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                      <label className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-primary">
+                        <input type="checkbox" checked={otpSettingsForm.whatsapp.enabled} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, whatsapp: { ...p.whatsapp, enabled: e.target.checked } }))} />
+                        Enable WhatsApp OTP
+                      </label>
+                      <Input label="Provider" value={otpSettingsForm.whatsapp.provider} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, whatsapp: { ...p.whatsapp, provider: e.target.value } }))} placeholder="MSG91 WhatsApp" />
+                      <Input label="Auth Key / API Key" type="password" value={otpSettingsForm.whatsapp.authKey} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, whatsapp: { ...p.whatsapp, authKey: e.target.value } }))} helper="Paste provider auth key from MSG91 dashboard." />
+                      <Input label="WhatsApp Template ID" value={otpSettingsForm.whatsapp.templateId} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, whatsapp: { ...p.whatsapp, templateId: e.target.value } }))} helper="Paste approved OTP template ID." />
+                      <Input label="WhatsApp Business Number" value={otpSettingsForm.whatsapp.businessNumber} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, whatsapp: { ...p.whatsapp, businessNumber: e.target.value } }))} helper="WhatsApp Business API number connected to MSG91." />
+                      <Select label="OTP Length" value={otpSettingsForm.whatsapp.otpLength} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, whatsapp: { ...p.whatsapp, otpLength: e.target.value } }))} helper="Must match your approved template." options={[{ value: "4", label: "4 digits" }, { value: "6", label: "6 digits" }]} />
+                    </div>
+                  </SettingsSectionCard>
+
+                  <SettingsSectionCard
+                    title="Email OTP Settings"
+                    description="Enable Email OTP using MSG91 Email, Brevo, AWS SES, or existing SMTP."
+                    saveLabel="Save Email Settings"
+                    saveButtonId="save-auth-settings-email"
+                    isSaving={savingSettingsKey === "otp-email"}
+                    onSave={() =>
+                      saveOtpSettingsCard("otp-email", "/admin/auth-settings/email", {
+                        enabled: otpSettingsForm.email.enabled,
+                        provider: otpSettingsForm.email.provider,
+                        apiKey: otpSettingsForm.email.apiKey,
+                        senderEmail: otpSettingsForm.email.senderEmail,
+                        senderName: otpSettingsForm.email.senderName,
+                        templateId: otpSettingsForm.email.templateId,
+                        otpLength: otpSettingsForm.email.otpLength,
+                      }, "Email OTP settings saved.")
+                    }
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+                      <label className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-primary">
+                        <input type="checkbox" checked={otpSettingsForm.email.enabled} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, enabled: e.target.checked } }))} />
+                        Enable Email OTP
+                      </label>
+                      <Select label="Provider" value={otpSettingsForm.email.provider} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, provider: e.target.value } }))} options={["MSG91 Email", "Brevo", "AWS SES", "Custom SMTP"].map((value) => ({ value, label: value }))} />
+                      <Input label="API Key" type="password" value={otpSettingsForm.email.apiKey} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, apiKey: e.target.value } }))} helper="Paste provider auth key from MSG91 dashboard." />
+                      <Input label="Sender Email" type="email" value={otpSettingsForm.email.senderEmail} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, senderEmail: e.target.value } }))} helper="Verified sender email like support@visavo.in." />
+                      <Input label="Sender Name" value={otpSettingsForm.email.senderName} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, senderName: e.target.value } }))} />
+                      <Input label="Email Template ID" value={otpSettingsForm.email.templateId} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, templateId: e.target.value } }))} helper="Paste approved OTP template ID." />
+                      <Select label="OTP Length" value={otpSettingsForm.email.otpLength} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, email: { ...p.email, otpLength: e.target.value } }))} helper="Must match your approved template." options={[{ value: "4", label: "4 digits" }, { value: "6", label: "6 digits" }]} />
+                    </div>
+                  </SettingsSectionCard>
+
+                  <SettingsSectionCard
+                    title="OTP Priority & Fallback Settings"
+                    description="Choose which enabled OTP channel should be attempted first, then fallback order."
+                    saveLabel="Save Priority Settings"
+                    saveButtonId="save-auth-settings-priority"
+                    isSaving={savingSettingsKey === "otp-priority"}
+                    onSave={() => saveOtpSettingsCard("otp-priority", "/admin/auth-settings/priority", otpSettingsForm.priority, "OTP priority settings saved.")}
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Select label="Primary OTP Channel" value={otpSettingsForm.priority.primary} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, priority: { ...p.priority, primary: e.target.value } }))} options={[{ value: "whatsapp", label: "WhatsApp" }, { value: "sms", label: "SMS" }, { value: "email", label: "Email" }]} />
+                      <Select label="Fallback Channel 1" value={otpSettingsForm.priority.fallback1} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, priority: { ...p.priority, fallback1: e.target.value } }))} options={[{ value: "sms", label: "SMS" }, { value: "email", label: "Email" }, { value: "whatsapp", label: "WhatsApp" }, { value: "none", label: "None" }]} />
+                      <Select label="Fallback Channel 2" value={otpSettingsForm.priority.fallback2} onChange={(e) => setOtpSettingsForm((p) => ({ ...p, priority: { ...p.priority, fallback2: e.target.value } }))} options={[{ value: "email", label: "Email" }, { value: "sms", label: "SMS" }, { value: "whatsapp", label: "WhatsApp" }, { value: "none", label: "None" }]} />
+                    </div>
+                  </SettingsSectionCard>
                 </div>
-              </SettingsSectionCard>
+              </div>
 
               {/* Security Card */}
               <Card>
