@@ -6750,7 +6750,7 @@ const Dashboard = () => {
                       </p>
                       <div className="mb-3 flex items-center">
                         <img
-                          src="/images/visa-voyage-logo.png"
+                          src="/images/visa-voyage-logo.webp"
                           alt="Visa & Voyage"
                           className="block h-12 max-h-12 w-auto object-contain"
                         />

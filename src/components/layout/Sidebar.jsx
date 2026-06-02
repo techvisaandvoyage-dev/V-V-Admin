@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore, api } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 
-const BRAND_LOGO_SRC = "/images/visa-voyage-logo.png";
+const BRAND_LOGO_SRC = "/images/visa-voyage-logo.webp";
 
 // ── Nav item groups per role ───────────────────────────────
 const USER_NAV = [

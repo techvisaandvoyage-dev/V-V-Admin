@@ -15,7 +15,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import Button from "../ui/Button";
 
-const BRAND_LOGO_SRC = "/images/visa-voyage-logo.png";
+const BRAND_LOGO_SRC = "/images/visa-voyage-logo.webp";
 
 const Navbar = () => {
   const navigate = useNavigate();
