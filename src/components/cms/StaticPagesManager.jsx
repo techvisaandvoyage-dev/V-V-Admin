@@ -344,14 +344,7 @@ const StaticPagesManager = () => {
                 { value: "draft", label: "Draft" },
               ]}
             />
-            <Select
-              value={templateFilter}
-              onChange={(event) => setTemplateFilter(event.target.value)}
-              options={[
-                { value: "all", label: "All templates" },
-                ...PAGE_TYPE_OPTIONS,
-              ]}
-            />
+
             <Select
               value={sectionFilter}
               onChange={(event) => setSectionFilter(event.target.value)}
@@ -397,7 +390,7 @@ const StaticPagesManager = () => {
                   <tr className="border-b border-border text-xs uppercase tracking-[0.14em] text-text-muted">
                     <th className="pb-3 font-medium">Page</th>
                     <th className="pb-3 font-medium">Footer</th>
-                    <th className="pb-3 font-medium">Type</th>
+
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">SEO</th>
                     <th className="pb-3 font-medium">Updated</th>
@@ -417,9 +410,7 @@ const StaticPagesManager = () => {
                       <td className="py-4 pr-4 text-sm text-text-secondary">
                         {getOptionLabel(FOOTER_SECTION_OPTIONS, page.footerSection, "Company")}
                       </td>
-                      <td className="py-4 pr-4 text-sm capitalize text-text-secondary">
-                        {page.template.replace("-", " ")}
-                      </td>
+
                       <td className="py-4 pr-4">
                         <div className="flex items-center gap-3">
                           <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass[page.status] || statusBadgeClass.draft}`}>
@@ -541,19 +532,14 @@ const StaticPagesManager = () => {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               <Select
                 label="Footer Section"
                 value={pageForm.footerSection}
                 onChange={(event) => handleFieldChange("footerSection", event.target.value)}
                 options={FOOTER_SECTION_OPTIONS}
               />
-              <Select
-                label="Template"
-                value={pageForm.template}
-                onChange={(event) => handleFieldChange("template", event.target.value)}
-                options={PAGE_TYPE_OPTIONS}
-              />
+
               <Select
                 label="Status"
                 value={pageForm.status}
@@ -681,12 +667,12 @@ const StaticPagesManager = () => {
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-1 justify-center overflow-auto rounded-2xl bg-surface-2 p-4">
-                <div className={`${previewViewport === "mobile" ? "w-[360px]" : "w-full"} overflow-hidden rounded-[28px] border border-border bg-white shadow-xl`}>
+              <div className="mt-5 flex flex-1 justify-center overflow-auto rounded-2xl bg-surface-2 p-4 min-h-0">
+                <div className={`${previewViewport === "mobile" ? "w-[360px] h-[640px] shrink-0" : "w-full h-full"} flex flex-col overflow-hidden rounded-[28px] border border-border bg-white shadow-xl`}>
                   <iframe
                     title="Static page preview"
                     srcDoc={previewDocument}
-                    className={`w-full border-0 ${previewViewport === "mobile" ? "h-[640px]" : "h-[calc(100vh-18rem)] min-h-[760px]"}`}
+                    className="w-full flex-1 border-0"
                   />
                 </div>
               </div>

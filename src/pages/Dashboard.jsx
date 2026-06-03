@@ -192,7 +192,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p className="text-xs font-semibold text-text-primary mb-2">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="text-xs" style={{ color: p.color }}>
-          {p.name}: {p.dataKey === "revenue" ? `â‚¹${p.value}` : p.value}
+          {p.name}: {p.dataKey === "revenue" ? `₹${p.value}` : p.value}
         </p>
       ))}
     </div>
@@ -202,7 +202,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 const formatPriceINR = (value) => {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "Not set yet";
-  return `â‚¹${amount.toLocaleString("en-IN")}`;
+  return `₹${amount.toLocaleString("en-IN")}`;
 };
 
 const formatVisitCount = (value) => {
@@ -756,7 +756,7 @@ const SettingsSectionCard = ({
     <div className="space-y-4">{children}</div>
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-4 border-t border-border">
       <p className="text-[11px] text-text-muted order-2 sm:order-1">
-        Only this section is saved â€” other sections are unchanged.
+        Only this section is saved — other sections are unchanged.
       </p>
       <Button
         variant="primary"
@@ -900,7 +900,7 @@ const ExpandableAdminControlCard = ({
   );
 };
 
-/** Defaults match client destination page â€” used until admin saves custom copy. */
+/** Defaults match client destination page — used until admin saves custom copy. */
 const DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW = [
   "Fast document pre-check by visa specialists",
   "Transparent pricing and status updates",
@@ -932,7 +932,7 @@ const DESTINATION_PAGE_DEFAULT_FAQS = [
   {
     question: "How long does processing take?",
     answer:
-      "Typical processing varies by destination â€” each country page lists estimated timelines based on current embassy guidance.",
+      "Typical processing varies by destination — each country page lists estimated timelines based on current embassy guidance.",
   },
   {
     question: "Can I track my application?",
@@ -953,7 +953,7 @@ const DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS = [
   { title: "Enjoy your vacation", description: "Thanks for choosing VisaAndVoyage and we wish you an amazing journey." },
 ];
 
-/** Suggestions shown in the Visa Type combo-box on the country edit modal â€” admins can pick or type their own. */
+/** Suggestions shown in the Visa Type combo-box on the country edit modal — admins can pick or type their own. */
 const VISA_TYPE_SUGGESTIONS = [
   "Tourist Visa",
   "Business Visa",
@@ -1487,7 +1487,7 @@ const mapApiOtpSettingsToFormState = (settings = {}) => ({
 
 /**
  * Compact "switch" used inside each universal control card header. Renders as a
- * pill with an animated knob â€” green when the field is visible on the public
+ * pill with an animated knob — green when the field is visible on the public
  * client, neutral when hidden. While the API call is in flight the button is
  * disabled so users can't double-click it.
  */
@@ -1566,7 +1566,7 @@ const INITIAL_CONVERSATIONS = [
       { id: "m1", sender: "user", text: "Hi, I need help with my Dubai visa application.", time: "10:30 AM" },
       { id: "m2", sender: "user", text: "What documents are required for a tourist visa?", time: "10:31 AM" },
       { id: "m3", sender: "admin", text: "Hello Rohit! ðŸ‘‹\n\nI'll be happy to help you with your Dubai visa.", time: "10:32 AM" },
-      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\nâ€¢ Passport (valid 6+ months)\nâ€¢ Passport size photo\nâ€¢ Confirmed return ticket\nâ€¢ Hotel booking\nâ€¢ Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
+      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\n• Passport (valid 6+ months)\n• Passport size photo\n• Confirmed return ticket\n• Hotel booking\n• Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
       { id: "m5", sender: "user", text: "Thank you! How long does it take to process?", time: "10:34 AM" },
       { id: "m6", sender: "admin", text: "It usually takes 3-4 working days. Let me know if you have any other questions.", time: "10:35 AM" }
     ]
@@ -2006,9 +2006,9 @@ const SupportChatWorkspace = () => {
                   </h3>
                   <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
                     <span className="truncate max-w-[150px] sm:max-w-[200px]">{activeConversation.email}</span>
-                    <span className="text-border/60">â€¢</span>
+                    <span className="text-border/60">•</span>
                     <span>{activeConversation.phone}</span>
-                    <span className="text-border/60">â€¢</span>
+                    <span className="text-border/60">•</span>
                     <a href="#profile" className="text-cyan font-bold hover:underline">View Profile</a>
                   </p>
                 </div>
@@ -2263,7 +2263,7 @@ const Dashboard = () => {
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
   /**
-   * Universal control system â€” admin sets a single global Visa Type / Validity that
+   * Universal control system — admin sets a single global Visa Type / Validity that
    * applies to every country card and detail page unless an individual country edit
    * carries a per-country override. `defaults` mirrors the server state, while the
    * `*Picker`/`*Custom` pair drives the dropdown + free-text controls.
@@ -2316,7 +2316,7 @@ const Dashboard = () => {
     overridingProcessingDays: 0,
     overridingRequiredDocuments: 0,
   });
-  /** Mirrors `Settings.show*` â€” when false, the public client hides that tile/section. */
+  /** Mirrors `Settings.show*` — when false, the public client hides that tile/section. */
   const [displayToggles, setDisplayToggles] = useState({
     showVisaType: true,
     showValidity: true,
@@ -3070,7 +3070,7 @@ const Dashboard = () => {
     excludeDestinationVisaRequirements: [],
   });
 
-  /** Snapshot of Settings â†’ Destinations (for merging in the country edit modal). */
+  /** Snapshot of Settings → Destinations (for merging in the country edit modal). */
   const [countryModalGlobalDest, setCountryModalGlobalDest] = useState({
     whyBookNow: [],
     includedItems: [],
@@ -3879,7 +3879,7 @@ const Dashboard = () => {
         }
         // Pre-populate the required-docs draft from the live global selection so
         // the admin sees exactly what's currently applied. Falls back to just
-        // "passport" if no global has been set yet â€” matches the legacy default.
+        // "passport" if no global has been set yet — matches the legacy default.
         setRequiredDocsDraft(
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
@@ -3938,7 +3938,7 @@ const Dashboard = () => {
       if (error?.response?.status === 401) {
         handleUnauthorized();
       }
-      // Defaults stay at their initial empty values â€” the UI will show "Not set yet".
+      // Defaults stay at their initial empty values — the UI will show "Not set yet".
     }
   };
 
@@ -4453,7 +4453,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save visa type changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4494,7 +4494,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save validity changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/validity is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/validity is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4978,7 +4978,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save length of stay changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5018,7 +5018,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save entry changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5059,7 +5059,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save processing days changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5106,7 +5106,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update fee";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
+          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5283,7 +5283,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update required documents.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found â€” restart the API so /api/admin/control/required-documents is available.";
+          "Control endpoint not found — restart the API so /api/admin/control/required-documents is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5395,7 +5395,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to add custom document.";
       if (status === 404) {
         toastMsg =
-          "Endpoint not found â€” restart the API so /api/admin/control/custom-documents is available.";
+          "Endpoint not found — restart the API so /api/admin/control/custom-documents is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5588,7 +5588,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update display toggle.";
       if (status === 404) {
         toastMsg =
-          "Toggle endpoint not found â€” restart the API so /api/admin/control/display-toggles is available.";
+          "Toggle endpoint not found — restart the API so /api/admin/control/display-toggles is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5828,7 +5828,7 @@ const Dashboard = () => {
                               {tx.razorpayPaymentId || tx.paymentId || tx.razorpayOrderId || "N/A"}
                             </td>
                             <td className="py-3 px-4 font-medium text-text-primary">
-                              â‚¹{Number(tx.amount || 0).toLocaleString("en-IN")}
+                              ₹{Number(tx.amount || 0).toLocaleString("en-IN")}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/10 text-red-400' : tx.status === 'cancelled' ? 'bg-slate-500/10 text-slate-300' : 'bg-amber-500/10 text-amber-400'}`}>
@@ -5866,7 +5866,7 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
-                  { label: "Total Revenue",   value: `â‚¹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
+                  { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
                   { label: "Pending Review", value: liveAnalytics.pendingReview,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
                   { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
                 ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
@@ -5926,7 +5926,7 @@ const Dashboard = () => {
                       <LineChart data={MONTHLY_REVENUE}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                         <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `â‚¹${v}`} />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#0284c7', strokeWidth: 1, strokeDasharray: '4 4' }} />
                         <Line
                           type="monotone"
@@ -6034,7 +6034,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Table â€” horizontally scrollable on mobile */}
+                {/* Table — horizontally scrollable on mobile */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -6079,7 +6079,7 @@ const Dashboard = () => {
                             {fmtDate(b.travelDate)}
                           </td>
                           <td className="py-3 pr-6 font-medium text-text-primary whitespace-nowrap">
-                            â‚¹{b.fee}
+                            ₹{b.fee}
                           </td>
                           <td className="py-3 pr-6">
                             <div className="space-y-1">
@@ -6101,7 +6101,7 @@ const Dashboard = () => {
                                       : "Pending payment"}
                               </p>
                               <p className="font-mono text-[11px] text-text-secondary max-w-[140px] truncate" title={b.transactionId || ""}>
-                                {b.transactionId && b.transactionId !== "pending" ? b.transactionId : "â€”"}
+                                {b.transactionId && b.transactionId !== "pending" ? b.transactionId : "—"}
                               </p>
                             </div>
                           </td>
@@ -6157,7 +6157,7 @@ const Dashboard = () => {
                   <div className="flex gap-2">
                     <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">â† Prev</button>
                     <button className="px-3 py-1.5 text-xs rounded-lg bg-cyan text-background font-medium" id="admin-page-1">1</button>
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next â†’</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next →</button>
                   </div>
                 </div>
               </Card>
@@ -6303,7 +6303,7 @@ const Dashboard = () => {
                       {/* Details row */}
                       <div className="flex items-center gap-4 text-xs text-text-muted mt-auto pt-3 border-t border-border/40">
                         <span className="flex items-center gap-1">
-                          <IndianRupee size={11} /> â‚¹{c.basePrice}
+                          <IndianRupee size={11} /> ₹{c.basePrice}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock size={11} /> {c.processingDays}
@@ -6414,7 +6414,7 @@ const Dashboard = () => {
                       Document Upload Methods
                     </h3>
                     <p className="text-xs text-text-muted mb-6">
-                      Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screenâ€”they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done â€” only that section is saved.
+                      Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screen—they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done — only that section is saved.
                     </p>
                     
                     <div className="space-y-4 max-w-lg">
@@ -6515,7 +6515,7 @@ const Dashboard = () => {
               </Card>
 
               {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Visa Type control â€” sets `Settings.globalVisaType`
+                  Universal Visa Type control — sets `Settings.globalVisaType`
                   and resets every country's `useGlobalVisaType=true`. Admins
                   can later override one country individually in Country Manager.
                   The toggle in the header hides the Visa Type tile on every
@@ -7565,7 +7565,7 @@ const Dashboard = () => {
               </div>
 
               {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Validity control â€” mirror of the Visa Type card.
+                  Universal Validity control — mirror of the Visa Type card.
                   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               <div className={activeControlSection === "validity" ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("validity")}>
@@ -7591,7 +7591,7 @@ const Dashboard = () => {
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
                       <span className="text-text-primary font-medium">
-                        {globalDefaults.globalValidity || "Not set yet (cards show 'â€”' when neither global nor per-country exists)"}
+                        {globalDefaults.globalValidity || "Not set yet (cards show '—' when neither global nor per-country exists)"}
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
@@ -7772,7 +7772,7 @@ const Dashboard = () => {
               </div>
 
               {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Processing Days control â€” mirror of the other two.
+                  Universal Processing Days control — mirror of the other two.
                   The toggle hides the Processing tile on the public client.
                   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               <div className={activeControlSection === "processing-days" ? "" : "hidden"}>
@@ -7980,7 +7980,7 @@ const Dashboard = () => {
               </div>
 
               {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Required Documents control â€” admin picks the
+                  Universal Required Documents control — admin picks the
                   catalog rows that apply to every country, can add custom
                   document types, and toggles the whole section on/off for
                   the public client.
@@ -8007,7 +8007,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">Update All Documents Required</span>{" "}
                       to apply it to every country. Per-country edits in{" "}
                       <span className="text-text-primary font-medium">Country Manager</span> are restored to the
-                      global list. Need a new document type? Add it at the top â€” it appears in this checklist and on
+                      global list. Need a new document type? Add it at the top — it appears in this checklist and on
                       every country edit modal instantly.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
@@ -8071,7 +8071,7 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                {/* Add custom document â€” admin types a label, server slugifies + prefixes. */}
+                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
                 {/* Checkbox grid built from the merged catalog. */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {documentCatalog.filter((d) => !d.deleted).length === 0 && (
@@ -8271,7 +8271,7 @@ const Dashboard = () => {
                   </p>
                 )}
 
-                {/* Add custom document â€” admin types a label, server slugifies + prefixes. */}
+                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
                 <div className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-5 space-y-4">
                   <div>
                     <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -8931,7 +8931,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">How it works</span> and{" "}
                       <span className="text-text-primary font-medium">Visa Requirements</span> on every public destination page read from here.
                       These items show on <span className="text-text-primary font-medium">every country</span>. Any extras you add in{" "}
-                      <span className="text-text-primary font-medium">Country Manager â†’ Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
+                      <span className="text-text-primary font-medium">Country Manager → Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
                     </p>
                   </div>
                   <Button
@@ -9014,7 +9014,7 @@ const Dashboard = () => {
                           destinationHowItWorks: howItWorks,
                           destinationVisaRequirements: visaRequirements,
                         },
-                        "Destination copy saved â€” visible on all country pages.",
+                        "Destination copy saved — visible on all country pages.",
                       );
                     }}
                   >
@@ -9515,7 +9515,7 @@ const Dashboard = () => {
                     </div>
                     <p className="text-xs text-text-muted mb-4">
                       One requirement per line. These show on every destination page (below &quot;How it works&quot;). Per-country
-                      extras you add inside Country Manager are appended below â€” duplicates are skipped.
+                      extras you add inside Country Manager are appended below — duplicates are skipped.
                     </p>
                     <div className="space-y-3 max-w-2xl">
                       {(settingsForm.destinationVisaRequirements || []).map((item, idx) => (
@@ -9645,16 +9645,16 @@ const Dashboard = () => {
               <Card>
                 <h2 className="font-semibold text-text-primary text-base">Appearance</h2>
                 <p className="text-sm text-text-muted mt-1.5 leading-relaxed">
-                  Dashboard look is fixed for now. There is no server setting to change here â€” skip this block if you are only configuring payments or auth.
+                  Dashboard look is fixed for now. There is no server setting to change here — skip this block if you are only configuring payments or auth.
                 </p>
               </Card>
 
               <SettingsSectionCard
-                title="Payments â€” Razorpay"
+                title="Payments — Razorpay"
                 description="Used when customers pay on the site. Paste both keys from the same Razorpay account."
                 whereToFind={
                   <>
-                    Razorpay Dashboard â†’ <span className="text-text-secondary">Account &amp; Settings</span> â†’{" "}
+                    Razorpay Dashboard → <span className="text-text-secondary">Account &amp; Settings</span> →{" "}
                     <span className="text-text-secondary">API Keys</span>: copy <strong className="text-text-primary">Key ID</strong> and{" "}
                     <strong className="text-text-primary">Key Secret</strong> into the fields below.
                   </>
@@ -9689,7 +9689,7 @@ const Dashboard = () => {
                     value={settingsForm.razorpayKeyId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeyId: e.target.value }))}
                     id="setting-razorpay-key"
-                    placeholder="rzp_live_â€¦ or rzp_test_â€¦"
+                    placeholder="rzp_live_… or rzp_test_…"
                   />
                   <Input
                     label="Paste Key Secret here"
@@ -9723,14 +9723,14 @@ const Dashboard = () => {
               </SettingsSectionCard>
 
               <SettingsSectionCard
-                title="Country images â€” Unsplash"
+                title="Country images — Unsplash"
                 description="Store your Unsplash app keys, then fetch photo URLs into MongoDB the same way as searching the country name on Unsplash (name first, then landmark hints). Optional: set UNSPLASH_ORIENTATION on the server to restrict orientation."
                 whereToFind={
                   <>
                     <a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener noreferrer" className="text-cyan hover:underline">
                       unsplash.com/oauth/applications
                     </a>{" "}
-                    â†’ your app â†’ copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
+                    → your app → copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
                     <strong className="text-text-primary">Access Key</strong> (required for image fetch), and{" "}
                     <strong className="text-text-primary">Secret Key</strong> (optional; for OAuth only).
                   </>
@@ -9738,7 +9738,7 @@ const Dashboard = () => {
                 statusSlot={
                   <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isUnsplashConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
                     {isUnsplashConfigured
-                      ? "Access Key is on file â€” you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
+                      ? "Access Key is on file — you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
                       : "Paste an Access Key below to fetch, or save this card to store keys for the CLI (node fetchCountryImages.js)."}
                   </div>
                 }
@@ -9766,12 +9766,12 @@ const Dashboard = () => {
                     placeholder="From Unsplash app page"
                   />
                   <Input
-                    label="Access Key â€” paste here"
+                    label="Access Key — paste here"
                     type="password"
                     value={settingsForm.unsplashAccessKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashAccessKey: e.target.value }))}
                     id="setting-unsplash-access-key"
-                    placeholder="Required â€” used by Fetch buttons and fetchCountryImages.js"
+                    placeholder="Required — used by Fetch buttons and fetchCountryImages.js"
                   />
                   <Input
                     label="Secret Key (optional)"
@@ -9779,16 +9779,16 @@ const Dashboard = () => {
                     value={settingsForm.unsplashSecretKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashSecretKey: e.target.value }))}
                     id="setting-unsplash-secret-key"
-                    placeholder="OAuth only â€” not used by image script"
+                    placeholder="OAuth only — not used by image script"
                   />
                 </div>
 
                 <div className="rounded-xl border border-border bg-surface-2/60 p-4 mt-5 space-y-3">
                   <p className="text-xs text-text-muted leading-relaxed">
-                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> (â€œFranceâ€, â€œFrance travelâ€, â€¦), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
-                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits â€” keep this tab open until the success toast.
-                    Watch the status line below while it runs. In DevTools â†’ Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
-                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked â€œShow as trendingâ€ in Country Manager â€” same list as the landing page) can be refreshed alone with landmark searches. â€œFetch allâ€ processes those first, then every other country.
+                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> (“France”, “France travel”, …), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
+                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits — keep this tab open until the success toast.
+                    Watch the status line below while it runs. In DevTools → Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
+                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked “Show as trending” in Country Manager — same list as the landing page) can be refreshed alone with landmark searches. “Fetch all” processes those first, then every other country.
                     You can use the Access Key above without saving first; saving stores it for CLI scripts.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -9830,12 +9830,12 @@ const Dashboard = () => {
               </SettingsSectionCard>
 
               <SettingsSectionCard
-                title="Firebase â€” web app + server verification"
-                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here â€” set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
+                title="Firebase — web app + server verification"
+                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here — set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
                 whereToFind={
                   <>
-                    Firebase Console â†’ <span className="text-text-secondary">Project settings</span> â†’ <span className="text-text-secondary">General</span> â†’ Your apps (Web) â†’ copy into the fields below. For the Admin SDK JSON:{" "}
-                    <span className="text-text-secondary">Project settings</span> â†’ <span className="text-text-secondary">Service accounts</span> â†’ <strong className="text-text-primary">Generate new private key</strong> â†’ put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
+                    Firebase Console → <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">General</span> → Your apps (Web) → copy into the fields below. For the Admin SDK JSON:{" "}
+                    <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">Service accounts</span> → <strong className="text-text-primary">Generate new private key</strong> → put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
                   </>
                 }
                 statusSlot={
@@ -9843,7 +9843,7 @@ const Dashboard = () => {
                     {isFirebaseConfigured
                       ? "Web config is saved and the server reports Firebase Admin credentials (env)."
                       : settingsForm.firebaseAdminFromEnv
-                        ? "Server has Admin JSON in env â€” finish the web fields above and save."
+                        ? "Server has Admin JSON in env — finish the web fields above and save."
                         : "Save the web fields below, then set FIREBASE_SERVICE_ACCOUNT_JSON on the server and restart the API."}
                   </div>
                 }
@@ -9867,41 +9867,41 @@ const Dashboard = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="API Key â€” paste here"
+                    label="API Key — paste here"
                     type="password"
                     value={settingsForm.firebaseApiKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseApiKey: e.target.value }))}
                     id="setting-firebase-api-key"
                   />
                   <Input
-                    label="Auth Domain â€” paste here"
+                    label="Auth Domain — paste here"
                     value={settingsForm.firebaseAuthDomain}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAuthDomain: e.target.value }))}
                     id="setting-firebase-auth-domain"
                     placeholder="your-project.firebaseapp.com"
-                    helper="Must be your-project-id.firebaseapp.com from Firebase â†’ Project settings â†’ Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate â€” add Render hostname there."
+                    helper="Must be your-project-id.firebaseapp.com from Firebase → Project settings → Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate — add Render hostname there."
                   />
                   <Input
-                    label="Project ID â€” paste here"
+                    label="Project ID — paste here"
                     value={settingsForm.firebaseProjectId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseProjectId: e.target.value }))}
                     id="setting-firebase-project-id"
                   />
                   <Input
-                    label="App ID â€” paste here"
+                    label="App ID — paste here"
                     type="password"
                     value={settingsForm.firebaseAppId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAppId: e.target.value }))}
                     id="setting-firebase-app-id"
                   />
                   <Input
-                    label="Storage bucket â€” paste here"
+                    label="Storage bucket — paste here"
                     value={settingsForm.firebaseStorageBucket}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseStorageBucket: e.target.value }))}
                     id="setting-firebase-storage-bucket"
                   />
                   <Input
-                    label="Messaging sender ID â€” paste here"
+                    label="Messaging sender ID — paste here"
                     value={settingsForm.firebaseMessagingSenderId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseMessagingSenderId: e.target.value }))}
                     id="setting-firebase-sender-id"
@@ -9912,7 +9912,7 @@ const Dashboard = () => {
                   <p>
                     Set environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> on the machine that runs this API (see <code className="text-cyan">server/.env.example</code>). Value is the full JSON object as a string. After changing env, restart the server. Current API process:{" "}
                     <span className={settingsForm.firebaseAdminFromEnv ? "text-emerald-400 font-medium" : "text-amber-300 font-medium"}>
-                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected â€” Google / token login will fail until set"}
+                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected — Google / token login will fail until set"}
                     </span>
                     .
                   </p>
@@ -9924,7 +9924,7 @@ const Dashboard = () => {
                 description="If you use Google sign-in flows that need a separate OAuth client, paste those credentials here. Many setups only need Firebase above."
                 whereToFind={
                   <>
-                    Google Cloud Console â†’ <span className="text-text-secondary">APIs &amp; Services</span> â†’ <span className="text-text-secondary">Credentials</span> â†’ OAuth 2.0 Client IDs â†’ copy <strong className="text-text-primary">Client ID</strong> and <strong className="text-text-primary">Client secret</strong>.
+                    Google Cloud Console → <span className="text-text-secondary">APIs &amp; Services</span> → <span className="text-text-secondary">Credentials</span> → OAuth 2.0 Client IDs → copy <strong className="text-text-primary">Client ID</strong> and <strong className="text-text-primary">Client secret</strong>.
                   </>
                 }
                 saveLabel="Save Google OAuth"
@@ -9943,19 +9943,19 @@ const Dashboard = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="Client ID â€” paste here"
+                    label="Client ID — paste here"
                     value={settingsForm.googleClientId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, googleClientId: e.target.value }))}
                     id="setting-google-client-id"
-                    placeholder="â€¦.apps.googleusercontent.com"
+                    placeholder="….apps.googleusercontent.com"
                   />
                   <Input
-                    label="Client secret â€” paste here"
+                    label="Client secret — paste here"
                     type="password"
                     value={settingsForm.googleClientSecret}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, googleClientSecret: e.target.value }))}
                     id="setting-google-client-secret"
-                    placeholder="GOCSPX-â€¦"
+                    placeholder="GOCSPX-…"
                   />
                 </div>
               </SettingsSectionCard>
@@ -10115,7 +10115,7 @@ const Dashboard = () => {
                   <h2 className="font-semibold text-text-primary">Security</h2>
                 </div>
                 <p className="text-sm text-text-muted mb-6 leading-relaxed">
-                  Change your admin login password. This is separate from API keys above â€” use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
+                  Change your admin login password. This is separate from API keys above — use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
@@ -10172,7 +10172,7 @@ const Dashboard = () => {
       >
         <div className="mx-auto max-w-6xl space-y-4">
           <p className="text-sm text-text-muted leading-relaxed">
-            Rows come from MongoDB <span className="text-text-primary font-medium">Country.imageUrl</span>. â€œUnsplashâ€ means the URL points at images.unsplash.com; uploads use <span className="font-mono text-xs">/uploads/â€¦</span>.
+            Rows come from MongoDB <span className="text-text-primary font-medium">Country.imageUrl</span>. “Unsplash” means the URL points at images.unsplash.com; uploads use <span className="font-mono text-xs">/uploads/…</span>.
           </p>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} aria-hidden />
@@ -10180,7 +10180,7 @@ const Dashboard = () => {
               type="search"
               value={fetchedCountriesSearch}
               onChange={(e) => setFetchedCountriesSearch(e.target.value)}
-              placeholder="Filter by country name or slugâ€¦"
+              placeholder="Filter by country name or slug…"
               className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
               id="fetched-countries-search"
             />
@@ -10188,7 +10188,7 @@ const Dashboard = () => {
           {filteredFetchedCountries.length === 0 ? (
             <div className="rounded-xl border border-border bg-surface-2/60 px-4 py-8 text-center text-sm text-text-muted">
               {countriesWithBanner.length === 0
-                ? "No countries have a banner URL yet. Run â€œFetch imagesâ€ above or upload images from Country Manager."
+                ? "No countries have a banner URL yet. Run “Fetch images” above or upload images from Country Manager."
                 : "No countries match your search."}
             </div>
           ) : (
@@ -10231,7 +10231,7 @@ const Dashboard = () => {
                           {c.name}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs text-text-secondary">{c.slug}</td>
-                        <td className="px-3 py-2 text-text-secondary">{c.continent || "â€”"}</td>
+                        <td className="px-3 py-2 text-text-secondary">{c.continent || "—"}</td>
                         <td className="px-3 py-2">
                           <span
                             className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -10398,7 +10398,7 @@ const Dashboard = () => {
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch max-w-[1400px] mx-auto w-full lg:h-[calc(100vh-11.5rem)]">
           {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-              LEFT â€” country basics, cover image, fees, type, etc.
+              LEFT — country basics, cover image, fees, type, etc.
               Independent scrollbar on lg+ so left + right scroll separately.
               â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           <div className="lg:col-span-5 xl:col-span-4 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
@@ -10468,12 +10468,12 @@ const Dashboard = () => {
               </datalist>
               {/* Universal control hint: shows whether this country is following the
                   global default or carrying a per-country override. Toggles
-                  automatically based on what the admin types â€” clear the field or
+                  automatically based on what the admin types — clear the field or
                   match the global value to revert to global. */}
               {selectedCountry?.useGlobalVisaType === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override â€” clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
+                  Custom override — clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -10500,7 +10500,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalValidity === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override â€” clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
+                  Custom override — clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -10527,7 +10527,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalLengthOfStay === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override â€” clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
+                  Custom override — clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -10554,7 +10554,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalEntryType === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override â€” clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
+                  Custom override — clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -10576,7 +10576,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Input
-                label="Service Fee (â‚¹)"
+                label="Service Fee (₹)"
                 type="number"
                 value={countryForm.basePrice}
                 onChange={(e) => setCountryForm((p) => ({ ...p, basePrice: e.target.value }))}
@@ -10642,13 +10642,13 @@ const Dashboard = () => {
                   <option key={v} value={v} />
                 ))}
               </datalist>
-              {/* Mirrors the Visa Type / Validity hints â€” flips automatically based
+              {/* Mirrors the Visa Type / Validity hints — flips automatically based
                   on whether this country is currently following the global default
                   (`useGlobalProcessingDays`) or has its own override. */}
               {selectedCountry?.useGlobalProcessingDays === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override â€” clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
+                  Custom override — clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -10738,7 +10738,7 @@ const Dashboard = () => {
               {isUploadingImage ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-10 h-10 rounded-full border-2 border-cyan/40 border-t-cyan animate-spin" />
-                  <p className="text-sm text-text-muted">Uploading imageâ€¦</p>
+                  <p className="text-sm text-text-muted">Uploading image…</p>
                 </div>
               ) : countryForm.imageUrl ? (
                 <div className="relative group mx-auto w-full max-w-[240px] rounded-lg overflow-hidden border border-border shadow-sm">
@@ -10792,7 +10792,7 @@ const Dashboard = () => {
           </div>{/* /LEFT column */}
 
           {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-              RIGHT â€” required docs, free-text requirements, destination copy
+              RIGHT — required docs, free-text requirements, destination copy
               Independent scrollbar on lg+.
               â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
@@ -10899,7 +10899,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Required Documents â€” universal control aware. The checklist now
+          {/* Required Documents — universal control aware. The checklist now
               uses the merged catalog (built-in + admin's custom doc types) and
               shows a green/amber badge plus a "Reset to global" helper button
               that mirrors the same pattern as Visa Type / Validity. */}
@@ -10909,7 +10909,7 @@ const Dashboard = () => {
                 Documents Required
                 <span className="ml-2 text-xs text-text-muted font-normal">Select which documents applicants must upload</span>
               </label>
-              {/* Quick "use global" helper â€” sets the local list to the global
+              {/* Quick "use global" helper — sets the local list to the global
                   default. Saving with the same set as global will flip the
                   flag back automatically (server-side comparison). */}
               {globalDefaults.globalRequiredDocuments.length > 0 && (
@@ -11067,7 +11067,7 @@ const Dashboard = () => {
             {selectedCountry?.useGlobalRequiredDocuments === false ? (
               <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                Custom override â€” match the global selection (or click "Reset to global") to use the universal list again.
+                Custom override — match the global selection (or click "Reset to global") to use the universal list again.
               </p>
             ) : (
               <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11079,7 +11079,7 @@ const Dashboard = () => {
 
           {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               Destination-page copy for THIS country.
-              Shows global lines (from Settings â†’ Destinations) with X to
+              Shows global lines (from Settings → Destinations) with X to
               hide them on this country, then per-country additions below.
               â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {(() => {
@@ -11109,13 +11109,13 @@ const Dashboard = () => {
           <div className="rounded-2xl border border-border bg-surface-2/40 p-5">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-text-primary">
-                Destination page copy â€” {countryForm.name || "this country"}
+                Destination page copy — {countryForm.name || "this country"}
               </h3>
               <p className="text-xs text-text-muted mt-1 leading-relaxed">
                 <span className="text-text-primary font-medium">Global items</span> from{" "}
-                <span className="text-text-primary font-medium">Settings â†’ Destinations</span> are shown first on every country.
+                <span className="text-text-primary font-medium">Settings → Destinations</span> are shown first on every country.
                 Click the <X size={11} className="inline -mt-0.5" /> next to a global item to hide it on{" "}
-                {countryForm.name || "this country"} only â€” hidden items move to{" "}
+                {countryForm.name || "this country"} only — hidden items move to{" "}
                 <span className="text-text-primary font-medium">Hidden on this country</span> below each section so you can restore them.
                 Anything you add under{" "}
                 <span className="text-text-primary font-medium">extras for this country</span> is appended below
@@ -11149,7 +11149,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.whyBookNow.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global items yet â€” add them in Settings â†’ Destinations.
+                    No global items yet — add them in Settings → Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -11298,7 +11298,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.includedItems.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global items yet â€” add them in Settings â†’ Destinations.
+                    No global items yet — add them in Settings → Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -11520,7 +11520,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.faqs.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global FAQs yet â€” add them in Settings â†’ Destinations.
+                    No global FAQs yet — add them in Settings → Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -11707,7 +11707,7 @@ const Dashboard = () => {
                   if ((countryModalGlobalDest.howItWorks || []).length === 0) {
                     return (
                       <p className="text-xs text-text-muted italic px-1">
-                        No global steps yet â€” add them in Settings â†’ Destinations.
+                        No global steps yet — add them in Settings → Destinations.
                       </p>
                     );
                   }
@@ -11880,7 +11880,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {(countryModalGlobalDest.visaRequirements || []).length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global requirements yet â€” add them in Settings â†’ Destinations.
+                    No global requirements yet — add them in Settings → Destinations.
                   </p>
                 ) : (
                   (() => {
