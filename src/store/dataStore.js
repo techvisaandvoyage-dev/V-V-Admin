@@ -82,7 +82,9 @@ export const useDataStore = create(
       // ── Countries ─────────────────────────────────────────
       fetchCountries: async () => {
         try {
-          const { data } = await api.get("/admin/countries-list");
+          const { data } = await api.get("/admin/countries-list", {
+            params: { includeInactive: true },
+          });
           if (data.success) {
             set({ countries: data.countries });
             return { success: true };

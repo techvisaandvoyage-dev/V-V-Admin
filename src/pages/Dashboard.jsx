@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 //  Admin Dashboard Page
 //  Sections:
 //  1. Analytics overview (4 stat cards + Recharts line chart)
@@ -5601,7 +5601,7 @@ const Dashboard = () => {
   };
 
   /** Uses saved Mongo key, or the Access Key typed in the form (sent as override for this run). */
-  const runUnsplashImageFetch = async ({ onlyMissing, onlyTrending = false }) => {
+  const runUnsplashImageFetch = async ({ onlyMissing = false, onlyTrending = false, onlyActive = false }) => {
     const keyFromForm = settingsForm.unsplashAccessKey?.trim();
     if (!keyFromForm && !isUnsplashConfigured) {
       showToast("Paste your Unsplash Access Key below (and save if you want it stored).", "error");
@@ -5609,8 +5609,11 @@ const Dashboard = () => {
     }
 
     setUnsplashFetchRunning(true);
-    const scopeLabel = onlyTrending ? "Featured / trending countries" : "Countries";
-    setUnsplashFetchProgress(`Starting ${scopeLabel.toLowerCase()} â€” first batch may take ~10â€“20s (Unsplash rate limits)â€¦`);
+    let scopeLabel = "All countries";
+    if (onlyTrending) scopeLabel = "Trending countries only";
+    else if (onlyActive) scopeLabel = "Active countries only";
+    else if (onlyMissing) scopeLabel = "Missing images only";
+    setUnsplashFetchProgress(`Starting ${scopeLabel.toLowerCase()} — first batch may take ~10–20s (Unsplash rate limits)…`);
     let totalUpdated = 0;
     let totalFailed = 0;
     try {
@@ -5618,7 +5621,7 @@ const Dashboard = () => {
       const limit = 10;
       const maxBatches = 250;
       for (let b = 0; b < maxBatches; b++) {
-        const body = { onlyMissing, onlyTrending, skip, limit };
+        const body = { onlyMissing, onlyTrending, onlyActive, skip, limit };
         if (keyFromForm) body.accessKey = keyFromForm;
 
         const { data } = await api.post("/admin/countries/refresh-unsplash-images", body, {
@@ -9791,27 +9794,15 @@ const Dashboard = () => {
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      variant="gold"
-                      size="sm"
-                      leftIcon={<TrendingUp size={15} />}
-                      loading={unsplashFetchRunning}
-                      disabled={unsplashFetchRunning}
-                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: true })}
-                      id="btn-unsplash-fetch-featured"
-                    >
-                      Fetch images (featured / trending only)
-                    </Button>
-                    <Button
-                      type="button"
                       variant="primary"
                       size="sm"
                       leftIcon={<ImageIcon size={15} />}
                       loading={unsplashFetchRunning}
                       disabled={unsplashFetchRunning}
-                      onClick={() => runUnsplashImageFetch({ onlyMissing: true, onlyTrending: false })}
-                      id="btn-unsplash-fetch-missing"
+                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false, onlyActive: true })}
+                      id="btn-unsplash-fetch-active"
                     >
-                      Fetch images (missing only)
+                      Fetch images for active countries
                     </Button>
                     <Button
                       type="button"
@@ -9820,22 +9811,10 @@ const Dashboard = () => {
                       leftIcon={<ImageIcon size={15} />}
                       loading={unsplashFetchRunning}
                       disabled={unsplashFetchRunning}
-                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false })}
+                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false, onlyActive: false })}
                       id="btn-unsplash-fetch-all"
                     >
-                      Fetch images (all countries)
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      leftIcon={<GalleryVertical size={15} />}
-                      loading={fetchedCountriesLoading}
-                      disabled={unsplashFetchRunning || fetchedCountriesLoading}
-                      onClick={openFetchedCountriesModal}
-                      id="btn-unsplash-view-fetched"
-                    >
-                      View fetched countries
+                      Fetch images for all countries
                     </Button>
                   </div>
                   {unsplashFetchRunning && unsplashFetchProgress ? (
