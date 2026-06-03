@@ -8,6 +8,7 @@ import {
   Sliders,
   Settings,
   MessageSquare,
+  Search,
 } from "lucide-react";
 
 export const ADMIN_DASHBOARD_TABS = [
@@ -19,5 +20,6 @@ export const ADMIN_DASHBOARD_TABS = [
   { id: "countries", label: "Country Manager", icon: MapPin },
   { id: "support-chat", label: "Support Chat", icon: MessageSquare },
   { id: "controls", label: "Controls", icon: Sliders },
+  { id: "seo", label: "SEO Manager", icon: Search },
   { id: "settings", label: "Settings", icon: Settings },
 ];

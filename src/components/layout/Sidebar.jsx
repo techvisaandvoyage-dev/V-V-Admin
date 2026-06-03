@@ -9,7 +9,7 @@ import { NavLink, useNavigate, Link } from "react-router-dom";
 import {
   LayoutDashboard, FileText, PlusCircle, Globe, Settings,
   LogOut, ChevronLeft, ChevronRight, Shield, BarChart2,
-  MapPin, CreditCard, BookOpen, Sliders, MessageSquare,
+  MapPin, CreditCard, BookOpen, Sliders, MessageSquare, Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore, api } from "../../store/authStore";
@@ -35,6 +35,7 @@ const ADMIN_NAV = [
   { label: "Country Manager",  icon: MapPin,            to: "/countries",   id: "nav-admin-countries" },
   { label: "Support Chat",     icon: MessageSquare,     to: "/support-chat", id: "nav-admin-support-chat" },
   { label: "Controls",         icon: Sliders,           to: "/controls",    id: "nav-admin-controls" },
+  { label: "SEO Manager",      icon: Search,            to: "/seo",         id: "nav-admin-seo" },
   { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
 ];
 

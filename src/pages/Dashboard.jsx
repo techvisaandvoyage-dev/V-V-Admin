@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 //  Admin Dashboard Page
 //  Sections:
 //  1. Analytics overview (4 stat cards + Recharts line chart)
@@ -27,12 +27,14 @@ import Modal from "../components/ui/Modal";
 import Input, { Select, Textarea } from "../components/ui/Input";
 import StaticPagesManager from "../components/cms/StaticPagesManager";
 import BlogAdminPanel from "../components/blog/BlogAdminPanel";
+import SeoManagerPanel from "../components/admin/SeoManagerPanel";
 import AnalyticsPage from "./admin/AnalyticsPage";
 import PaymentsPage from "./admin/PaymentsPage";
 import VisaTypesManager from "../components/controls/VisaTypesManager";
 import CountryVisibilitySelector from "../components/controls/CountryVisibilitySelector";
 import FeeUpdateManager from "../components/controls/FeeUpdateManager";
 import FeeScopeConfigSection from "../components/controls/FeeScopeConfigSection";
+import VisaTypeScopeConfigSection from "../components/controls/VisaTypeScopeConfigSection";
 import AdminLayout from "../layouts/AdminLayout";
 import { ADMIN_DASHBOARD_TABS } from "../constants/adminMenu";
 import { useUIStore } from "../store/uiStore";
@@ -182,7 +184,7 @@ const IconPickerPreviewButton = ({
   );
 };
 
-// ── Recharts custom tooltip ────────────────────────────────
+// â”€â”€ Recharts custom tooltip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -190,7 +192,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <p className="text-xs font-semibold text-text-primary mb-2">{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="text-xs" style={{ color: p.color }}>
-          {p.name}: {p.dataKey === "revenue" ? `₹${p.value}` : p.value}
+          {p.name}: {p.dataKey === "revenue" ? `â‚¹${p.value}` : p.value}
         </p>
       ))}
     </div>
@@ -200,7 +202,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 const formatPriceINR = (value) => {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "Not set yet";
-  return `₹${amount.toLocaleString("en-IN")}`;
+  return `â‚¹${amount.toLocaleString("en-IN")}`;
 };
 
 const formatVisitCount = (value) => {
@@ -248,6 +250,92 @@ const buildFeeSaveAllDraft = (scopeValues, scopeTargets, fallbackAll = null) => 
   },
 });
 
+const buildPickerCustomDraft = (value, suggestions = []) => {
+  const normalizedValue = String(value ?? "").trim();
+  if (normalizedValue && suggestions.includes(normalizedValue)) {
+    return { picker: normalizedValue, custom: "" };
+  }
+  return { picker: "", custom: normalizedValue };
+};
+
+const resolvePickerOrCustomValue = (picker, custom) => {
+  const trimmedCustom = String(custom ?? "").trim();
+  if (trimmedCustom) return trimmedCustom;
+  return String(picker ?? "").trim();
+};
+
+const buildVisaTypeSaveAllDraft = (scopeValues, scopeTargets) => ({
+  allCountries: {
+    ...buildPickerCustomDraft(scopeValues?.all, VISA_TYPE_SUGGESTIONS),
+  },
+  singleCountry: {
+    countryId: "",
+    ...buildPickerCustomDraft("", VISA_TYPE_SUGGESTIONS),
+  },
+  singleCountryOverrides: Array.isArray(scopeTargets?.singleCountryOverrides)
+    ? scopeTargets.singleCountryOverrides
+        .map((item) => ({
+          countryId: String(item?.countryId ?? "").trim(),
+          ...buildPickerCustomDraft(item?.visaType, VISA_TYPE_SUGGESTIONS),
+        }))
+        .filter((item) => item.countryId && resolvePickerOrCustomValue(item.picker, item.custom))
+    : (() => {
+        const legacyCountryId = String(scopeTargets?.singleCountryId ?? "").trim();
+        const legacyVisaType = String(scopeValues?.single ?? "").trim();
+        if (!legacyCountryId || !legacyVisaType) return [];
+        return [
+          {
+            countryId: legacyCountryId,
+            ...buildPickerCustomDraft(legacyVisaType, VISA_TYPE_SUGGESTIONS),
+          },
+        ];
+      })(),
+  singleCountryDraft: {
+    countryId: "",
+    ...buildPickerCustomDraft("", VISA_TYPE_SUGGESTIONS),
+  },
+  someCountries: {
+    countryIds: normalizeCountrySelectorIds(scopeTargets?.someCountryIds),
+    ...buildPickerCustomDraft(scopeValues?.some, VISA_TYPE_SUGGESTIONS),
+  },
+});
+
+const buildLengthOfStaySaveAllDraft = (scopeValues, scopeTargets) => ({
+  allCountries: {
+    ...buildPickerCustomDraft(scopeValues?.all, LENGTH_OF_STAY_SUGGESTIONS),
+  },
+  singleCountry: {
+    countryId: "",
+    ...buildPickerCustomDraft("", LENGTH_OF_STAY_SUGGESTIONS),
+  },
+  singleCountryOverrides: Array.isArray(scopeTargets?.singleCountryOverrides)
+    ? scopeTargets.singleCountryOverrides
+        .map((item) => ({
+          countryId: String(item?.countryId ?? "").trim(),
+          ...buildPickerCustomDraft(item?.lengthOfStay, LENGTH_OF_STAY_SUGGESTIONS),
+        }))
+        .filter((item) => item.countryId && resolvePickerOrCustomValue(item.picker, item.custom))
+    : (() => {
+        const legacyCountryId = String(scopeTargets?.singleCountryId ?? "").trim();
+        const legacyLengthOfStay = String(scopeValues?.single ?? "").trim();
+        if (!legacyCountryId || !legacyLengthOfStay) return [];
+        return [
+          {
+            countryId: legacyCountryId,
+            ...buildPickerCustomDraft(legacyLengthOfStay, LENGTH_OF_STAY_SUGGESTIONS),
+          },
+        ];
+      })(),
+  singleCountryDraft: {
+    countryId: "",
+    ...buildPickerCustomDraft("", LENGTH_OF_STAY_SUGGESTIONS),
+  },
+  someCountries: {
+    countryIds: normalizeCountrySelectorIds(scopeTargets?.someCountryIds),
+    ...buildPickerCustomDraft(scopeValues?.some, LENGTH_OF_STAY_SUGGESTIONS),
+  },
+});
+
 const normalizeServiceFeeOverrideRows = (rows) =>
   Array.isArray(rows)
     ? rows
@@ -273,6 +361,50 @@ const serializeFeeSaveAllDraft = (draft) =>
     someCountries: {
       countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
       amount: String(draft?.someCountries?.amount ?? "").trim(),
+    },
+  });
+
+const serializeVisaTypeSaveAllDraft = (draft) =>
+  JSON.stringify({
+    allCountries: {
+      visaType: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        visaType: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.visaType)
+      .sort((a, b) => a.countryId.localeCompare(b.countryId)),
+    singleCountryDraft: {
+      countryId: String(draft?.singleCountryDraft?.countryId ?? "").trim(),
+      visaType: resolvePickerOrCustomValue(draft?.singleCountryDraft?.picker, draft?.singleCountryDraft?.custom),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      visaType: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+const serializeLengthOfStaySaveAllDraft = (draft) =>
+  JSON.stringify({
+    allCountries: {
+      lengthOfStay: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        lengthOfStay: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.lengthOfStay)
+      .sort((a, b) => a.countryId.localeCompare(b.countryId)),
+    singleCountryDraft: {
+      countryId: String(draft?.singleCountryDraft?.countryId ?? "").trim(),
+      lengthOfStay: resolvePickerOrCustomValue(draft?.singleCountryDraft?.picker, draft?.singleCountryDraft?.custom),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      lengthOfStay: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
     },
   });
 
@@ -450,7 +582,7 @@ const SettingsSectionCard = ({
     <div className="space-y-4">{children}</div>
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-4 border-t border-border">
       <p className="text-[11px] text-text-muted order-2 sm:order-1">
-        Only this section is saved — other sections are unchanged.
+        Only this section is saved â€” other sections are unchanged.
       </p>
       <Button
         variant="primary"
@@ -594,7 +726,7 @@ const ExpandableAdminControlCard = ({
   );
 };
 
-/** Defaults match client destination page — used until admin saves custom copy. */
+/** Defaults match client destination page â€” used until admin saves custom copy. */
 const DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW = [
   "Fast document pre-check by visa specialists",
   "Transparent pricing and status updates",
@@ -626,7 +758,7 @@ const DESTINATION_PAGE_DEFAULT_FAQS = [
   {
     question: "How long does processing take?",
     answer:
-      "Typical processing varies by destination — each country page lists estimated timelines based on current embassy guidance.",
+      "Typical processing varies by destination â€” each country page lists estimated timelines based on current embassy guidance.",
   },
   {
     question: "Can I track my application?",
@@ -647,7 +779,7 @@ const DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS = [
   { title: "Enjoy your vacation", description: "Thanks for choosing VisaAndVoyage and we wish you an amazing journey." },
 ];
 
-/** Suggestions shown in the Visa Type combo-box on the country edit modal — admins can pick or type their own. */
+/** Suggestions shown in the Visa Type combo-box on the country edit modal â€” admins can pick or type their own. */
 const VISA_TYPE_SUGGESTIONS = [
   "Tourist Visa",
   "Business Visa",
@@ -1128,6 +1260,22 @@ const mapApiSettingsToFormState = (s, activeCountryIds = []) => ({
   footerBrandPrimaryText: s.footerBrandPrimaryText || "",
   footerBrandAccentText: s.footerBrandAccentText || "",
   footerDescription: s.footerDescription || "",
+  seoWebsiteTitle: s.seoWebsiteTitle || "Visa & Voyage",
+  seoMetaDescription: s.seoMetaDescription || "",
+  seoMetaKeywords: s.seoMetaKeywords || "",
+  seoHomepageTitle: s.seoHomepageTitle || "",
+  seoHomepageDescription: s.seoHomepageDescription || "",
+  seoOpenGraphTitle: s.seoOpenGraphTitle || "",
+  seoOpenGraphDescription: s.seoOpenGraphDescription || "",
+  seoTwitterTitle: s.seoTwitterTitle || "",
+  seoTwitterDescription: s.seoTwitterDescription || "",
+  seoCanonicalUrl: s.seoCanonicalUrl || "https://visavo.in",
+  seoFaviconUrl: s.seoFaviconUrl || "",
+  seoFavicon32Url: s.seoFavicon32Url || "",
+  seoFavicon192Url: s.seoFavicon192Url || "",
+  seoAppleTouchIconUrl: s.seoAppleTouchIconUrl || "",
+  seoRobotsIndex: s.seoRobotsIndex !== false,
+  seoSitemapUrl: s.seoSitemapUrl || "https://visavo.in/sitemap.xml",
   whatsappTemplate: s.whatsappTemplate || "",
 });
 
@@ -1165,7 +1313,7 @@ const mapApiOtpSettingsToFormState = (settings = {}) => ({
 
 /**
  * Compact "switch" used inside each universal control card header. Renders as a
- * pill with an animated knob — green when the field is visible on the public
+ * pill with an animated knob â€” green when the field is visible on the public
  * client, neutral when hidden. While the API call is in flight the button is
  * disabled so users can't double-click it.
  */
@@ -1228,9 +1376,9 @@ const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //  COMPONENT
-// ── Live Support Chat Mock Conversations & Workspace ────────
+// â”€â”€ Live Support Chat Mock Conversations & Workspace â”€â”€â”€â”€â”€â”€â”€â”€
 const INITIAL_CONVERSATIONS = [
   {
     id: "1",
@@ -1243,8 +1391,8 @@ const INITIAL_CONVERSATIONS = [
     messages: [
       { id: "m1", sender: "user", text: "Hi, I need help with my Dubai visa application.", time: "10:30 AM" },
       { id: "m2", sender: "user", text: "What documents are required for a tourist visa?", time: "10:31 AM" },
-      { id: "m3", sender: "admin", text: "Hello Rohit! 👋\n\nI'll be happy to help you with your Dubai visa.", time: "10:32 AM" },
-      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\n• Passport (valid 6+ months)\n• Passport size photo\n• Confirmed return ticket\n• Hotel booking\n• Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
+      { id: "m3", sender: "admin", text: "Hello Rohit! ðŸ‘‹\n\nI'll be happy to help you with your Dubai visa.", time: "10:32 AM" },
+      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\nâ€¢ Passport (valid 6+ months)\nâ€¢ Passport size photo\nâ€¢ Confirmed return ticket\nâ€¢ Hotel booking\nâ€¢ Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
       { id: "m5", sender: "user", text: "Thank you! How long does it take to process?", time: "10:34 AM" },
       { id: "m6", sender: "admin", text: "It usually takes 3-4 working days. Let me know if you have any other questions.", time: "10:35 AM" }
     ]
@@ -1362,7 +1510,7 @@ const renderAvatar = (name, sizeClass = "w-10 h-10 text-xs") => {
 };
 
 const SupportChatWorkspace = () => {
-  const chatEmojis = ["😀", "😊", "😍", "👍", "🙏", "🎉", "❤️", "😄", "🤝", "✨"];
+  const chatEmojis = ["ðŸ˜€", "ðŸ˜Š", "ðŸ˜", "ðŸ‘", "ðŸ™", "ðŸŽ‰", "â¤ï¸", "ðŸ˜„", "ðŸ¤", "âœ¨"];
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState("1");
   const [activeTab, setActiveTab] = useState("all"); // "all" | "unread" | "resolved"
@@ -1684,9 +1832,9 @@ const SupportChatWorkspace = () => {
                   </h3>
                   <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
                     <span className="truncate max-w-[150px] sm:max-w-[200px]">{activeConversation.email}</span>
-                    <span className="text-border/60">•</span>
+                    <span className="text-border/60">â€¢</span>
                     <span>{activeConversation.phone}</span>
-                    <span className="text-border/60">•</span>
+                    <span className="text-border/60">â€¢</span>
                     <a href="#profile" className="text-cyan font-bold hover:underline">View Profile</a>
                   </p>
                 </div>
@@ -1820,7 +1968,7 @@ const SupportChatWorkspace = () => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const Dashboard = () => {
   const {
     showToast,
@@ -1831,7 +1979,7 @@ const Dashboard = () => {
     setSelectedCountry,
   } = useUIStore();
 
-  // ── Route & State Navigation ──────────────────────────────
+  // â”€â”€ Route & State Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const navigate       = useNavigate();
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
@@ -1843,7 +1991,7 @@ const Dashboard = () => {
     navigate("/", { replace: true });
   }, [navigate, tabParam, validAdminTabIds]);
 
-  // ── Global Data Store ──────────────────────────────────────
+  // â”€â”€ Global Data Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { bookings, countries, fetchAllApplications, fetchCountries, fetchPages, updateCountry } = useDataStore();
   const activeCountryOptions = useMemo(
     () =>
@@ -1869,7 +2017,7 @@ const Dashboard = () => {
   );
   const allCountryIds = useMemo(() => [...activeCountryIds], [activeCountryIds]);
 
-  // ── Local state ──────────────────────────────────────────
+  // â”€â”€ Local state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [searchQuery, setSearchQuery]        = useState("");
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
   const [statusFilter, setStatusFilter]      = useState("all");
@@ -1919,13 +2067,29 @@ const Dashboard = () => {
     footerBrandPrimaryText: "",
     footerBrandAccentText: "",
     footerDescription: "",
+    seoWebsiteTitle: "Visa & Voyage",
+    seoMetaDescription: "",
+    seoMetaKeywords: "",
+    seoHomepageTitle: "",
+    seoHomepageDescription: "",
+    seoOpenGraphTitle: "",
+    seoOpenGraphDescription: "",
+    seoTwitterTitle: "",
+    seoTwitterDescription: "",
+    seoCanonicalUrl: "https://visavo.in",
+    seoFaviconUrl: "",
+    seoFavicon32Url: "",
+    seoFavicon192Url: "",
+    seoAppleTouchIconUrl: "",
+    seoRobotsIndex: true,
+    seoSitemapUrl: "https://visavo.in/sitemap.xml",
     whatsappTemplate: "",
   });
   const [otpSettingsForm, setOtpSettingsForm] = useState(DEFAULT_OTP_SETTINGS);
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
   /**
-   * Universal control system — admin sets a single global Visa Type / Validity that
+   * Universal control system â€” admin sets a single global Visa Type / Validity that
    * applies to every country card and detail page unless an individual country edit
    * carries a per-country override. `defaults` mirrors the server state, while the
    * `*Picker`/`*Custom` pair drives the dropdown + free-text controls.
@@ -1940,8 +2104,12 @@ const Dashboard = () => {
     governmentFeeScopeValues: { all: null, single: null, some: null },
     governmentFeeScopeTargets: { singleCountryId: "", someCountryIds: [] },
     globalVisaType: "",
+    visaTypeScopeValues: { all: "", single: "", some: "" },
+    visaTypeScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalValidity: "",
     globalLengthOfStay: "",
+    lengthOfStayScopeValues: { all: "", single: "", some: "" },
+    lengthOfStayScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalEntryType: "",
     globalEntryTypeVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalProcessingDays: "",
@@ -1968,7 +2136,7 @@ const Dashboard = () => {
     overridingProcessingDays: 0,
     overridingRequiredDocuments: 0,
   });
-  /** Mirrors `Settings.show*` — when false, the public client hides that tile/section. */
+  /** Mirrors `Settings.show*` â€” when false, the public client hides that tile/section. */
   const [displayToggles, setDisplayToggles] = useState({
     showVisaType: true,
     showValidity: true,
@@ -2185,12 +2353,20 @@ const Dashboard = () => {
     buildFeeSaveAllDraft({ all: null, single: null, some: null }, { singleCountryId: "", someCountryIds: [] })
   );
   const [feeSaveModalState, setFeeSaveModalState] = useState({ open: false, feeType: "" });
-  const [visaTypePicker, setVisaTypePicker] = useState("");
-  const [visaTypeCustom, setVisaTypeCustom] = useState("");
+  const [visaTypeSaveAllDraft, setVisaTypeSaveAllDraft] = useState(() =>
+    buildVisaTypeSaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [visaTypeSavedDraft, setVisaTypeSavedDraft] = useState(() =>
+    buildVisaTypeSaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [lengthOfStaySaveAllDraft, setLengthOfStaySaveAllDraft] = useState(() =>
+    buildLengthOfStaySaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [lengthOfStaySavedDraft, setLengthOfStaySavedDraft] = useState(() =>
+    buildLengthOfStaySaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
   const [validityPicker, setValidityPicker] = useState("");
   const [validityCustom, setValidityCustom] = useState("");
-  const [lengthOfStayPicker, setLengthOfStayPicker] = useState("");
-  const [lengthOfStayCustom, setLengthOfStayCustom] = useState("");
   const [entryTypePicker, setEntryTypePicker] = useState("");
   const [entryTypeCustom, setEntryTypeCustom] = useState("");
   const [processingDaysPicker, setProcessingDaysPicker] = useState("");
@@ -2555,7 +2731,7 @@ const Dashboard = () => {
         } else if (activeTab === "transactions") {
           const { data } = await api.get("/admin/transactions");
           if (data.success) setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
-        } else if (activeTab === "settings") {
+        } else if (activeTab === "settings" || activeTab === "seo") {
           await fetchCountries();
           const latestCountries = useDataStore.getState().countries || [];
           const activeOpts = latestCountries
@@ -2633,7 +2809,7 @@ const Dashboard = () => {
     fetchData();
   }, [activeTab, fetchAllApplications, fetchCountries]);
 
-  // ── Drag & Drop state ────────────────────────────────────
+  // â”€â”€ Drag & Drop state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [isDragging, setIsDragging]          = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef                         = useRef(null);
@@ -2680,7 +2856,7 @@ const Dashboard = () => {
 
   // Country form state
   const [countryForm, setCountryForm] = useState({
-    name: "", flagEmoji: "🌍", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
+    name: "", flagEmoji: "ðŸŒ", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
     visaType: "", validity: "", lengthOfStay: "", entryType: "", continent: "", description: "", requirements: [""], imageUrl: "",
     requiredDocuments: ["passport"], successRate: "80", isActive: true,
     visaInformation: createVisaInformationState({}),
@@ -2700,7 +2876,7 @@ const Dashboard = () => {
     excludeDestinationVisaRequirements: [],
   });
 
-  /** Snapshot of Settings → Destinations (for merging in the country edit modal). */
+  /** Snapshot of Settings â†’ Destinations (for merging in the country edit modal). */
   const [countryModalGlobalDest, setCountryModalGlobalDest] = useState({
     whyBookNow: [],
     includedItems: [],
@@ -2709,7 +2885,7 @@ const Dashboard = () => {
     visaRequirements: [],
   });
 
-  // ── Filter applications ───────────────────────────────────
+  // â”€â”€ Filter applications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filteredBookings = bookings.filter((b) => {
     const q = searchQuery.toLowerCase();
     const idStr = String(b.applicationId || b._id || b.id || "").toLowerCase();
@@ -2814,7 +2990,7 @@ const Dashboard = () => {
     };
   }, [countryModalOpen]);
 
-  // ── Country Manager handlers ───────────────────────────────
+  // â”€â”€ Country Manager handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const [togglingCountryKey, setTogglingCountryKey] = useState(null);
   const [bulkCountryToggleBusy, setBulkCountryToggleBusy] = useState(false);
@@ -3165,7 +3341,7 @@ const Dashboard = () => {
     }));
   };
 
-  // ── Image upload helpers ─────────────────────────────────
+  // â”€â”€ Image upload helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const uploadImageToServer = async (file) => {
     if (!file || !file.type.startsWith("image/")) {
       showToast("Please select a valid image file.", "error");
@@ -3190,7 +3366,7 @@ const Dashboard = () => {
     }
   };
 
-  // ── Drag & Drop handlers ─────────────────────────────────
+  // â”€â”€ Drag & Drop handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop = (e) => {
@@ -3337,8 +3513,27 @@ const Dashboard = () => {
             activeCountryIds
           ),
           globalVisaType: String(data.defaults?.globalVisaType ?? "").trim(),
+          visaTypeScopeValues: {
+            all: String(data.defaults?.visaTypeScopeValues?.all ?? data.defaults?.globalVisaType ?? "").trim(),
+            single: String(data.defaults?.visaTypeScopeValues?.single ?? "").trim(),
+            some: String(data.defaults?.visaTypeScopeValues?.some ?? "").trim(),
+          },
+          visaTypeScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.visaTypeScopeTargets,
+            activeCountryIds
+          ),
+          // merged just below so the draft builder can read everything from one target object
           globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
           globalLengthOfStay: String(data.defaults?.globalLengthOfStay ?? "").trim(),
+          lengthOfStayScopeValues: {
+            all: String(data.defaults?.lengthOfStayScopeValues?.all ?? data.defaults?.globalLengthOfStay ?? "").trim(),
+            single: String(data.defaults?.lengthOfStayScopeValues?.single ?? "").trim(),
+            some: String(data.defaults?.lengthOfStayScopeValues?.some ?? "").trim(),
+          },
+          lengthOfStayScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.lengthOfStayScopeTargets,
+            activeCountryIds
+          ),
           globalEntryType: String(data.defaults?.globalEntryType ?? "").trim(),
           globalEntryTypeVisibility: withCountryApplyMeta(
             data.defaults?.globalEntryTypeVisibility || {},
@@ -3359,6 +3554,28 @@ const Dashboard = () => {
             data.defaults?.globalRequiredDocuments,
             activeCountryIds
           ),
+        };
+        next.visaTypeScopeTargets = {
+          ...next.visaTypeScopeTargets,
+          singleCountryOverrides: Array.isArray(data.defaults?.visaTypeSingleCountryOverrides)
+            ? data.defaults.visaTypeSingleCountryOverrides
+                .map((item) => ({
+                  countryId: String(item?.countryId ?? "").trim(),
+                  visaType: String(item?.visaType ?? "").trim(),
+                }))
+                .filter((item) => item.countryId && item.visaType)
+            : [],
+        };
+        next.lengthOfStayScopeTargets = {
+          ...next.lengthOfStayScopeTargets,
+          singleCountryOverrides: Array.isArray(data.defaults?.lengthOfStaySingleCountryOverrides)
+            ? data.defaults.lengthOfStaySingleCountryOverrides
+                .map((item) => ({
+                  countryId: String(item?.countryId ?? "").trim(),
+                  lengthOfStay: String(item?.lengthOfStay ?? "").trim(),
+                }))
+                .filter((item) => item.countryId && item.lengthOfStay)
+            : [],
         };
         setGlobalDefaults(next);
         setGlobalDefaultStats({
@@ -3408,7 +3625,7 @@ const Dashboard = () => {
         }
         // Pre-populate the required-docs draft from the live global selection so
         // the admin sees exactly what's currently applied. Falls back to just
-        // "passport" if no global has been set yet — matches the legacy default.
+        // "passport" if no global has been set yet â€” matches the legacy default.
         setRequiredDocsDraft(
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
@@ -3425,6 +3642,14 @@ const Dashboard = () => {
           next.governmentFeeScopeTargets,
           next.globalGovernmentFee
         );
+        const nextVisaTypeDraft = buildVisaTypeSaveAllDraft(
+          next.visaTypeScopeValues,
+          next.visaTypeScopeTargets
+        );
+        const nextLengthOfStayDraft = buildLengthOfStaySaveAllDraft(
+          next.lengthOfStayScopeValues,
+          next.lengthOfStayScopeTargets
+        );
         setServiceFeeSaveAllDraft(nextServiceFeeDraft);
         setServiceFeeSavedDraft(nextServiceFeeDraft);
         setServiceFeeCountryOverrides(
@@ -3432,28 +3657,16 @@ const Dashboard = () => {
         );
         setGovernmentFeeSaveAllDraft(nextGovernmentFeeDraft);
         setGovernmentFeeSavedDraft(nextGovernmentFeeDraft);
-        // Pre-fill the dropdowns with whatever the global currently is so admins can
-        // see at a glance what's live without first clicking around.
-        if (next.globalVisaType && VISA_TYPE_SUGGESTIONS.includes(next.globalVisaType)) {
-          setVisaTypePicker(next.globalVisaType);
-          setVisaTypeCustom("");
-        } else if (next.globalVisaType) {
-          setVisaTypePicker("");
-          setVisaTypeCustom(next.globalVisaType);
-        }
+        setVisaTypeSaveAllDraft(nextVisaTypeDraft);
+        setVisaTypeSavedDraft(nextVisaTypeDraft);
+        setLengthOfStaySaveAllDraft(nextLengthOfStayDraft);
+        setLengthOfStaySavedDraft(nextLengthOfStayDraft);
         if (next.globalValidity && VALIDITY_SUGGESTIONS.includes(next.globalValidity)) {
           setValidityPicker(next.globalValidity);
           setValidityCustom("");
         } else if (next.globalValidity) {
           setValidityPicker("");
           setValidityCustom(next.globalValidity);
-        }
-        if (next.globalLengthOfStay && LENGTH_OF_STAY_SUGGESTIONS.includes(next.globalLengthOfStay)) {
-          setLengthOfStayPicker(next.globalLengthOfStay);
-          setLengthOfStayCustom("");
-        } else if (next.globalLengthOfStay) {
-          setLengthOfStayPicker("");
-          setLengthOfStayCustom(next.globalLengthOfStay);
         }
         if (next.globalEntryType && ENTRY_TYPE_SUGGESTIONS.includes(next.globalEntryType)) {
           setEntryTypePicker(next.globalEntryType);
@@ -3474,7 +3687,7 @@ const Dashboard = () => {
       if (error?.response?.status === 401) {
         handleUnauthorized();
       }
-      // Defaults stay at their initial empty values — the UI will show "Not set yet".
+      // Defaults stay at their initial empty values â€” the UI will show "Not set yet".
     }
   };
 
@@ -3596,6 +3809,11 @@ const Dashboard = () => {
     serializeFeeSaveAllDraft(serviceFeeSaveAllDraft) !== serializeFeeSaveAllDraft(serviceFeeSavedDraft);
   const governmentFeeHasUnsavedChanges =
     serializeFeeSaveAllDraft(governmentFeeSaveAllDraft) !== serializeFeeSaveAllDraft(governmentFeeSavedDraft);
+  const visaTypeHasUnsavedChanges =
+    serializeVisaTypeSaveAllDraft(visaTypeSaveAllDraft) !== serializeVisaTypeSaveAllDraft(visaTypeSavedDraft);
+  const lengthOfStayHasUnsavedChanges =
+    serializeLengthOfStaySaveAllDraft(lengthOfStaySaveAllDraft) !==
+    serializeLengthOfStaySaveAllDraft(lengthOfStaySavedDraft);
 
   const validateFeeSaveAllDraft = (draft, label) => {
     const allAmount = Number(draft?.allCountries?.amount);
@@ -3665,26 +3883,203 @@ const Dashboard = () => {
     return String(picker ?? "").trim();
   };
 
-  /**
-   * POST the chosen Visa Type to the universal control endpoint. On success the
-   * server flips `useGlobalVisaType=true` on every country so the change is visible
-   * immediately on cards / details.
-   */
-  const runUpdateGlobalVisaType = async () => {
-    const visaType = resolveControlValue(visaTypePicker, visaTypeCustom);
-    if (!visaType) {
-      showToast("Pick a Visa Type from the dropdown or type your own.", "error");
+  const validateVisaTypeSaveAllDraft = (draft) => {
+    const allVisaType = resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom);
+    if (!allVisaType) {
+      showToast("Pick or type a Visa Type for All Countries.", "error");
+      return false;
+    }
+
+    const singleCountryDraftId = String(draft?.singleCountryDraft?.countryId ?? "").trim();
+    const singleCountryDraftVisaType = resolvePickerOrCustomValue(
+      draft?.singleCountryDraft?.picker,
+      draft?.singleCountryDraft?.custom
+    );
+    if (singleCountryDraftId || singleCountryDraftVisaType) {
+      showToast("Add the single-country visa type to the list, or clear the draft first.", "error");
+      return false;
+    }
+
+    const singleCountryOverrides = Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [];
+    for (const item of singleCountryOverrides) {
+      const countryId = String(item?.countryId ?? "").trim();
+      const visaType = resolvePickerOrCustomValue(item?.picker, item?.custom);
+      if (!countryId || !visaType) {
+        showToast("Each single-country visa type entry needs both country and visa type.", "error");
+        return false;
+      }
+    }
+
+    const someCountryIds = normalizeCountrySelectorIds(draft?.someCountries?.countryIds);
+    const someVisaType = resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom);
+    const someHasAnyValue = Boolean(someCountryIds.length > 0 || someVisaType);
+    if (someHasAnyValue) {
+      if (someCountryIds.length === 0) {
+        showToast("Select at least one country for Some Countries Visa Type.", "error");
+        return false;
+      }
+      if (!someVisaType) {
+        showToast("Pick or type a Visa Type for Some Countries.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildVisaTypeSaveAllPayload = (draft) => ({
+    singleCountry: (() => {
+      const firstOverride = (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])[0];
+      return {
+        countryId: String(firstOverride?.countryId ?? "").trim(),
+        visaType: resolvePickerOrCustomValue(firstOverride?.picker, firstOverride?.custom),
+      };
+    })(),
+    allCountries: {
+      visaType: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        visaType: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.visaType),
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      visaType: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+  const cloneVisaTypeDraftForSave = (draft) => ({
+    allCountries: { ...(draft?.allCountries || {}) },
+    singleCountry: { ...(draft?.singleCountry || {}) },
+    singleCountryDraft: { ...(draft?.singleCountryDraft || {}) },
+    singleCountryOverrides: Array.isArray(draft?.singleCountryOverrides)
+      ? draft.singleCountryOverrides.map((item) => ({ ...item }))
+      : [],
+    someCountries: {
+      ...(draft?.someCountries || {}),
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+    },
+  });
+
+  const keepSavedSingleCountryVisaTypeRows = (draftSnapshot) => {
+    const preservedOverrides = Array.isArray(draftSnapshot?.singleCountryOverrides)
+      ? draftSnapshot.singleCountryOverrides.map((item) => ({ ...item }))
+      : [];
+    const clearedDraft = {
+      countryId: "",
+      ...buildPickerCustomDraft("", VISA_TYPE_SUGGESTIONS),
+    };
+
+    setVisaTypeSaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+    setVisaTypeSavedDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+  };
+
+  const cloneLengthOfStayDraftForSave = (draft) => ({
+    allCountries: { ...(draft?.allCountries || {}) },
+    singleCountry: { ...(draft?.singleCountry || {}) },
+    singleCountryDraft: { ...(draft?.singleCountryDraft || {}) },
+    singleCountryOverrides: Array.isArray(draft?.singleCountryOverrides)
+      ? draft.singleCountryOverrides.map((item) => ({ ...item }))
+      : [],
+    someCountries: {
+      ...(draft?.someCountries || {}),
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+    },
+  });
+
+  const keepSavedSingleCountryLengthOfStayRows = (draftSnapshot) => {
+    const preservedOverrides = Array.isArray(draftSnapshot?.singleCountryOverrides)
+      ? draftSnapshot.singleCountryOverrides.map((item) => ({ ...item }))
+      : [];
+    const clearedDraft = {
+      countryId: "",
+      ...buildPickerCustomDraft("", LENGTH_OF_STAY_SUGGESTIONS),
+    };
+
+    setLengthOfStaySaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+    setLengthOfStaySavedDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+  };
+
+  const addSingleCountryVisaTypeOverride = () => {
+    const countryId = String(visaTypeSaveAllDraft?.singleCountryDraft?.countryId ?? "").trim();
+    const visaType = resolvePickerOrCustomValue(
+      visaTypeSaveAllDraft?.singleCountryDraft?.picker,
+      visaTypeSaveAllDraft?.singleCountryDraft?.custom
+    );
+    if (!countryId) {
+      showToast("Select one country before adding.", "error");
       return;
     }
+    if (!visaType) {
+      showToast("Pick or type a Visa Type before adding.", "error");
+      return;
+    }
+
+    setVisaTypeSaveAllDraft((prev) => {
+      const nextOverrides = Array.isArray(prev.singleCountryOverrides)
+        ? prev.singleCountryOverrides.filter((item) => String(item?.countryId ?? "").trim() !== countryId)
+        : [];
+      nextOverrides.push({
+        countryId,
+        ...buildPickerCustomDraft(visaType, VISA_TYPE_SUGGESTIONS),
+      });
+      nextOverrides.sort((a, b) => String(a.countryId).localeCompare(String(b.countryId)));
+      return {
+        ...prev,
+        singleCountryOverrides: nextOverrides,
+        singleCountryDraft: {
+          countryId: "",
+          ...buildPickerCustomDraft("", VISA_TYPE_SUGGESTIONS),
+        },
+      };
+    });
+  };
+
+  const removeSingleCountryVisaTypeOverride = (countryId) => {
+    setVisaTypeSaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: (Array.isArray(prev.singleCountryOverrides) ? prev.singleCountryOverrides : []).filter(
+        (item) => String(item?.countryId ?? "").trim() !== String(countryId ?? "").trim()
+      ),
+    }));
+  };
+
+  const runUpdateGlobalVisaType = async () => {
+    if (!visaTypeHasUnsavedChanges) {
+      showToast("No unsaved visa type changes.", "warning");
+      return;
+    }
+    if (!validateVisaTypeSaveAllDraft(visaTypeSaveAllDraft)) {
+      return;
+    }
+    const draftSnapshot = cloneVisaTypeDraftForSave(visaTypeSaveAllDraft);
     setSavingControlKey("visa-type");
     try {
-      const { data } = await api.post("/admin/control/visa-type", { visaType });
+      const { data } = await api.post("/admin/control/visa-type", buildVisaTypeSaveAllPayload(draftSnapshot));
       if (data?.success) {
-        showToast(data.message || `Visa Type set to "${visaType}".`, "success");
+        showToast(data.message || "Visa type changes saved successfully.", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
-        setVisaTypeCustom("");
+        keepSavedSingleCountryVisaTypeRows(draftSnapshot);
       } else {
-        showToast(data?.message || "Failed to update global visa type.", "error");
+        showToast(data?.message || "Failed to save visa type changes.", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -3693,21 +4088,20 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global visa type.";
+      let toastMsg = serverMsg || error?.message || "Failed to save visa type changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
       // eslint-disable-next-line no-console
-      console.error("Update global visa type failed:", { status, serverMsg, error });
+      console.error("Save visa type changes failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
     }
   };
-
   /** Same as `runUpdateGlobalVisaType` but for the universal Validity control. */
   const runUpdateGlobalValidity = async () => {
     const validity = resolveControlValue(validityPicker, validityCustom);
@@ -3735,7 +4129,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update global validity.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/validity is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/validity is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -3747,21 +4141,135 @@ const Dashboard = () => {
     }
   };
 
-  const runUpdateGlobalLengthOfStay = async () => {
-    const lengthOfStay = resolveControlValue(lengthOfStayPicker, lengthOfStayCustom);
-    if (!lengthOfStay) {
-      showToast("Pick a Length of Stay from the dropdown or type your own.", "error");
+  const validateLengthOfStaySaveAllDraft = (draft) => {
+    const allLengthOfStay = resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom);
+    if (!allLengthOfStay) {
+      showToast("Please set Length of Stay for All Countries first.", "error");
+      return false;
+    }
+
+    const singleCountryDraftId = String(draft?.singleCountryDraft?.countryId ?? "").trim();
+    const singleCountryDraftLengthOfStay = resolvePickerOrCustomValue(
+      draft?.singleCountryDraft?.picker,
+      draft?.singleCountryDraft?.custom
+    );
+    if (singleCountryDraftId || singleCountryDraftLengthOfStay) {
+      showToast("Add the single-country length of stay to the list, or clear the draft first.", "error");
+      return false;
+    }
+
+    const singleCountryOverrides = Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [];
+    for (const item of singleCountryOverrides) {
+      const countryId = String(item?.countryId ?? "").trim();
+      const lengthOfStay = resolvePickerOrCustomValue(item?.picker, item?.custom);
+      if (!countryId || !lengthOfStay) {
+        showToast("Each single-country length of stay entry needs both country and value.", "error");
+        return false;
+      }
+    }
+
+    const someCountryIds = normalizeCountrySelectorIds(draft?.someCountries?.countryIds);
+    const someLengthOfStay = resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom);
+    const someHasAnyValue = Boolean(someCountryIds.length > 0 || someLengthOfStay);
+    if (someHasAnyValue) {
+      if (someCountryIds.length === 0) {
+        showToast("Select at least one country for Some Countries Length of Stay.", "error");
+        return false;
+      }
+      if (!someLengthOfStay) {
+        showToast("Pick or type a Length of Stay for Some Countries.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildLengthOfStaySaveAllPayload = (draft) => ({
+    singleCountry: (() => {
+      const firstOverride = (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])[0];
+      return {
+        countryId: String(firstOverride?.countryId ?? "").trim(),
+        lengthOfStay: resolvePickerOrCustomValue(firstOverride?.picker, firstOverride?.custom),
+      };
+    })(),
+    allCountries: {
+      lengthOfStay: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        lengthOfStay: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.lengthOfStay),
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      lengthOfStay: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+  const addSingleCountryLengthOfStayOverride = () => {
+    const countryId = String(lengthOfStaySaveAllDraft?.singleCountryDraft?.countryId ?? "").trim();
+    const lengthOfStay = resolvePickerOrCustomValue(
+      lengthOfStaySaveAllDraft?.singleCountryDraft?.picker,
+      lengthOfStaySaveAllDraft?.singleCountryDraft?.custom
+    );
+    if (!countryId) {
+      showToast("Select one country before adding.", "error");
       return;
     }
+    if (!lengthOfStay) {
+      showToast("Pick or type a Length of Stay before adding.", "error");
+      return;
+    }
+
+    setLengthOfStaySaveAllDraft((prev) => {
+      const nextOverrides = Array.isArray(prev.singleCountryOverrides)
+        ? prev.singleCountryOverrides.filter((item) => String(item?.countryId ?? "").trim() !== countryId)
+        : [];
+      nextOverrides.push({
+        countryId,
+        ...buildPickerCustomDraft(lengthOfStay, LENGTH_OF_STAY_SUGGESTIONS),
+      });
+      nextOverrides.sort((a, b) => String(a.countryId).localeCompare(String(b.countryId)));
+      return {
+        ...prev,
+        singleCountryOverrides: nextOverrides,
+        singleCountryDraft: {
+          countryId: "",
+          ...buildPickerCustomDraft("", LENGTH_OF_STAY_SUGGESTIONS),
+        },
+      };
+    });
+  };
+
+  const removeSingleCountryLengthOfStayOverride = (countryId) => {
+    setLengthOfStaySaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: (Array.isArray(prev.singleCountryOverrides) ? prev.singleCountryOverrides : []).filter(
+        (item) => String(item?.countryId ?? "").trim() !== String(countryId ?? "").trim()
+      ),
+    }));
+  };
+
+  const runUpdateGlobalLengthOfStay = async () => {
+    if (!lengthOfStayHasUnsavedChanges) {
+      showToast("No unsaved length of stay changes.", "warning");
+      return;
+    }
+    if (!validateLengthOfStaySaveAllDraft(lengthOfStaySaveAllDraft)) {
+      return;
+    }
+    const draftSnapshot = cloneLengthOfStayDraftForSave(lengthOfStaySaveAllDraft);
     setSavingControlKey("length-of-stay");
     try {
-      const { data } = await api.post("/admin/control/length-of-stay", { lengthOfStay });
+      const { data } = await api.post("/admin/control/length-of-stay", buildLengthOfStaySaveAllPayload(draftSnapshot));
       if (data?.success) {
-        showToast(data.message || `Length of Stay set to "${lengthOfStay}".`, "success");
+        showToast(data.message || "Length of stay changes saved successfully.", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
-        setLengthOfStayCustom("");
+        keepSavedSingleCountryLengthOfStayRows(draftSnapshot);
       } else {
-        showToast(data?.message || "Failed to update global length of stay.", "error");
+        showToast(data?.message || "Failed to save length of stay changes.", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -3770,14 +4278,14 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global length of stay.";
+      let toastMsg = serverMsg || error?.message || "Failed to save length of stay changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      console.error("Update global length of stay failed:", { status, serverMsg, error });
+      console.error("Save global length of stay failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -3817,7 +4325,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update global entry.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -3862,7 +4370,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update global processing days.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -3910,7 +4418,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update fee";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4087,7 +4595,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update required documents.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API so /api/admin/control/required-documents is available.";
+          "Control endpoint not found â€” restart the API so /api/admin/control/required-documents is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4199,7 +4707,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to add custom document.";
       if (status === 404) {
         toastMsg =
-          "Endpoint not found — restart the API so /api/admin/control/custom-documents is available.";
+          "Endpoint not found â€” restart the API so /api/admin/control/custom-documents is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4392,7 +4900,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update display toggle.";
       if (status === 404) {
         toastMsg =
-          "Toggle endpoint not found — restart the API so /api/admin/control/display-toggles is available.";
+          "Toggle endpoint not found â€” restart the API so /api/admin/control/display-toggles is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4414,7 +4922,7 @@ const Dashboard = () => {
 
     setUnsplashFetchRunning(true);
     const scopeLabel = onlyTrending ? "Featured / trending countries" : "Countries";
-    setUnsplashFetchProgress(`Starting ${scopeLabel.toLowerCase()} — first batch may take ~10–20s (Unsplash rate limits)…`);
+    setUnsplashFetchProgress(`Starting ${scopeLabel.toLowerCase()} â€” first batch may take ~10â€“20s (Unsplash rate limits)â€¦`);
     let totalUpdated = 0;
     let totalFailed = 0;
     try {
@@ -4489,7 +4997,7 @@ const Dashboard = () => {
     setIsChangingPassword(false);
   };
 
-  // ── Requirements field helpers ─────────────────────────────
+  // â”€â”€ Requirements field helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const addRequirement = () =>
     setCountryForm((p) => ({ ...p, requirements: [...p.requirements, ""] }));
   const updateRequirement = (index, value) =>
@@ -4501,7 +5009,7 @@ const Dashboard = () => {
   const removeRequirement = (index) =>
     setCountryForm((p) => ({ ...p, requirements: p.requirements.filter((_, i) => i !== index) }));
 
-  // ── Recalculate live analytics from current applications ──
+  // â”€â”€ Recalculate live analytics from current applications â”€â”€
   const liveAnalytics = useMemo(() => {
     const statusCounts = {
       pending: 0,
@@ -4589,9 +5097,9 @@ const Dashboard = () => {
       }}
     >
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB: TRANSACTIONS
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === "transactions" && <PaymentsPage transactions={transactions} />}
           {false && activeTab === "transactions" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -4629,7 +5137,7 @@ const Dashboard = () => {
                               {tx.razorpayPaymentId || tx.paymentId || tx.razorpayOrderId || "N/A"}
                             </td>
                             <td className="py-3 px-4 font-medium text-text-primary">
-                              ₹{Number(tx.amount || 0).toLocaleString("en-IN")}
+                              â‚¹{Number(tx.amount || 0).toLocaleString("en-IN")}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/10 text-red-400' : tx.status === 'cancelled' ? 'bg-slate-500/10 text-slate-300' : 'bg-amber-500/10 text-amber-400'}`}>
@@ -4650,9 +5158,9 @@ const Dashboard = () => {
 
           {activeTab === "blogs" && <BlogAdminPanel />}
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB 1: ANALYTICS
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === "analytics" && (
             <AnalyticsPage
               bookings={bookings}
@@ -4667,7 +5175,7 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
-                  { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
+                  { label: "Total Revenue",   value: `â‚¹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
                   { label: "Pending Review", value: liveAnalytics.pendingReview,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
                   { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
                 ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
@@ -4727,7 +5235,7 @@ const Dashboard = () => {
                       <LineChart data={MONTHLY_REVENUE}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                         <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `â‚¹${v}`} />
                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#0284c7', strokeWidth: 1, strokeDasharray: '4 4' }} />
                         <Line
                           type="monotone"
@@ -4791,9 +5299,9 @@ const Dashboard = () => {
             </motion.div>
           )}
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB 2: APPLICATIONS TABLE
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === "applications" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <Card>
@@ -4835,7 +5343,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Table — horizontally scrollable on mobile */}
+                {/* Table â€” horizontally scrollable on mobile */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -4880,7 +5388,7 @@ const Dashboard = () => {
                             {fmtDate(b.travelDate)}
                           </td>
                           <td className="py-3 pr-6 font-medium text-text-primary whitespace-nowrap">
-                            ₹{b.fee}
+                            â‚¹{b.fee}
                           </td>
                           <td className="py-3 pr-6">
                             <div className="space-y-1">
@@ -4902,7 +5410,7 @@ const Dashboard = () => {
                                       : "Pending payment"}
                               </p>
                               <p className="font-mono text-[11px] text-text-secondary max-w-[140px] truncate" title={b.transactionId || ""}>
-                                {b.transactionId && b.transactionId !== "pending" ? b.transactionId : "—"}
+                                {b.transactionId && b.transactionId !== "pending" ? b.transactionId : "â€”"}
                               </p>
                             </div>
                           </td>
@@ -4956,18 +5464,18 @@ const Dashboard = () => {
                     Showing {filteredBookings.length} of {bookings.length} applications
                   </p>
                   <div className="flex gap-2">
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">← Prev</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">â† Prev</button>
                     <button className="px-3 py-1.5 text-xs rounded-lg bg-cyan text-background font-medium" id="admin-page-1">1</button>
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next →</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next â†’</button>
                   </div>
                 </div>
               </Card>
             </motion.div>
           )}
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB 3: COUNTRY MANAGER
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === "countries" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <Card>
@@ -5104,7 +5612,7 @@ const Dashboard = () => {
                       {/* Details row */}
                       <div className="flex items-center gap-4 text-xs text-text-muted mt-auto pt-3 border-t border-border/40">
                         <span className="flex items-center gap-1">
-                          <IndianRupee size={11} /> ₹{c.basePrice}
+                          <IndianRupee size={11} /> â‚¹{c.basePrice}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock size={11} /> {c.processingDays}
@@ -5127,14 +5635,14 @@ const Dashboard = () => {
             </motion.div>
           )}
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB: SUPPORT CHAT
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === "support-chat" && <SupportChatWorkspace />}
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB 4: CONTROLS
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === "controls" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="space-y-4 lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-6">
@@ -5215,7 +5723,7 @@ const Dashboard = () => {
                       Document Upload Methods
                     </h3>
                     <p className="text-xs text-text-muted mb-6">
-                      Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screen—they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done — only that section is saved.
+                      Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screenâ€”they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done â€” only that section is saved.
                     </p>
                     
                     <div className="space-y-4 max-w-lg">
@@ -5315,13 +5823,13 @@ const Dashboard = () => {
                 </div>
               </Card>
 
-              {/* ══════════════════════════════════════════════════════════
-                  Universal Visa Type control — sets `Settings.globalVisaType`
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                  Universal Visa Type control â€” sets `Settings.globalVisaType`
                   and resets every country's `useGlobalVisaType=true`. Admins
                   can later override one country individually in Country Manager.
                   The toggle in the header hides the Visa Type tile on every
                   public card / details page when switched off.
-                  ══════════════════════════════════════════════════════════ */}
+                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               {activeControlSection === "fee-update-manager" ? (
                 <div className="w-full max-w-none flex-1">
                   <FeeUpdateManager
@@ -5489,7 +5997,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalBasePrice}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalBasePrice}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingBasePrice}</span> override it.
                         </>
                         )}
@@ -5675,7 +6183,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}� {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}ï¿½ {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingGovernmentFee}</span> override it.
                         </>
                         )}
@@ -5778,12 +6286,8 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Sets a single <span className="text-text-primary font-medium">Visa Type</span> on every country card
-                      and detail page. Pick a value from the dropdown <span className="text-text-primary font-medium">or</span>{" "}
-                      type your own. Per-country overrides set in{" "}
-                      <span className="text-text-primary font-medium">Country Manager</span> are restored to the global value
-                      when you click <span className="text-text-primary font-medium">Update All Visa Types</span>. You can
-                      re-introduce a per-country override at any time afterwards.
+                      Set one default <span className="text-text-primary font-medium">Visa Type</span> for all active countries,
+                      then optionally define a different visa type for one country or a selected group of countries.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -5798,46 +6302,170 @@ const Dashboard = () => {
                       )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <VisaTypeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and give it its own visa type override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    suggestions={VISA_TYPE_SUGGESTIONS}
+                    countryId={visaTypeSaveAllDraft.singleCountryDraft.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
+                      }))
+                    }
+                    visaTypePicker={visaTypeSaveAllDraft.singleCountryDraft.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={visaTypeSaveAllDraft.singleCountryDraft.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: {
+                          ...prev.singleCountryDraft,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
+                        },
+                      }))
+                    }
+                  >
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full"
+                        leftIcon={<Plus size={15} />}
+                        onClick={addSingleCountryVisaTypeOverride}
+                      >
+                        Add Single Country
+                      </Button>
+
+                      <div className="rounded-xl border border-border bg-background">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Each country in this list keeps its own visa type override.
+                          </p>
+                        </div>
+                        {(visaTypeSaveAllDraft.singleCountryOverrides || []).length === 0 ? (
+                          <div className="px-4 py-4 text-sm text-text-muted">No single-country visa type overrides added yet.</div>
+                        ) : (
+                          <div className="divide-y divide-border">
+                            {(visaTypeSaveAllDraft.singleCountryOverrides || []).map((item) => {
+                              const countryId = String(item?.countryId ?? "").trim();
+                              const countryName =
+                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
+                                countryId;
+                              const visaType = resolvePickerOrCustomValue(item?.picker, item?.custom);
+                              return (
+                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
+                                    <p className="mt-1 text-xs text-text-muted">{visaType}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSingleCountryVisaTypeOverride(countryId)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
+                                    title={`Remove ${countryName}`}
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  </VisaTypeScopeConfigSection>
+                  <VisaTypeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same visa type."
+                    mode="some"
+                    countries={allCountryOptions}
+                    suggestions={VISA_TYPE_SUGGESTIONS}
+                    countryIds={visaTypeSaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    visaTypePicker={visaTypeSaveAllDraft.someCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={visaTypeSaveAllDraft.someCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: {
+                          ...prev.someCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.someCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                  <VisaTypeScopeConfigSection
+                    title="All Countries"
+                    description="Set the default visa type applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    suggestions={VISA_TYPE_SUGGESTIONS}
+                    visaTypePicker={visaTypeSaveAllDraft.allCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={visaTypeSaveAllDraft.allCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setVisaTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: {
+                          ...prev.allCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.allCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review the default visa type plus any single-country or grouped-country overrides, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "visa-type"}
-                    disabled={!resolveControlValue(visaTypePicker, visaTypeCustom)}
+                    disabled={!visaTypeHasUnsavedChanges}
                     onClick={runUpdateGlobalVisaType}
                   >
-                    Update All Visa Types
+                    Save All Changes
                   </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Pick a Visa Type"
-                    value={visaTypePicker}
-                    onChange={(e) => {
-                      setVisaTypePicker(e.target.value);
-                      setVisaTypeCustom("");
-                    }}
-                    options={VISA_TYPE_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="— choose one —"
-                    id="control-visa-type-picker"
-                  />
-                  <Input
-                    label="Or type a custom value"
-                    value={visaTypeCustom}
-                    onChange={(e) => {
-                      setVisaTypeCustom(e.target.value);
-                      if (e.target.value.trim()) setVisaTypePicker("");
-                    }}
-                    placeholder="e.g. Sticker Visa, Diplomatic Visa…"
-                    id="control-visa-type-custom"
-                    helper="Custom value overrides the dropdown above."
-                  />
                 </div>
               </ExpandableAdminControlCard>
               </div>
-
               <div className={activeControlSection === "length-of-stay" ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("length-of-stay")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
@@ -5856,9 +6484,8 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Sets a single <span className="text-text-primary font-medium">Length of Stay</span> for every country
-                      destination page. Per-country overrides are restored to the global value when you click{" "}
-                      <span className="text-text-primary font-medium">Update All Lengths of Stay</span>.
+                      Set one default <span className="text-text-primary font-medium">Length of Stay</span> for all active
+                      countries, then optionally define a different value for one country or a selected group of countries.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -5873,46 +6500,175 @@ const Dashboard = () => {
                       )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <VisaTypeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and give it its own length of stay override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    suggestions={LENGTH_OF_STAY_SUGGESTIONS}
+                    pickerLabel="Pick Length of Stay"
+                    customPlaceholder="e.g. 45 Days, Up to 30 days"
+                    countryId={lengthOfStaySaveAllDraft.singleCountryDraft.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
+                      }))
+                    }
+                    visaTypePicker={lengthOfStaySaveAllDraft.singleCountryDraft.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={lengthOfStaySaveAllDraft.singleCountryDraft.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: {
+                          ...prev.singleCountryDraft,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
+                        },
+                      }))
+                    }
+                  >
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full"
+                        leftIcon={<Plus size={15} />}
+                        onClick={addSingleCountryLengthOfStayOverride}
+                      >
+                        Add Single Country
+                      </Button>
+
+                      <div className="rounded-xl border border-border bg-background">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Each country in this list keeps its own length of stay override.
+                          </p>
+                        </div>
+                        {(lengthOfStaySaveAllDraft.singleCountryOverrides || []).length === 0 ? (
+                          <div className="px-4 py-4 text-sm text-text-muted">No single-country length of stay overrides added yet.</div>
+                        ) : (
+                          <div className="divide-y divide-border">
+                            {(lengthOfStaySaveAllDraft.singleCountryOverrides || []).map((item) => {
+                              const countryId = String(item?.countryId ?? "").trim();
+                              const countryName =
+                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
+                                countryId;
+                              const lengthOfStay = resolvePickerOrCustomValue(item?.picker, item?.custom);
+                              return (
+                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
+                                    <p className="mt-1 text-xs text-text-muted">{lengthOfStay}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSingleCountryLengthOfStayOverride(countryId)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
+                                    title={`Remove ${countryName}`}
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </VisaTypeScopeConfigSection>
+                  <VisaTypeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same length of stay."
+                    mode="some"
+                    countries={allCountryOptions}
+                    suggestions={LENGTH_OF_STAY_SUGGESTIONS}
+                    pickerLabel="Pick Length of Stay"
+                    customPlaceholder="e.g. 45 Days, Up to 30 days"
+                    countryIds={lengthOfStaySaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    visaTypePicker={lengthOfStaySaveAllDraft.someCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={lengthOfStaySaveAllDraft.someCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: {
+                          ...prev.someCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.someCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                  <VisaTypeScopeConfigSection
+                    title="All Countries"
+                    description="Set the default length of stay applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    suggestions={LENGTH_OF_STAY_SUGGESTIONS}
+                    pickerLabel="Pick Length of Stay"
+                    customPlaceholder="e.g. 45 Days, Up to 30 days"
+                    visaTypePicker={lengthOfStaySaveAllDraft.allCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={lengthOfStaySaveAllDraft.allCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setLengthOfStaySaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: {
+                          ...prev.allCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.allCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review the default length of stay plus any single-country or grouped-country overrides, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "length-of-stay"}
-                    disabled={!resolveControlValue(lengthOfStayPicker, lengthOfStayCustom)}
+                    disabled={!lengthOfStayHasUnsavedChanges}
                     onClick={runUpdateGlobalLengthOfStay}
                   >
-                    Update All Lengths of Stay
+                    Save All Changes
                   </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Pick Length of Stay"
-                    value={lengthOfStayPicker}
-                    onChange={(e) => {
-                      setLengthOfStayPicker(e.target.value);
-                      setLengthOfStayCustom("");
-                    }}
-                    options={LENGTH_OF_STAY_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="— choose one —"
-                    id="control-length-of-stay-picker"
-                  />
-                  <Input
-                    label="Or type a custom value"
-                    value={lengthOfStayCustom}
-                    onChange={(e) => {
-                      setLengthOfStayCustom(e.target.value);
-                      if (e.target.value.trim()) setLengthOfStayPicker("");
-                    }}
-                    placeholder="e.g. 45 Days, Up to 30 days"
-                    id="control-length-of-stay-custom"
-                    helper="Custom value overrides the dropdown above."
-                  />
                 </div>
               </ExpandableAdminControlCard>
               </div>
-
               <div className={activeControlSection === "entry-type" ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("entry-type")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
@@ -5943,7 +6699,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalEntryType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalEntryType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingEntryType}</span> override it.
                         </>
                       )}
@@ -5971,7 +6727,7 @@ const Dashboard = () => {
                       setEntryTypeCustom("");
                     }}
                     options={ENTRY_TYPE_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="— choose one —"
+                    placeholder="â€” choose one â€”"
                     id="control-entry-type-picker"
                   />
                   <Input
@@ -6000,9 +6756,9 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              {/* ══════════════════════════════════════════════════════════
-                  Universal Validity control — mirror of the Visa Type card.
-                  ══════════════════════════════════════════════════════════ */}
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                  Universal Validity control â€” mirror of the Visa Type card.
+                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               <div className={activeControlSection === "validity" ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("validity")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
@@ -6021,7 +6777,7 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Same model as Visa Type — picks a single global <span className="text-text-primary font-medium">Validity</span>{" "}
+                      Same model as Visa Type â€” picks a single global <span className="text-text-primary font-medium">Validity</span>{" "}
                       (e.g. <span className="text-text-primary font-medium">90 Days</span>) applied to every country card and detail
                       page. Per-country overrides are restored to the global value when you click{" "}
                       <span className="text-text-primary font-medium">Update All Validities</span>.
@@ -6029,11 +6785,11 @@ const Dashboard = () => {
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
                       <span className="text-text-primary font-medium">
-                        {globalDefaults.globalValidity || "Not set yet (cards show '—' when neither global nor per-country exists)"}
+                        {globalDefaults.globalValidity || "Not set yet (cards show 'â€”' when neither global nor per-country exists)"}
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalValidity}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalValidity}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingValidity}</span> override it.
                         </>
                       )}
@@ -6061,7 +6817,7 @@ const Dashboard = () => {
                       setValidityCustom("");
                     }}
                     options={VALIDITY_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="— choose one —"
+                    placeholder="â€” choose one â€”"
                     id="control-validity-picker"
                   />
                   <Input
@@ -6071,7 +6827,7 @@ const Dashboard = () => {
                       setValidityCustom(e.target.value);
                       if (e.target.value.trim()) setValidityPicker("");
                     }}
-                    placeholder="e.g. 45 Days, 18 Months, Per visa policy…"
+                    placeholder="e.g. 45 Days, 18 Months, Per visa policyâ€¦"
                     id="control-validity-custom"
                     helper="Custom value overrides the dropdown above."
                   />
@@ -6079,10 +6835,10 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              {/* ══════════════════════════════════════════════════════════
-                  Universal Processing Days control — mirror of the other two.
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                  Universal Processing Days control â€” mirror of the other two.
                   The toggle hides the Processing tile on the public client.
-                  ══════════════════════════════════════════════════════════ */}
+                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               <div className={activeControlSection === "processing-days" ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("processing-days")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
@@ -6101,7 +6857,7 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Same model as Visa Type / Validity — sets a single global{" "}
+                      Same model as Visa Type / Validity â€” sets a single global{" "}
                       <span className="text-text-primary font-medium">Processing Days</span>{" "}
                       (e.g. <span className="text-text-primary font-medium">5-10 days</span>) on every country card and detail page.
                       Per-country overrides are restored to the global value when you click{" "}
@@ -6114,7 +6870,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalProcessingDays}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalProcessingDays}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingProcessingDays}</span> override it.
                         </>
                       )}
@@ -6142,7 +6898,7 @@ const Dashboard = () => {
                       setProcessingDaysCustom("");
                     }}
                     options={PROCESSING_DAYS_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="— choose one —"
+                    placeholder="â€” choose one â€”"
                     id="control-processing-days-picker"
                   />
                   <Input
@@ -6152,7 +6908,7 @@ const Dashboard = () => {
                       setProcessingDaysCustom(e.target.value);
                       if (e.target.value.trim()) setProcessingDaysPicker("");
                     }}
-                    placeholder="e.g. 4-6 days, 2 weeks, Per visa policy…"
+                    placeholder="e.g. 4-6 days, 2 weeks, Per visa policyâ€¦"
                     id="control-processing-days-custom"
                     helper="Custom value overrides the dropdown above."
                   />
@@ -6173,12 +6929,12 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              {/* ══════════════════════════════════════════════════════════
-                  Universal Required Documents control — admin picks the
+              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+                  Universal Required Documents control â€” admin picks the
                   catalog rows that apply to every country, can add custom
                   document types, and toggles the whole section on/off for
                   the public client.
-                  ══════════════════════════════════════════════════════════ */}
+                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
               <div className={activeControlSection === "required-docs" ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("required-docs")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
@@ -6201,7 +6957,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">Update All Documents Required</span>{" "}
                       to apply it to every country. Per-country edits in{" "}
                       <span className="text-text-primary font-medium">Country Manager</span> are restored to the
-                      global list. Need a new document type? Add it at the top — it appears in this checklist and on
+                      global list. Need a new document type? Add it at the top â€” it appears in this checklist and on
                       every country edit modal instantly.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
@@ -6215,7 +6971,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalRequiredDocuments}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalRequiredDocuments}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingRequiredDocuments}</span> override it.
                         </>
                       )}
@@ -6265,7 +7021,7 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                {/* Add custom document â€” admin types a label, server slugifies + prefixes. */}
                 {/* Checkbox grid built from the merged catalog. */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {documentCatalog.filter((d) => !d.deleted).length === 0 && (
@@ -6461,11 +7217,11 @@ const Dashboard = () => {
                 </div>
                 {requiredDocsDraft.length === 0 && (
                   <p className="text-xs text-amber-400 mt-3">
-                    ⚠ With zero documents selected the public site will fall back to each country's stored override.
+                    âš  With zero documents selected the public site will fall back to each country's stored override.
                   </p>
                 )}
 
-                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                {/* Add custom document â€” admin types a label, server slugifies + prefixes. */}
                 <div className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-5 space-y-4">
                   <div>
                     <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -7125,7 +7881,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">How it works</span> and{" "}
                       <span className="text-text-primary font-medium">Visa Requirements</span> on every public destination page read from here.
                       These items show on <span className="text-text-primary font-medium">every country</span>. Any extras you add in{" "}
-                      <span className="text-text-primary font-medium">Country Manager → Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
+                      <span className="text-text-primary font-medium">Country Manager â†’ Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
                     </p>
                   </div>
                   <Button
@@ -7208,7 +7964,7 @@ const Dashboard = () => {
                           destinationHowItWorks: howItWorks,
                           destinationVisaRequirements: visaRequirements,
                         },
-                        "Destination copy saved — visible on all country pages.",
+                        "Destination copy saved â€” visible on all country pages.",
                       );
                     }}
                   >
@@ -7709,7 +8465,7 @@ const Dashboard = () => {
                     </div>
                     <p className="text-xs text-text-muted mb-4">
                       One requirement per line. These show on every destination page (below &quot;How it works&quot;). Per-country
-                      extras you add inside Country Manager are appended below — duplicates are skipped.
+                      extras you add inside Country Manager are appended below â€” duplicates are skipped.
                     </p>
                     <div className="space-y-3 max-w-2xl">
                       {(settingsForm.destinationVisaRequirements || []).map((item, idx) => (
@@ -7801,7 +8557,7 @@ const Dashboard = () => {
               </Card>
               </div>
 
-              {/* ── Manage Visa Types ── */}
+              {/* â”€â”€ Manage Visa Types â”€â”€ */}
               <div className={activeControlSection === "manage-visa-types" ? "" : "hidden"}>
                 <VisaTypesManager activeCountries={activeCountryOptions} />
               </div>
@@ -7811,9 +8567,21 @@ const Dashboard = () => {
             </motion.div>
           )}
 
-          {/* ══════════════════════════════════════
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
               TAB 5: SETTINGS
-              ══════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          {activeTab === "seo" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <SeoManagerPanel
+                settings={settingsForm}
+                setSettings={setSettingsForm}
+                saveSettingsPartial={saveSettingsPartial}
+                savingSettingsKey={savingSettingsKey}
+                showToast={showToast}
+              />
+            </motion.div>
+          )}
+
           {activeTab === "settings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <Card bordered>
@@ -7827,16 +8595,16 @@ const Dashboard = () => {
               <Card>
                 <h2 className="font-semibold text-text-primary text-base">Appearance</h2>
                 <p className="text-sm text-text-muted mt-1.5 leading-relaxed">
-                  Dashboard look is fixed for now. There is no server setting to change here — skip this block if you are only configuring payments or auth.
+                  Dashboard look is fixed for now. There is no server setting to change here â€” skip this block if you are only configuring payments or auth.
                 </p>
               </Card>
 
               <SettingsSectionCard
-                title="Payments — Razorpay"
+                title="Payments â€” Razorpay"
                 description="Used when customers pay on the site. Paste both keys from the same Razorpay account."
                 whereToFind={
                   <>
-                    Razorpay Dashboard → <span className="text-text-secondary">Account &amp; Settings</span> →{" "}
+                    Razorpay Dashboard â†’ <span className="text-text-secondary">Account &amp; Settings</span> â†’{" "}
                     <span className="text-text-secondary">API Keys</span>: copy <strong className="text-text-primary">Key ID</strong> and{" "}
                     <strong className="text-text-primary">Key Secret</strong> into the fields below.
                   </>
@@ -7871,7 +8639,7 @@ const Dashboard = () => {
                     value={settingsForm.razorpayKeyId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeyId: e.target.value }))}
                     id="setting-razorpay-key"
-                    placeholder="rzp_live_… or rzp_test_…"
+                    placeholder="rzp_live_â€¦ or rzp_test_â€¦"
                   />
                   <Input
                     label="Paste Key Secret here"
@@ -7905,14 +8673,14 @@ const Dashboard = () => {
               </SettingsSectionCard>
 
               <SettingsSectionCard
-                title="Country images — Unsplash"
+                title="Country images â€” Unsplash"
                 description="Store your Unsplash app keys, then fetch photo URLs into MongoDB the same way as searching the country name on Unsplash (name first, then landmark hints). Optional: set UNSPLASH_ORIENTATION on the server to restrict orientation."
                 whereToFind={
                   <>
                     <a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener noreferrer" className="text-cyan hover:underline">
                       unsplash.com/oauth/applications
                     </a>{" "}
-                    → your app → copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
+                    â†’ your app â†’ copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
                     <strong className="text-text-primary">Access Key</strong> (required for image fetch), and{" "}
                     <strong className="text-text-primary">Secret Key</strong> (optional; for OAuth only).
                   </>
@@ -7920,7 +8688,7 @@ const Dashboard = () => {
                 statusSlot={
                   <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isUnsplashConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
                     {isUnsplashConfigured
-                      ? "Access Key is on file — you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
+                      ? "Access Key is on file â€” you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
                       : "Paste an Access Key below to fetch, or save this card to store keys for the CLI (node fetchCountryImages.js)."}
                   </div>
                 }
@@ -7948,12 +8716,12 @@ const Dashboard = () => {
                     placeholder="From Unsplash app page"
                   />
                   <Input
-                    label="Access Key — paste here"
+                    label="Access Key â€” paste here"
                     type="password"
                     value={settingsForm.unsplashAccessKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashAccessKey: e.target.value }))}
                     id="setting-unsplash-access-key"
-                    placeholder="Required — used by Fetch buttons and fetchCountryImages.js"
+                    placeholder="Required â€” used by Fetch buttons and fetchCountryImages.js"
                   />
                   <Input
                     label="Secret Key (optional)"
@@ -7961,16 +8729,16 @@ const Dashboard = () => {
                     value={settingsForm.unsplashSecretKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashSecretKey: e.target.value }))}
                     id="setting-unsplash-secret-key"
-                    placeholder="OAuth only — not used by image script"
+                    placeholder="OAuth only â€” not used by image script"
                   />
                 </div>
 
                 <div className="rounded-xl border border-border bg-surface-2/60 p-4 mt-5 space-y-3">
                   <p className="text-xs text-text-muted leading-relaxed">
-                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> (“France”, “France travel”, …), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
-                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits — keep this tab open until the success toast.
-                    Watch the status line below while it runs. In DevTools → Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
-                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked “Show as trending” in Country Manager — same list as the landing page) can be refreshed alone with landmark searches. “Fetch all” processes those first, then every other country.
+                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> (â€œFranceâ€, â€œFrance travelâ€, â€¦), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
+                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits â€” keep this tab open until the success toast.
+                    Watch the status line below while it runs. In DevTools â†’ Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
+                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked â€œShow as trendingâ€ in Country Manager â€” same list as the landing page) can be refreshed alone with landmark searches. â€œFetch allâ€ processes those first, then every other country.
                     You can use the Access Key above without saving first; saving stores it for CLI scripts.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -8036,12 +8804,12 @@ const Dashboard = () => {
               </SettingsSectionCard>
 
               <SettingsSectionCard
-                title="Firebase — web app + server verification"
-                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here — set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
+                title="Firebase â€” web app + server verification"
+                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here â€” set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
                 whereToFind={
                   <>
-                    Firebase Console → <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">General</span> → Your apps (Web) → copy into the fields below. For the Admin SDK JSON:{" "}
-                    <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">Service accounts</span> → <strong className="text-text-primary">Generate new private key</strong> → put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
+                    Firebase Console â†’ <span className="text-text-secondary">Project settings</span> â†’ <span className="text-text-secondary">General</span> â†’ Your apps (Web) â†’ copy into the fields below. For the Admin SDK JSON:{" "}
+                    <span className="text-text-secondary">Project settings</span> â†’ <span className="text-text-secondary">Service accounts</span> â†’ <strong className="text-text-primary">Generate new private key</strong> â†’ put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
                   </>
                 }
                 statusSlot={
@@ -8049,7 +8817,7 @@ const Dashboard = () => {
                     {isFirebaseConfigured
                       ? "Web config is saved and the server reports Firebase Admin credentials (env)."
                       : settingsForm.firebaseAdminFromEnv
-                        ? "Server has Admin JSON in env — finish the web fields above and save."
+                        ? "Server has Admin JSON in env â€” finish the web fields above and save."
                         : "Save the web fields below, then set FIREBASE_SERVICE_ACCOUNT_JSON on the server and restart the API."}
                   </div>
                 }
@@ -8073,41 +8841,41 @@ const Dashboard = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="API Key — paste here"
+                    label="API Key â€” paste here"
                     type="password"
                     value={settingsForm.firebaseApiKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseApiKey: e.target.value }))}
                     id="setting-firebase-api-key"
                   />
                   <Input
-                    label="Auth Domain — paste here"
+                    label="Auth Domain â€” paste here"
                     value={settingsForm.firebaseAuthDomain}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAuthDomain: e.target.value }))}
                     id="setting-firebase-auth-domain"
                     placeholder="your-project.firebaseapp.com"
-                    helper="Must be your-project-id.firebaseapp.com from Firebase → Project settings → Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate — add Render hostname there."
+                    helper="Must be your-project-id.firebaseapp.com from Firebase â†’ Project settings â†’ Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate â€” add Render hostname there."
                   />
                   <Input
-                    label="Project ID — paste here"
+                    label="Project ID â€” paste here"
                     value={settingsForm.firebaseProjectId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseProjectId: e.target.value }))}
                     id="setting-firebase-project-id"
                   />
                   <Input
-                    label="App ID — paste here"
+                    label="App ID â€” paste here"
                     type="password"
                     value={settingsForm.firebaseAppId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAppId: e.target.value }))}
                     id="setting-firebase-app-id"
                   />
                   <Input
-                    label="Storage bucket — paste here"
+                    label="Storage bucket â€” paste here"
                     value={settingsForm.firebaseStorageBucket}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseStorageBucket: e.target.value }))}
                     id="setting-firebase-storage-bucket"
                   />
                   <Input
-                    label="Messaging sender ID — paste here"
+                    label="Messaging sender ID â€” paste here"
                     value={settingsForm.firebaseMessagingSenderId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseMessagingSenderId: e.target.value }))}
                     id="setting-firebase-sender-id"
@@ -8118,7 +8886,7 @@ const Dashboard = () => {
                   <p>
                     Set environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> on the machine that runs this API (see <code className="text-cyan">server/.env.example</code>). Value is the full JSON object as a string. After changing env, restart the server. Current API process:{" "}
                     <span className={settingsForm.firebaseAdminFromEnv ? "text-emerald-400 font-medium" : "text-amber-300 font-medium"}>
-                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected — Google / token login will fail until set"}
+                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected â€” Google / token login will fail until set"}
                     </span>
                     .
                   </p>
@@ -8130,7 +8898,7 @@ const Dashboard = () => {
                 description="If you use Google sign-in flows that need a separate OAuth client, paste those credentials here. Many setups only need Firebase above."
                 whereToFind={
                   <>
-                    Google Cloud Console → <span className="text-text-secondary">APIs &amp; Services</span> → <span className="text-text-secondary">Credentials</span> → OAuth 2.0 Client IDs → copy <strong className="text-text-primary">Client ID</strong> and <strong className="text-text-primary">Client secret</strong>.
+                    Google Cloud Console â†’ <span className="text-text-secondary">APIs &amp; Services</span> â†’ <span className="text-text-secondary">Credentials</span> â†’ OAuth 2.0 Client IDs â†’ copy <strong className="text-text-primary">Client ID</strong> and <strong className="text-text-primary">Client secret</strong>.
                   </>
                 }
                 saveLabel="Save Google OAuth"
@@ -8149,19 +8917,19 @@ const Dashboard = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="Client ID — paste here"
+                    label="Client ID â€” paste here"
                     value={settingsForm.googleClientId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, googleClientId: e.target.value }))}
                     id="setting-google-client-id"
-                    placeholder="….apps.googleusercontent.com"
+                    placeholder="â€¦.apps.googleusercontent.com"
                   />
                   <Input
-                    label="Client secret — paste here"
+                    label="Client secret â€” paste here"
                     type="password"
                     value={settingsForm.googleClientSecret}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, googleClientSecret: e.target.value }))}
                     id="setting-google-client-secret"
-                    placeholder="GOCSPX-…"
+                    placeholder="GOCSPX-â€¦"
                   />
                 </div>
               </SettingsSectionCard>
@@ -8321,7 +9089,7 @@ const Dashboard = () => {
                   <h2 className="font-semibold text-text-primary">Security</h2>
                 </div>
                 <p className="text-sm text-text-muted mb-6 leading-relaxed">
-                  Change your admin login password. This is separate from API keys above — use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
+                  Change your admin login password. This is separate from API keys above â€” use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
@@ -8356,9 +9124,9 @@ const Dashboard = () => {
               </Card>
             </motion.div>
           )}
-      {/* ══════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           COUNTRIES WITH BANNER (UNSPLASH / UPLOADS)
-          ══════════════════════════════════════ */}
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <Modal
         isOpen={fetchedCountriesModalOpen}
         onClose={closeFetchedCountriesModal}
@@ -8367,7 +9135,7 @@ const Dashboard = () => {
         footer={
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-text-muted">
-              {countriesWithBanner.length} with a saved image URL · {filteredFetchedCountries.length} shown
+              {countriesWithBanner.length} with a saved image URL Â· {filteredFetchedCountries.length} shown
               {fetchedCountriesSearch.trim() ? " (filtered)" : ""}
             </p>
             <Button variant="primary" size="sm" onClick={closeFetchedCountriesModal} id="btn-fetched-countries-close">
@@ -8378,7 +9146,7 @@ const Dashboard = () => {
       >
         <div className="mx-auto max-w-6xl space-y-4">
           <p className="text-sm text-text-muted leading-relaxed">
-            Rows come from MongoDB <span className="text-text-primary font-medium">Country.imageUrl</span>. “Unsplash” means the URL points at images.unsplash.com; uploads use <span className="font-mono text-xs">/uploads/…</span>.
+            Rows come from MongoDB <span className="text-text-primary font-medium">Country.imageUrl</span>. â€œUnsplashâ€ means the URL points at images.unsplash.com; uploads use <span className="font-mono text-xs">/uploads/â€¦</span>.
           </p>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} aria-hidden />
@@ -8386,7 +9154,7 @@ const Dashboard = () => {
               type="search"
               value={fetchedCountriesSearch}
               onChange={(e) => setFetchedCountriesSearch(e.target.value)}
-              placeholder="Filter by country name or slug…"
+              placeholder="Filter by country name or slugâ€¦"
               className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
               id="fetched-countries-search"
             />
@@ -8394,7 +9162,7 @@ const Dashboard = () => {
           {filteredFetchedCountries.length === 0 ? (
             <div className="rounded-xl border border-border bg-surface-2/60 px-4 py-8 text-center text-sm text-text-muted">
               {countriesWithBanner.length === 0
-                ? "No countries have a banner URL yet. Run “Fetch images” above or upload images from Country Manager."
+                ? "No countries have a banner URL yet. Run â€œFetch imagesâ€ above or upload images from Country Manager."
                 : "No countries match your search."}
             </div>
           ) : (
@@ -8432,12 +9200,12 @@ const Dashboard = () => {
                         </td>
                         <td className="px-3 py-2 font-medium text-text-primary">
                           <span className="mr-1.5" aria-hidden>
-                            {c.flagEmoji || "🌍"}
+                            {c.flagEmoji || "ðŸŒ"}
                           </span>
                           {c.name}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs text-text-secondary">{c.slug}</td>
-                        <td className="px-3 py-2 text-text-secondary">{c.continent || "—"}</td>
+                        <td className="px-3 py-2 text-text-secondary">{c.continent || "â€”"}</td>
                         <td className="px-3 py-2">
                           <span
                             className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -8473,9 +9241,9 @@ const Dashboard = () => {
         </div>
       </Modal>
 
-      {/* ══════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           COUNTRY MANAGER MODAL
-          ══════════════════════════════════════ */}
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <Modal
         isOpen={iconPickerOpen}
         onClose={closeIconPicker}
@@ -8603,10 +9371,10 @@ const Dashboard = () => {
         }
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch max-w-[1400px] mx-auto w-full lg:h-[calc(100vh-11.5rem)]">
-          {/* ════════════════════════════════════════════════════════════
-              LEFT — country basics, cover image, fees, type, etc.
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+              LEFT â€” country basics, cover image, fees, type, etc.
               Independent scrollbar on lg+ so left + right scroll separately.
-              ════════════════════════════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           <div className="lg:col-span-5 xl:col-span-4 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
             <div className="flex items-center gap-2">
               <BadgeCheck size={14} className="text-cyan" />
@@ -8642,7 +9410,7 @@ const Dashboard = () => {
               value={countryForm.flagEmoji}
               onChange={(e) => setCountryForm((p) => ({ ...p, flagEmoji: e.target.value }))}
               id="country-flag"
-              placeholder="🌍"
+              placeholder="ðŸŒ"
             />
             <div className="col-span-2">
               <Input
@@ -8674,12 +9442,12 @@ const Dashboard = () => {
               </datalist>
               {/* Universal control hint: shows whether this country is following the
                   global default or carrying a per-country override. Toggles
-                  automatically based on what the admin types — clear the field or
+                  automatically based on what the admin types â€” clear the field or
                   match the global value to revert to global. */}
               {selectedCountry?.useGlobalVisaType === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -8706,7 +9474,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalValidity === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -8733,7 +9501,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalLengthOfStay === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -8760,7 +9528,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalEntryType === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -8782,7 +9550,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Input
-                label="Service Fee (₹)"
+                label="Service Fee (â‚¹)"
                 type="number"
                 value={countryForm.basePrice}
                 onChange={(e) => setCountryForm((p) => ({ ...p, basePrice: e.target.value }))}
@@ -8848,13 +9616,13 @@ const Dashboard = () => {
                   <option key={v} value={v} />
                 ))}
               </datalist>
-              {/* Mirrors the Visa Type / Validity hints — flips automatically based
+              {/* Mirrors the Visa Type / Validity hints â€” flips automatically based
                   on whether this country is currently following the global default
                   (`useGlobalProcessingDays`) or has its own override. */}
               {selectedCountry?.useGlobalProcessingDays === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -8944,7 +9712,7 @@ const Dashboard = () => {
               {isUploadingImage ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-10 h-10 rounded-full border-2 border-cyan/40 border-t-cyan animate-spin" />
-                  <p className="text-sm text-text-muted">Uploading image…</p>
+                  <p className="text-sm text-text-muted">Uploading imageâ€¦</p>
                 </div>
               ) : countryForm.imageUrl ? (
                 <div className="relative group mx-auto w-full max-w-[240px] rounded-lg overflow-hidden border border-border shadow-sm">
@@ -8997,10 +9765,10 @@ const Dashboard = () => {
           />
           </div>{/* /LEFT column */}
 
-          {/* ════════════════════════════════════════════════════════════
-              RIGHT — required docs, free-text requirements, destination copy
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+              RIGHT â€” required docs, free-text requirements, destination copy
               Independent scrollbar on lg+.
-              ════════════════════════════════════════════════════════════ */}
+              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
           <div className="rounded-2xl border border-border bg-surface-2/50 p-4 sm:p-5 space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -9064,7 +9832,7 @@ const Dashboard = () => {
                     <div>
                       <p className="text-sm font-semibold text-text-primary">{item.id || `Item ${index + 1}`}</p>
                       <p className="text-[11px] text-text-muted">
-                        Icon: {item.icon || "default"} · Accent: {item.color || "blue"}
+                        Icon: {item.icon || "default"} Â· Accent: {item.color || "blue"}
                       </p>
                     </div>
                     <label className="inline-flex items-center gap-2 text-xs text-text-primary">
@@ -9105,7 +9873,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Required Documents — universal control aware. The checklist now
+          {/* Required Documents â€” universal control aware. The checklist now
               uses the merged catalog (built-in + admin's custom doc types) and
               shows a green/amber badge plus a "Reset to global" helper button
               that mirrors the same pattern as Visa Type / Validity. */}
@@ -9115,7 +9883,7 @@ const Dashboard = () => {
                 Documents Required
                 <span className="ml-2 text-xs text-text-muted font-normal">Select which documents applicants must upload</span>
               </label>
-              {/* Quick "use global" helper — sets the local list to the global
+              {/* Quick "use global" helper â€” sets the local list to the global
                   default. Saving with the same set as global will flip the
                   flag back automatically (server-side comparison). */}
               {globalDefaults.globalRequiredDocuments.length > 0 && (
@@ -9268,12 +10036,12 @@ const Dashboard = () => {
               );
             })()}
             {countryForm.requiredDocuments.length === 0 && (
-              <p className="text-xs text-amber-400 mt-2">⚠ At least one document type should be selected.</p>
+              <p className="text-xs text-amber-400 mt-2">âš  At least one document type should be selected.</p>
             )}
             {selectedCountry?.useGlobalRequiredDocuments === false ? (
               <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                Custom override — match the global selection (or click "Reset to global") to use the universal list again.
+                Custom override â€” match the global selection (or click "Reset to global") to use the universal list again.
               </p>
             ) : (
               <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -9283,11 +10051,11 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* ──────────────────────────────────────────────────
+          {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               Destination-page copy for THIS country.
-              Shows global lines (from Settings → Destinations) with X to
+              Shows global lines (from Settings â†’ Destinations) with X to
               hide them on this country, then per-country additions below.
-              ────────────────────────────────────────────────── */}
+              â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           {(() => {
             const excludedWhy = new Set(countryForm.excludeDestinationWhyBookNow || []);
             const excludedInc = new Set(countryForm.excludeDestinationIncludedItems || []);
@@ -9315,13 +10083,13 @@ const Dashboard = () => {
           <div className="rounded-2xl border border-border bg-surface-2/40 p-5">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-text-primary">
-                Destination page copy — {countryForm.name || "this country"}
+                Destination page copy â€” {countryForm.name || "this country"}
               </h3>
               <p className="text-xs text-text-muted mt-1 leading-relaxed">
                 <span className="text-text-primary font-medium">Global items</span> from{" "}
-                <span className="text-text-primary font-medium">Settings → Destinations</span> are shown first on every country.
+                <span className="text-text-primary font-medium">Settings â†’ Destinations</span> are shown first on every country.
                 Click the <X size={11} className="inline -mt-0.5" /> next to a global item to hide it on{" "}
-                {countryForm.name || "this country"} only — hidden items move to{" "}
+                {countryForm.name || "this country"} only â€” hidden items move to{" "}
                 <span className="text-text-primary font-medium">Hidden on this country</span> below each section so you can restore them.
                 Anything you add under{" "}
                 <span className="text-text-primary font-medium">extras for this country</span> is appended below
@@ -9355,7 +10123,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.whyBookNow.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global items yet — add them in Settings → Destinations.
+                    No global items yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -9504,7 +10272,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.includedItems.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global items yet — add them in Settings → Destinations.
+                    No global items yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -9726,7 +10494,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.faqs.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global FAQs yet — add them in Settings → Destinations.
+                    No global FAQs yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -9913,7 +10681,7 @@ const Dashboard = () => {
                   if ((countryModalGlobalDest.howItWorks || []).length === 0) {
                     return (
                       <p className="text-xs text-text-muted italic px-1">
-                        No global steps yet — add them in Settings → Destinations.
+                        No global steps yet â€” add them in Settings â†’ Destinations.
                       </p>
                     );
                   }
@@ -10086,7 +10854,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {(countryModalGlobalDest.visaRequirements || []).length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global requirements yet — add them in Settings → Destinations.
+                    No global requirements yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -10312,6 +11080,9 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+
 
 
 
