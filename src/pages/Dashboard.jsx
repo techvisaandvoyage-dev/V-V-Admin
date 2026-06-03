@@ -336,6 +336,114 @@ const buildLengthOfStaySaveAllDraft = (scopeValues, scopeTargets) => ({
   },
 });
 
+const buildEntryTypeSaveAllDraft = (scopeValues, scopeTargets) => ({
+  allCountries: {
+    ...buildPickerCustomDraft(scopeValues?.all, ENTRY_TYPE_SUGGESTIONS),
+  },
+  singleCountry: {
+    countryId: "",
+    ...buildPickerCustomDraft("", ENTRY_TYPE_SUGGESTIONS),
+  },
+  singleCountryOverrides: Array.isArray(scopeTargets?.singleCountryOverrides)
+    ? scopeTargets.singleCountryOverrides
+        .map((item) => ({
+          countryId: String(item?.countryId ?? "").trim(),
+          ...buildPickerCustomDraft(item?.entryType, ENTRY_TYPE_SUGGESTIONS),
+        }))
+        .filter((item) => item.countryId && resolvePickerOrCustomValue(item.picker, item.custom))
+    : (() => {
+        const legacyCountryId = String(scopeTargets?.singleCountryId ?? "").trim();
+        const legacyEntryType = String(scopeValues?.single ?? "").trim();
+        if (!legacyCountryId || !legacyEntryType) return [];
+        return [
+          {
+            countryId: legacyCountryId,
+            ...buildPickerCustomDraft(legacyEntryType, ENTRY_TYPE_SUGGESTIONS),
+          },
+        ];
+      })(),
+  singleCountryDraft: {
+    countryId: "",
+    ...buildPickerCustomDraft("", ENTRY_TYPE_SUGGESTIONS),
+  },
+  someCountries: {
+    countryIds: normalizeCountrySelectorIds(scopeTargets?.someCountryIds),
+    ...buildPickerCustomDraft(scopeValues?.some, ENTRY_TYPE_SUGGESTIONS),
+  },
+});
+
+const buildValiditySaveAllDraft = (scopeValues, scopeTargets) => ({
+  allCountries: {
+    ...buildPickerCustomDraft(scopeValues?.all, VALIDITY_SUGGESTIONS),
+  },
+  singleCountry: {
+    countryId: "",
+    ...buildPickerCustomDraft("", VALIDITY_SUGGESTIONS),
+  },
+  singleCountryOverrides: Array.isArray(scopeTargets?.singleCountryOverrides)
+    ? scopeTargets.singleCountryOverrides
+        .map((item) => ({
+          countryId: String(item?.countryId ?? "").trim(),
+          ...buildPickerCustomDraft(item?.validity, VALIDITY_SUGGESTIONS),
+        }))
+        .filter((item) => item.countryId && resolvePickerOrCustomValue(item.picker, item.custom))
+    : (() => {
+        const legacyCountryId = String(scopeTargets?.singleCountryId ?? "").trim();
+        const legacyValidity = String(scopeValues?.single ?? "").trim();
+        if (!legacyCountryId || !legacyValidity) return [];
+        return [
+          {
+            countryId: legacyCountryId,
+            ...buildPickerCustomDraft(legacyValidity, VALIDITY_SUGGESTIONS),
+          },
+        ];
+      })(),
+  singleCountryDraft: {
+    countryId: "",
+    ...buildPickerCustomDraft("", VALIDITY_SUGGESTIONS),
+  },
+  someCountries: {
+    countryIds: normalizeCountrySelectorIds(scopeTargets?.someCountryIds),
+    ...buildPickerCustomDraft(scopeValues?.some, VALIDITY_SUGGESTIONS),
+  },
+});
+
+const buildProcessingDaysSaveAllDraft = (scopeValues, scopeTargets) => ({
+  allCountries: {
+    ...buildPickerCustomDraft(scopeValues?.all, PROCESSING_DAYS_SUGGESTIONS),
+  },
+  singleCountry: {
+    countryId: "",
+    ...buildPickerCustomDraft("", PROCESSING_DAYS_SUGGESTIONS),
+  },
+  singleCountryOverrides: Array.isArray(scopeTargets?.singleCountryOverrides)
+    ? scopeTargets.singleCountryOverrides
+        .map((item) => ({
+          countryId: String(item?.countryId ?? "").trim(),
+          ...buildPickerCustomDraft(item?.processingDays, PROCESSING_DAYS_SUGGESTIONS),
+        }))
+        .filter((item) => item.countryId && resolvePickerOrCustomValue(item.picker, item.custom))
+    : (() => {
+        const legacyCountryId = String(scopeTargets?.singleCountryId ?? "").trim();
+        const legacyProcessingDays = String(scopeValues?.single ?? "").trim();
+        if (!legacyCountryId || !legacyProcessingDays) return [];
+        return [
+          {
+            countryId: legacyCountryId,
+            ...buildPickerCustomDraft(legacyProcessingDays, PROCESSING_DAYS_SUGGESTIONS),
+          },
+        ];
+      })(),
+  singleCountryDraft: {
+    countryId: "",
+    ...buildPickerCustomDraft("", PROCESSING_DAYS_SUGGESTIONS),
+  },
+  someCountries: {
+    countryIds: normalizeCountrySelectorIds(scopeTargets?.someCountryIds),
+    ...buildPickerCustomDraft(scopeValues?.some, PROCESSING_DAYS_SUGGESTIONS),
+  },
+});
+
 const normalizeServiceFeeOverrideRows = (rows) =>
   Array.isArray(rows)
     ? rows
@@ -405,6 +513,72 @@ const serializeLengthOfStaySaveAllDraft = (draft) =>
     someCountries: {
       countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
       lengthOfStay: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+const serializeEntryTypeSaveAllDraft = (draft) =>
+  JSON.stringify({
+    allCountries: {
+      entryType: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        entryType: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.entryType)
+      .sort((a, b) => a.countryId.localeCompare(b.countryId)),
+    singleCountryDraft: {
+      countryId: String(draft?.singleCountryDraft?.countryId ?? "").trim(),
+      entryType: resolvePickerOrCustomValue(draft?.singleCountryDraft?.picker, draft?.singleCountryDraft?.custom),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      entryType: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+const serializeValiditySaveAllDraft = (draft) =>
+  JSON.stringify({
+    allCountries: {
+      validity: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        validity: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.validity)
+      .sort((a, b) => a.countryId.localeCompare(b.countryId)),
+    singleCountryDraft: {
+      countryId: String(draft?.singleCountryDraft?.countryId ?? "").trim(),
+      validity: resolvePickerOrCustomValue(draft?.singleCountryDraft?.picker, draft?.singleCountryDraft?.custom),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      validity: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+const serializeProcessingDaysSaveAllDraft = (draft) =>
+  JSON.stringify({
+    allCountries: {
+      processingDays: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        processingDays: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.processingDays)
+      .sort((a, b) => a.countryId.localeCompare(b.countryId)),
+    singleCountryDraft: {
+      countryId: String(draft?.singleCountryDraft?.countryId ?? "").trim(),
+      processingDays: resolvePickerOrCustomValue(draft?.singleCountryDraft?.picker, draft?.singleCountryDraft?.custom),
+    },
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      processingDays: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
     },
   });
 
@@ -2107,12 +2281,18 @@ const Dashboard = () => {
     visaTypeScopeValues: { all: "", single: "", some: "" },
     visaTypeScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalValidity: "",
+    validityScopeValues: { all: "", single: "", some: "" },
+    validityScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalLengthOfStay: "",
     lengthOfStayScopeValues: { all: "", single: "", some: "" },
     lengthOfStayScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalEntryType: "",
+    entryTypeScopeValues: { all: "", single: "", some: "" },
+    entryTypeScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalEntryTypeVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalProcessingDays: "",
+    processingDaysScopeValues: { all: "", single: "", some: "" },
+    processingDaysScopeTargets: { singleCountryId: "", someCountryIds: [], singleCountryOverrides: [] },
     globalProcessingDaysVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalRequiredDocuments: [],
     globalRequiredDocumentEntries: [],
@@ -2365,10 +2545,24 @@ const Dashboard = () => {
   const [lengthOfStaySavedDraft, setLengthOfStaySavedDraft] = useState(() =>
     buildLengthOfStaySaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
   );
-  const [validityPicker, setValidityPicker] = useState("");
-  const [validityCustom, setValidityCustom] = useState("");
-  const [entryTypePicker, setEntryTypePicker] = useState("");
-  const [entryTypeCustom, setEntryTypeCustom] = useState("");
+  const [entryTypeSaveAllDraft, setEntryTypeSaveAllDraft] = useState(() =>
+    buildEntryTypeSaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [entryTypeSavedDraft, setEntryTypeSavedDraft] = useState(() =>
+    buildEntryTypeSaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [validitySaveAllDraft, setValiditySaveAllDraft] = useState(() =>
+    buildValiditySaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [validitySavedDraft, setValiditySavedDraft] = useState(() =>
+    buildValiditySaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [processingDaysSaveAllDraft, setProcessingDaysSaveAllDraft] = useState(() =>
+    buildProcessingDaysSaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
+  const [processingDaysSavedDraft, setProcessingDaysSavedDraft] = useState(() =>
+    buildProcessingDaysSaveAllDraft({ all: "", single: "", some: "" }, { singleCountryId: "", someCountryIds: [] })
+  );
   const [processingDaysPicker, setProcessingDaysPicker] = useState("");
   const [processingDaysCustom, setProcessingDaysCustom] = useState("");
   /** Merged built-in + admin's custom documents, populated from /admin/control/country-defaults. */
@@ -3524,6 +3718,15 @@ const Dashboard = () => {
           ),
           // merged just below so the draft builder can read everything from one target object
           globalValidity: String(data.defaults?.globalValidity ?? "").trim(),
+          validityScopeValues: {
+            all: String(data.defaults?.validityScopeValues?.all ?? data.defaults?.globalValidity ?? "").trim(),
+            single: String(data.defaults?.validityScopeValues?.single ?? "").trim(),
+            some: String(data.defaults?.validityScopeValues?.some ?? "").trim(),
+          },
+          validityScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.validityScopeTargets,
+            activeCountryIds
+          ),
           globalLengthOfStay: String(data.defaults?.globalLengthOfStay ?? "").trim(),
           lengthOfStayScopeValues: {
             all: String(data.defaults?.lengthOfStayScopeValues?.all ?? data.defaults?.globalLengthOfStay ?? "").trim(),
@@ -3535,11 +3738,29 @@ const Dashboard = () => {
             activeCountryIds
           ),
           globalEntryType: String(data.defaults?.globalEntryType ?? "").trim(),
+          entryTypeScopeValues: {
+            all: String(data.defaults?.entryTypeScopeValues?.all ?? data.defaults?.globalEntryType ?? "").trim(),
+            single: String(data.defaults?.entryTypeScopeValues?.single ?? "").trim(),
+            some: String(data.defaults?.entryTypeScopeValues?.some ?? "").trim(),
+          },
+          entryTypeScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.entryTypeScopeTargets,
+            activeCountryIds
+          ),
           globalEntryTypeVisibility: withCountryApplyMeta(
             data.defaults?.globalEntryTypeVisibility || {},
             activeCountryIds
           ),
           globalProcessingDays: String(data.defaults?.globalProcessingDays ?? "").trim(),
+          processingDaysScopeValues: {
+            all: String(data.defaults?.processingDaysScopeValues?.all ?? data.defaults?.globalProcessingDays ?? "").trim(),
+            single: String(data.defaults?.processingDaysScopeValues?.single ?? "").trim(),
+            some: String(data.defaults?.processingDaysScopeValues?.some ?? "").trim(),
+          },
+          processingDaysScopeTargets: normalizeFeeScopeTargets(
+            data.defaults?.processingDaysScopeTargets,
+            activeCountryIds
+          ),
           globalProcessingDaysVisibility: withCountryApplyMeta(
             data.defaults?.globalProcessingDaysVisibility || {},
             activeCountryIds
@@ -3566,6 +3787,17 @@ const Dashboard = () => {
                 .filter((item) => item.countryId && item.visaType)
             : [],
         };
+        next.validityScopeTargets = {
+          ...next.validityScopeTargets,
+          singleCountryOverrides: Array.isArray(data.defaults?.validitySingleCountryOverrides)
+            ? data.defaults.validitySingleCountryOverrides
+                .map((item) => ({
+                  countryId: String(item?.countryId ?? "").trim(),
+                  validity: String(item?.validity ?? "").trim(),
+                }))
+                .filter((item) => item.countryId && item.validity)
+            : [],
+        };
         next.lengthOfStayScopeTargets = {
           ...next.lengthOfStayScopeTargets,
           singleCountryOverrides: Array.isArray(data.defaults?.lengthOfStaySingleCountryOverrides)
@@ -3575,6 +3807,28 @@ const Dashboard = () => {
                   lengthOfStay: String(item?.lengthOfStay ?? "").trim(),
                 }))
                 .filter((item) => item.countryId && item.lengthOfStay)
+            : [],
+        };
+        next.entryTypeScopeTargets = {
+          ...next.entryTypeScopeTargets,
+          singleCountryOverrides: Array.isArray(data.defaults?.entryTypeSingleCountryOverrides)
+            ? data.defaults.entryTypeSingleCountryOverrides
+                .map((item) => ({
+                  countryId: String(item?.countryId ?? "").trim(),
+                  entryType: String(item?.entryType ?? "").trim(),
+                }))
+                .filter((item) => item.countryId && item.entryType)
+            : [],
+        };
+        next.processingDaysScopeTargets = {
+          ...next.processingDaysScopeTargets,
+          singleCountryOverrides: Array.isArray(data.defaults?.processingDaysSingleCountryOverrides)
+            ? data.defaults.processingDaysSingleCountryOverrides
+                .map((item) => ({
+                  countryId: String(item?.countryId ?? "").trim(),
+                  processingDays: String(item?.processingDays ?? "").trim(),
+                }))
+                .filter((item) => item.countryId && item.processingDays)
             : [],
         };
         setGlobalDefaults(next);
@@ -3650,6 +3904,18 @@ const Dashboard = () => {
           next.lengthOfStayScopeValues,
           next.lengthOfStayScopeTargets
         );
+        const nextEntryTypeDraft = buildEntryTypeSaveAllDraft(
+          next.entryTypeScopeValues,
+          next.entryTypeScopeTargets
+        );
+        const nextProcessingDaysDraft = buildProcessingDaysSaveAllDraft(
+          next.processingDaysScopeValues,
+          next.processingDaysScopeTargets
+        );
+        const nextValidityDraft = buildValiditySaveAllDraft(
+          next.validityScopeValues,
+          next.validityScopeTargets
+        );
         setServiceFeeSaveAllDraft(nextServiceFeeDraft);
         setServiceFeeSavedDraft(nextServiceFeeDraft);
         setServiceFeeCountryOverrides(
@@ -3661,27 +3927,12 @@ const Dashboard = () => {
         setVisaTypeSavedDraft(nextVisaTypeDraft);
         setLengthOfStaySaveAllDraft(nextLengthOfStayDraft);
         setLengthOfStaySavedDraft(nextLengthOfStayDraft);
-        if (next.globalValidity && VALIDITY_SUGGESTIONS.includes(next.globalValidity)) {
-          setValidityPicker(next.globalValidity);
-          setValidityCustom("");
-        } else if (next.globalValidity) {
-          setValidityPicker("");
-          setValidityCustom(next.globalValidity);
-        }
-        if (next.globalEntryType && ENTRY_TYPE_SUGGESTIONS.includes(next.globalEntryType)) {
-          setEntryTypePicker(next.globalEntryType);
-          setEntryTypeCustom("");
-        } else if (next.globalEntryType) {
-          setEntryTypePicker("");
-          setEntryTypeCustom(next.globalEntryType);
-        }
-        if (next.globalProcessingDays && PROCESSING_DAYS_SUGGESTIONS.includes(next.globalProcessingDays)) {
-          setProcessingDaysPicker(next.globalProcessingDays);
-          setProcessingDaysCustom("");
-        } else if (next.globalProcessingDays) {
-          setProcessingDaysPicker("");
-          setProcessingDaysCustom(next.globalProcessingDays);
-        }
+        setEntryTypeSaveAllDraft(nextEntryTypeDraft);
+        setEntryTypeSavedDraft(nextEntryTypeDraft);
+        setProcessingDaysSaveAllDraft(nextProcessingDaysDraft);
+        setProcessingDaysSavedDraft(nextProcessingDaysDraft);
+        setValiditySaveAllDraft(nextValidityDraft);
+        setValiditySavedDraft(nextValidityDraft);
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -3814,6 +4065,15 @@ const Dashboard = () => {
   const lengthOfStayHasUnsavedChanges =
     serializeLengthOfStaySaveAllDraft(lengthOfStaySaveAllDraft) !==
     serializeLengthOfStaySaveAllDraft(lengthOfStaySavedDraft);
+  const entryTypeHasUnsavedChanges =
+    serializeEntryTypeSaveAllDraft(entryTypeSaveAllDraft) !==
+    serializeEntryTypeSaveAllDraft(entryTypeSavedDraft);
+  const validityHasUnsavedChanges =
+    serializeValiditySaveAllDraft(validitySaveAllDraft) !==
+    serializeValiditySaveAllDraft(validitySavedDraft);
+  const processingDaysHasUnsavedChanges =
+    serializeProcessingDaysSaveAllDraft(processingDaysSaveAllDraft) !==
+    serializeProcessingDaysSaveAllDraft(processingDaysSavedDraft);
 
   const validateFeeSaveAllDraft = (draft, label) => {
     const allAmount = Number(draft?.allCountries?.amount);
@@ -4018,6 +4278,108 @@ const Dashboard = () => {
     }));
   };
 
+  const cloneEntryTypeDraftForSave = (draft) => ({
+    allCountries: { ...(draft?.allCountries || {}) },
+    singleCountry: { ...(draft?.singleCountry || {}) },
+    singleCountryDraft: { ...(draft?.singleCountryDraft || {}) },
+    singleCountryOverrides: Array.isArray(draft?.singleCountryOverrides)
+      ? draft.singleCountryOverrides.map((item) => ({ ...item }))
+      : [],
+    someCountries: {
+      ...(draft?.someCountries || {}),
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+    },
+  });
+
+  const keepSavedSingleCountryEntryTypeRows = (draftSnapshot) => {
+    const preservedOverrides = Array.isArray(draftSnapshot?.singleCountryOverrides)
+      ? draftSnapshot.singleCountryOverrides.map((item) => ({ ...item }))
+      : [];
+    const clearedDraft = {
+      countryId: "",
+      ...buildPickerCustomDraft("", ENTRY_TYPE_SUGGESTIONS),
+    };
+
+    setEntryTypeSaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+    setEntryTypeSavedDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+  };
+
+  const cloneValidityDraftForSave = (draft) => ({
+    allCountries: { ...(draft?.allCountries || {}) },
+    singleCountry: { ...(draft?.singleCountry || {}) },
+    singleCountryDraft: { ...(draft?.singleCountryDraft || {}) },
+    singleCountryOverrides: Array.isArray(draft?.singleCountryOverrides)
+      ? draft.singleCountryOverrides.map((item) => ({ ...item }))
+      : [],
+    someCountries: {
+      ...(draft?.someCountries || {}),
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+    },
+  });
+
+  const keepSavedSingleCountryValidityRows = (draftSnapshot) => {
+    const preservedOverrides = Array.isArray(draftSnapshot?.singleCountryOverrides)
+      ? draftSnapshot.singleCountryOverrides.map((item) => ({ ...item }))
+      : [];
+    const clearedDraft = {
+      countryId: "",
+      ...buildPickerCustomDraft("", VALIDITY_SUGGESTIONS),
+    };
+
+    setValiditySaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+    setValiditySavedDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+  };
+
+  const cloneProcessingDaysDraftForSave = (draft) => ({
+    allCountries: { ...(draft?.allCountries || {}) },
+    singleCountry: { ...(draft?.singleCountry || {}) },
+    singleCountryDraft: { ...(draft?.singleCountryDraft || {}) },
+    singleCountryOverrides: Array.isArray(draft?.singleCountryOverrides)
+      ? draft.singleCountryOverrides.map((item) => ({ ...item }))
+      : [],
+    someCountries: {
+      ...(draft?.someCountries || {}),
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+    },
+  });
+
+  const keepSavedSingleCountryProcessingDaysRows = (draftSnapshot) => {
+    const preservedOverrides = Array.isArray(draftSnapshot?.singleCountryOverrides)
+      ? draftSnapshot.singleCountryOverrides.map((item) => ({ ...item }))
+      : [];
+    const clearedDraft = {
+      countryId: "",
+      ...buildPickerCustomDraft("", PROCESSING_DAYS_SUGGESTIONS),
+    };
+
+    setProcessingDaysSaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+    setProcessingDaysSavedDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: preservedOverrides,
+      singleCountryDraft: clearedDraft,
+    }));
+  };
+
   const addSingleCountryVisaTypeOverride = () => {
     const countryId = String(visaTypeSaveAllDraft?.singleCountryDraft?.countryId ?? "").trim();
     const visaType = resolvePickerOrCustomValue(
@@ -4104,20 +4466,23 @@ const Dashboard = () => {
   };
   /** Same as `runUpdateGlobalVisaType` but for the universal Validity control. */
   const runUpdateGlobalValidity = async () => {
-    const validity = resolveControlValue(validityPicker, validityCustom);
-    if (!validity) {
-      showToast("Pick a Validity from the dropdown or type your own.", "error");
+    if (!validityHasUnsavedChanges) {
+      showToast("No unsaved validity changes.", "warning");
       return;
     }
+    if (!validateValiditySaveAllDraft(validitySaveAllDraft)) {
+      return;
+    }
+    const draftSnapshot = cloneValidityDraftForSave(validitySaveAllDraft);
     setSavingControlKey("validity");
     try {
-      const { data } = await api.post("/admin/control/validity", { validity });
+      const { data } = await api.post("/admin/control/validity", buildValiditySaveAllPayload(draftSnapshot));
       if (data?.success) {
-        showToast(data.message || `Validity set to "${validity}".`, "success");
+        showToast(data.message || "Validity changes saved successfully.", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
-        setValidityCustom("");
+        keepSavedSingleCountryValidityRows(draftSnapshot);
       } else {
-        showToast(data?.message || "Failed to update global validity.", "error");
+        showToast(data?.message || "Failed to save validity changes.", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -4126,15 +4491,14 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global validity.";
+      let toastMsg = serverMsg || error?.message || "Failed to save validity changes.";
       if (status === 404) {
         toastMsg =
           "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/validity is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      // eslint-disable-next-line no-console
-      console.error("Update global validity failed:", { status, serverMsg, error });
+      console.error("Save validity changes failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -4252,6 +4616,339 @@ const Dashboard = () => {
     }));
   };
 
+  const validateEntryTypeSaveAllDraft = (draft) => {
+    const allEntryType = resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom);
+    if (!allEntryType) {
+      showToast("Please set Entry for All Countries first.", "error");
+      return false;
+    }
+
+    const singleCountryDraftId = String(draft?.singleCountryDraft?.countryId ?? "").trim();
+    const singleCountryDraftEntryType = resolvePickerOrCustomValue(
+      draft?.singleCountryDraft?.picker,
+      draft?.singleCountryDraft?.custom
+    );
+    if (singleCountryDraftId || singleCountryDraftEntryType) {
+      showToast("Add the single-country entry to the list, or clear the draft first.", "error");
+      return false;
+    }
+
+    const singleCountryOverrides = Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [];
+    for (const item of singleCountryOverrides) {
+      const countryId = String(item?.countryId ?? "").trim();
+      const entryType = resolvePickerOrCustomValue(item?.picker, item?.custom);
+      if (!countryId || !entryType) {
+        showToast("Each single-country entry needs both country and value.", "error");
+        return false;
+      }
+    }
+
+    const someCountryIds = normalizeCountrySelectorIds(draft?.someCountries?.countryIds);
+    const someEntryType = resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom);
+    const someHasAnyValue = Boolean(someCountryIds.length > 0 || someEntryType);
+    if (someHasAnyValue) {
+      if (someCountryIds.length === 0) {
+        showToast("Select at least one country for Some Countries Entry.", "error");
+        return false;
+      }
+      if (!someEntryType) {
+        showToast("Pick or type an Entry for Some Countries.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildEntryTypeSaveAllPayload = (draft) => ({
+    singleCountry: (() => {
+      const firstOverride = (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])[0];
+      return {
+        countryId: String(firstOverride?.countryId ?? "").trim(),
+        entryType: resolvePickerOrCustomValue(firstOverride?.picker, firstOverride?.custom),
+      };
+    })(),
+    allCountries: {
+      entryType: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        entryType: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.entryType),
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      entryType: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+  const addSingleCountryEntryTypeOverride = () => {
+    const countryId = String(entryTypeSaveAllDraft?.singleCountryDraft?.countryId ?? "").trim();
+    const entryType = resolvePickerOrCustomValue(
+      entryTypeSaveAllDraft?.singleCountryDraft?.picker,
+      entryTypeSaveAllDraft?.singleCountryDraft?.custom
+    );
+    if (!countryId) {
+      showToast("Select one country before adding.", "error");
+      return;
+    }
+    if (!entryType) {
+      showToast("Pick or type an Entry before adding.", "error");
+      return;
+    }
+
+    setEntryTypeSaveAllDraft((prev) => {
+      const nextOverrides = Array.isArray(prev.singleCountryOverrides)
+        ? prev.singleCountryOverrides.filter((item) => String(item?.countryId ?? "").trim() !== countryId)
+        : [];
+      nextOverrides.push({
+        countryId,
+        ...buildPickerCustomDraft(entryType, ENTRY_TYPE_SUGGESTIONS),
+      });
+      nextOverrides.sort((a, b) => String(a.countryId).localeCompare(String(b.countryId)));
+      return {
+        ...prev,
+        singleCountryOverrides: nextOverrides,
+        singleCountryDraft: {
+          countryId: "",
+          ...buildPickerCustomDraft("", ENTRY_TYPE_SUGGESTIONS),
+        },
+      };
+    });
+  };
+
+  const removeSingleCountryEntryTypeOverride = (countryId) => {
+    setEntryTypeSaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: (Array.isArray(prev.singleCountryOverrides) ? prev.singleCountryOverrides : []).filter(
+        (item) => String(item?.countryId ?? "").trim() !== String(countryId ?? "").trim()
+      ),
+    }));
+  };
+
+  const validateValiditySaveAllDraft = (draft) => {
+    const allValidity = resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom);
+    if (!allValidity) {
+      showToast("Please set Validity for All Countries first.", "error");
+      return false;
+    }
+
+    const singleCountryDraftId = String(draft?.singleCountryDraft?.countryId ?? "").trim();
+    const singleCountryDraftValidity = resolvePickerOrCustomValue(
+      draft?.singleCountryDraft?.picker,
+      draft?.singleCountryDraft?.custom
+    );
+    if (singleCountryDraftId || singleCountryDraftValidity) {
+      showToast("Add the single-country validity to the list, or clear the draft first.", "error");
+      return false;
+    }
+
+    const singleCountryOverrides = Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [];
+    for (const item of singleCountryOverrides) {
+      const countryId = String(item?.countryId ?? "").trim();
+      const validity = resolvePickerOrCustomValue(item?.picker, item?.custom);
+      if (!countryId || !validity) {
+        showToast("Each single-country validity entry needs both country and value.", "error");
+        return false;
+      }
+    }
+
+    const someCountryIds = normalizeCountrySelectorIds(draft?.someCountries?.countryIds);
+    const someValidity = resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom);
+    const someHasAnyValue = Boolean(someCountryIds.length > 0 || someValidity);
+    if (someHasAnyValue) {
+      if (someCountryIds.length === 0) {
+        showToast("Select at least one country for Some Countries Validity.", "error");
+        return false;
+      }
+      if (!someValidity) {
+        showToast("Pick or type a Validity for Some Countries.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildValiditySaveAllPayload = (draft) => ({
+    singleCountry: (() => {
+      const firstOverride = (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])[0];
+      return {
+        countryId: String(firstOverride?.countryId ?? "").trim(),
+        validity: resolvePickerOrCustomValue(firstOverride?.picker, firstOverride?.custom),
+      };
+    })(),
+    allCountries: {
+      validity: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        validity: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.validity),
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      validity: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+  const addSingleCountryValidityOverride = () => {
+    const countryId = String(validitySaveAllDraft?.singleCountryDraft?.countryId ?? "").trim();
+    const validity = resolvePickerOrCustomValue(
+      validitySaveAllDraft?.singleCountryDraft?.picker,
+      validitySaveAllDraft?.singleCountryDraft?.custom
+    );
+    if (!countryId) {
+      showToast("Select one country before adding.", "error");
+      return;
+    }
+    if (!validity) {
+      showToast("Pick or type a Validity before adding.", "error");
+      return;
+    }
+
+    setValiditySaveAllDraft((prev) => {
+      const nextOverrides = Array.isArray(prev.singleCountryOverrides)
+        ? prev.singleCountryOverrides.filter((item) => String(item?.countryId ?? "").trim() !== countryId)
+        : [];
+      nextOverrides.push({
+        countryId,
+        ...buildPickerCustomDraft(validity, VALIDITY_SUGGESTIONS),
+      });
+      nextOverrides.sort((a, b) => String(a.countryId).localeCompare(String(b.countryId)));
+      return {
+        ...prev,
+        singleCountryOverrides: nextOverrides,
+        singleCountryDraft: {
+          countryId: "",
+          ...buildPickerCustomDraft("", VALIDITY_SUGGESTIONS),
+        },
+      };
+    });
+  };
+
+  const removeSingleCountryValidityOverride = (countryId) => {
+    setValiditySaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: (Array.isArray(prev.singleCountryOverrides) ? prev.singleCountryOverrides : []).filter(
+        (item) => String(item?.countryId ?? "").trim() !== String(countryId ?? "").trim()
+      ),
+    }));
+  };
+
+  const validateProcessingDaysSaveAllDraft = (draft) => {
+    const allProcessingDays = resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom);
+    if (!allProcessingDays) {
+      showToast("Please set Processing Days for All Countries first.", "error");
+      return false;
+    }
+
+    const singleCountryDraftId = String(draft?.singleCountryDraft?.countryId ?? "").trim();
+    const singleCountryDraftProcessingDays = resolvePickerOrCustomValue(
+      draft?.singleCountryDraft?.picker,
+      draft?.singleCountryDraft?.custom
+    );
+    if (singleCountryDraftId || singleCountryDraftProcessingDays) {
+      showToast("Add the single-country processing days to the list, or clear the draft first.", "error");
+      return false;
+    }
+
+    const singleCountryOverrides = Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [];
+    for (const item of singleCountryOverrides) {
+      const countryId = String(item?.countryId ?? "").trim();
+      const processingDays = resolvePickerOrCustomValue(item?.picker, item?.custom);
+      if (!countryId || !processingDays) {
+        showToast("Each single-country processing days entry needs both country and value.", "error");
+        return false;
+      }
+    }
+
+    const someCountryIds = normalizeCountrySelectorIds(draft?.someCountries?.countryIds);
+    const someProcessingDays = resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom);
+    const someHasAnyValue = Boolean(someCountryIds.length > 0 || someProcessingDays);
+    if (someHasAnyValue) {
+      if (someCountryIds.length === 0) {
+        showToast("Select at least one country for Some Countries Processing Days.", "error");
+        return false;
+      }
+      if (!someProcessingDays) {
+        showToast("Pick or type Processing Days for Some Countries.", "error");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildProcessingDaysSaveAllPayload = (draft) => ({
+    singleCountry: (() => {
+      const firstOverride = (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])[0];
+      return {
+        countryId: String(firstOverride?.countryId ?? "").trim(),
+        processingDays: resolvePickerOrCustomValue(firstOverride?.picker, firstOverride?.custom),
+      };
+    })(),
+    allCountries: {
+      processingDays: resolvePickerOrCustomValue(draft?.allCountries?.picker, draft?.allCountries?.custom),
+    },
+    singleCountryOverrides: (Array.isArray(draft?.singleCountryOverrides) ? draft.singleCountryOverrides : [])
+      .map((item) => ({
+        countryId: String(item?.countryId ?? "").trim(),
+        processingDays: resolvePickerOrCustomValue(item?.picker, item?.custom),
+      }))
+      .filter((item) => item.countryId && item.processingDays),
+    someCountries: {
+      countryIds: normalizeCountrySelectorIds(draft?.someCountries?.countryIds),
+      processingDays: resolvePickerOrCustomValue(draft?.someCountries?.picker, draft?.someCountries?.custom),
+    },
+  });
+
+  const addSingleCountryProcessingDaysOverride = () => {
+    const countryId = String(processingDaysSaveAllDraft?.singleCountryDraft?.countryId ?? "").trim();
+    const processingDays = resolvePickerOrCustomValue(
+      processingDaysSaveAllDraft?.singleCountryDraft?.picker,
+      processingDaysSaveAllDraft?.singleCountryDraft?.custom
+    );
+    if (!countryId) {
+      showToast("Select one country before adding.", "error");
+      return;
+    }
+    if (!processingDays) {
+      showToast("Pick or type Processing Days before adding.", "error");
+      return;
+    }
+
+    setProcessingDaysSaveAllDraft((prev) => {
+      const nextOverrides = Array.isArray(prev.singleCountryOverrides)
+        ? prev.singleCountryOverrides.filter((item) => String(item?.countryId ?? "").trim() !== countryId)
+        : [];
+      nextOverrides.push({
+        countryId,
+        ...buildPickerCustomDraft(processingDays, PROCESSING_DAYS_SUGGESTIONS),
+      });
+      nextOverrides.sort((a, b) => String(a.countryId).localeCompare(String(b.countryId)));
+      return {
+        ...prev,
+        singleCountryOverrides: nextOverrides,
+        singleCountryDraft: {
+          countryId: "",
+          ...buildPickerCustomDraft("", PROCESSING_DAYS_SUGGESTIONS),
+        },
+      };
+    });
+  };
+
+  const removeSingleCountryProcessingDaysOverride = (countryId) => {
+    setProcessingDaysSaveAllDraft((prev) => ({
+      ...prev,
+      singleCountryOverrides: (Array.isArray(prev.singleCountryOverrides) ? prev.singleCountryOverrides : []).filter(
+        (item) => String(item?.countryId ?? "").trim() !== String(countryId ?? "").trim()
+      ),
+    }));
+  };
+
   const runUpdateGlobalLengthOfStay = async () => {
     if (!lengthOfStayHasUnsavedChanges) {
       showToast("No unsaved length of stay changes.", "warning");
@@ -4293,27 +4990,23 @@ const Dashboard = () => {
   };
 
   const runUpdateGlobalEntryType = async () => {
-    const entryType = resolveControlValue(entryTypePicker, entryTypeCustom);
-    if (!entryType) {
-      showToast("Pick an Entry value from the dropdown or type your own.", "error");
+    if (!entryTypeHasUnsavedChanges) {
+      showToast("No unsaved entry changes.", "warning");
       return;
     }
-    if (!validateCountryApplySelection(globalDefaults.globalEntryTypeVisibility)) {
+    if (!validateEntryTypeSaveAllDraft(entryTypeSaveAllDraft)) {
       return;
     }
+    const draftSnapshot = cloneEntryTypeDraftForSave(entryTypeSaveAllDraft);
     setSavingControlKey("entry-type");
     try {
-      const { data } = await api.post("/admin/control/entry-type", {
-        entryType,
-        applyToAllActiveCountries: globalDefaults.globalEntryTypeVisibility?.applyToAllActiveCountries !== false,
-        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalEntryTypeVisibility?.selectedCountries),
-      });
+      const { data } = await api.post("/admin/control/entry-type", buildEntryTypeSaveAllPayload(draftSnapshot));
       if (data?.success) {
-        showToast(data.message || `Entry set to "${entryType}".`, "success");
+        showToast(data.message || "Entry changes saved successfully.", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
-        setEntryTypeCustom("");
+        keepSavedSingleCountryEntryTypeRows(draftSnapshot);
       } else {
-        showToast(data?.message || "Failed to update global entry.", "error");
+        showToast(data?.message || "Failed to save entry changes.", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -4322,14 +5015,14 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global entry.";
+      let toastMsg = serverMsg || error?.message || "Failed to save entry changes.";
       if (status === 404) {
         toastMsg =
           "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      console.error("Update global entry type failed:", { status, serverMsg, error });
+      console.error("Save entry type changes failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -4338,27 +5031,23 @@ const Dashboard = () => {
 
   /** Same as the other two but for the universal Processing Days control. */
   const runUpdateGlobalProcessingDays = async () => {
-    const processingDays = resolveControlValue(processingDaysPicker, processingDaysCustom);
-    if (!processingDays) {
-      showToast("Pick Processing Days from the dropdown or type your own.", "error");
+    if (!processingDaysHasUnsavedChanges) {
+      showToast("No unsaved processing days changes.", "warning");
       return;
     }
-    if (!validateCountryApplySelection(globalDefaults.globalProcessingDaysVisibility)) {
+    if (!validateProcessingDaysSaveAllDraft(processingDaysSaveAllDraft)) {
       return;
     }
+    const draftSnapshot = cloneProcessingDaysDraftForSave(processingDaysSaveAllDraft);
     setSavingControlKey("processing-days");
     try {
-      const { data } = await api.post("/admin/control/processing-days", {
-        processingDays,
-        applyToAllActiveCountries: globalDefaults.globalProcessingDaysVisibility?.applyToAllActiveCountries !== false,
-        selectedCountries: normalizeCountrySelectorIds(globalDefaults.globalProcessingDaysVisibility?.selectedCountries),
-      });
+      const { data } = await api.post("/admin/control/processing-days", buildProcessingDaysSaveAllPayload(draftSnapshot));
       if (data?.success) {
-        showToast(data.message || `Processing Days set to "${processingDays}".`, "success");
+        showToast(data.message || "Processing days changes saved successfully.", "success");
         await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
-        setProcessingDaysCustom("");
+        keepSavedSingleCountryProcessingDaysRows(draftSnapshot);
       } else {
-        showToast(data?.message || "Failed to update global processing days.", "error");
+        showToast(data?.message || "Failed to save processing days changes.", "error");
       }
     } catch (error) {
       if (error?.response?.status === 401) {
@@ -4367,15 +5056,14 @@ const Dashboard = () => {
       }
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.message;
-      let toastMsg = serverMsg || error?.message || "Failed to update global processing days.";
+      let toastMsg = serverMsg || error?.message || "Failed to save processing days changes.";
       if (status === 404) {
         toastMsg =
           "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
-      // eslint-disable-next-line no-console
-      console.error("Update global processing days failed:", { status, serverMsg, error });
+      console.error("Save processing days changes failed:", { status, serverMsg, error });
       showToast(toastMsg, "error");
     } finally {
       setSavingControlKey(null);
@@ -6687,10 +7375,8 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Sets a single <span className="text-text-primary font-medium">Entry</span> value like{" "}
-                      <span className="text-text-primary font-medium">Single Entry</span> on every country destination page.
-                      Per-country overrides are restored to the global value when you click{" "}
-                      <span className="text-text-primary font-medium">Update All Entries</span>.
+                      Set one default <span className="text-text-primary font-medium">Entry</span> for all active countries,
+                      then optionally define a different value for one country or a selected group of countries.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -6705,53 +7391,172 @@ const Dashboard = () => {
                       )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <VisaTypeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and give it its own entry override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    suggestions={ENTRY_TYPE_SUGGESTIONS}
+                    pickerLabel="Pick Entry"
+                    customPlaceholder="e.g. Single Entry, Double Entry"
+                    countryId={entryTypeSaveAllDraft.singleCountryDraft.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
+                      }))
+                    }
+                    visaTypePicker={entryTypeSaveAllDraft.singleCountryDraft.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={entryTypeSaveAllDraft.singleCountryDraft.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: {
+                          ...prev.singleCountryDraft,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
+                        },
+                      }))
+                    }
+                  >
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full"
+                        leftIcon={<Plus size={15} />}
+                        onClick={addSingleCountryEntryTypeOverride}
+                      >
+                        Add Single Country
+                      </Button>
+
+                      <div className="rounded-xl border border-border bg-background">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Each country in this list keeps its own entry override.
+                          </p>
+                        </div>
+                        {(entryTypeSaveAllDraft.singleCountryOverrides || []).length === 0 ? (
+                          <div className="px-4 py-4 text-sm text-text-muted">No single-country entry overrides added yet.</div>
+                        ) : (
+                          <div className="divide-y divide-border">
+                            {(entryTypeSaveAllDraft.singleCountryOverrides || []).map((item) => {
+                              const countryId = String(item?.countryId ?? "").trim();
+                              const countryName =
+                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
+                                countryId;
+                              const entryType = resolvePickerOrCustomValue(item?.picker, item?.custom);
+                              return (
+                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
+                                    <p className="mt-1 text-xs text-text-muted">{entryType}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSingleCountryEntryTypeOverride(countryId)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
+                                    title={`Remove ${countryName}`}
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </VisaTypeScopeConfigSection>
+                  <VisaTypeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same entry."
+                    mode="some"
+                    countries={allCountryOptions}
+                    suggestions={ENTRY_TYPE_SUGGESTIONS}
+                    pickerLabel="Pick Entry"
+                    customPlaceholder="e.g. Single Entry, Double Entry"
+                    countryIds={entryTypeSaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    visaTypePicker={entryTypeSaveAllDraft.someCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={entryTypeSaveAllDraft.someCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: {
+                          ...prev.someCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.someCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                  <VisaTypeScopeConfigSection
+                    title="All Countries"
+                    description="Set the default entry applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    suggestions={ENTRY_TYPE_SUGGESTIONS}
+                    pickerLabel="Pick Entry"
+                    customPlaceholder="e.g. Single Entry, Double Entry"
+                    visaTypePicker={entryTypeSaveAllDraft.allCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={entryTypeSaveAllDraft.allCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setEntryTypeSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: {
+                          ...prev.allCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.allCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review the default entry plus any single-country or grouped-country overrides, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "entry-type"}
-                    disabled={!resolveControlValue(entryTypePicker, entryTypeCustom)}
+                    disabled={!entryTypeHasUnsavedChanges}
                     onClick={runUpdateGlobalEntryType}
                   >
-                    Update All Entries
+                    Save All Changes
                   </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Pick Entry"
-                    value={entryTypePicker}
-                    onChange={(e) => {
-                      setEntryTypePicker(e.target.value);
-                      setEntryTypeCustom("");
-                    }}
-                    options={ENTRY_TYPE_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="â€” choose one â€”"
-                    id="control-entry-type-picker"
-                  />
-                  <Input
-                    label="Or type a custom value"
-                    value={entryTypeCustom}
-                    onChange={(e) => {
-                      setEntryTypeCustom(e.target.value);
-                      if (e.target.value.trim()) setEntryTypePicker("");
-                    }}
-                    placeholder="e.g. Single Entry, Multiple Entry"
-                    id="control-entry-type-custom"
-                    helper="Custom value overrides the dropdown above."
-                  />
-                </div>
-                <div className="mt-4">
-                  <CountryVisibilitySelector
-                    item={globalDefaults.globalEntryTypeVisibility}
-                    activeCountries={activeCountryOptions}
-                    itemLabel="this entry type"
-                    mode="applied"
-                    allKey="applyToAllActiveCountries"
-                    selectedKey="selectedCountries"
-                    onChange={(next) => setGlobalDefaults((prev) => ({ ...prev, globalEntryTypeVisibility: next }))}
-                  />
                 </div>
               </ExpandableAdminControlCard>
               </div>
@@ -6777,10 +7582,8 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Same model as Visa Type â€” picks a single global <span className="text-text-primary font-medium">Validity</span>{" "}
-                      (e.g. <span className="text-text-primary font-medium">90 Days</span>) applied to every country card and detail
-                      page. Per-country overrides are restored to the global value when you click{" "}
-                      <span className="text-text-primary font-medium">Update All Validities</span>.
+                      Set one default <span className="text-text-primary font-medium">Validity</span> for all active countries,
+                      then optionally define a different value for one country or a selected group of countries.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -6795,42 +7598,172 @@ const Dashboard = () => {
                       )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <VisaTypeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and give it its own validity override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    suggestions={VALIDITY_SUGGESTIONS}
+                    pickerLabel="Pick Validity"
+                    customPlaceholder="e.g. 45 Days, 18 Months, Per visa policy"
+                    countryId={validitySaveAllDraft.singleCountryDraft.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
+                      }))
+                    }
+                    visaTypePicker={validitySaveAllDraft.singleCountryDraft.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={validitySaveAllDraft.singleCountryDraft.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: {
+                          ...prev.singleCountryDraft,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
+                        },
+                      }))
+                    }
+                  >
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full"
+                        leftIcon={<Plus size={15} />}
+                        onClick={addSingleCountryValidityOverride}
+                      >
+                        Add Single Country
+                      </Button>
+
+                      <div className="rounded-xl border border-border bg-background">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Each country in this list keeps its own validity override.
+                          </p>
+                        </div>
+                        {(validitySaveAllDraft.singleCountryOverrides || []).length === 0 ? (
+                          <div className="px-4 py-4 text-sm text-text-muted">No single-country validity overrides added yet.</div>
+                        ) : (
+                          <div className="divide-y divide-border">
+                            {(validitySaveAllDraft.singleCountryOverrides || []).map((item) => {
+                              const countryId = String(item?.countryId ?? "").trim();
+                              const countryName =
+                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
+                                countryId;
+                              const validity = resolvePickerOrCustomValue(item?.picker, item?.custom);
+                              return (
+                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
+                                    <p className="mt-1 text-xs text-text-muted">{validity}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSingleCountryValidityOverride(countryId)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
+                                    title={`Remove ${countryName}`}
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </VisaTypeScopeConfigSection>
+                  <VisaTypeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same validity."
+                    mode="some"
+                    countries={allCountryOptions}
+                    suggestions={VALIDITY_SUGGESTIONS}
+                    pickerLabel="Pick Validity"
+                    customPlaceholder="e.g. 45 Days, 18 Months, Per visa policy"
+                    countryIds={validitySaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    visaTypePicker={validitySaveAllDraft.someCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={validitySaveAllDraft.someCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: {
+                          ...prev.someCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.someCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                  <VisaTypeScopeConfigSection
+                    title="All Countries"
+                    description="Set the default validity applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    suggestions={VALIDITY_SUGGESTIONS}
+                    pickerLabel="Pick Validity"
+                    customPlaceholder="e.g. 45 Days, 18 Months, Per visa policy"
+                    visaTypePicker={validitySaveAllDraft.allCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={validitySaveAllDraft.allCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setValiditySaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: {
+                          ...prev.allCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.allCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review the default validity plus any single-country or grouped-country overrides, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "validity"}
-                    disabled={!resolveControlValue(validityPicker, validityCustom)}
+                    disabled={!validityHasUnsavedChanges}
                     onClick={runUpdateGlobalValidity}
                   >
-                    Update All Validities
+                    Save All Changes
                   </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Pick a Validity"
-                    value={validityPicker}
-                    onChange={(e) => {
-                      setValidityPicker(e.target.value);
-                      setValidityCustom("");
-                    }}
-                    options={VALIDITY_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="â€” choose one â€”"
-                    id="control-validity-picker"
-                  />
-                  <Input
-                    label="Or type a custom value"
-                    value={validityCustom}
-                    onChange={(e) => {
-                      setValidityCustom(e.target.value);
-                      if (e.target.value.trim()) setValidityPicker("");
-                    }}
-                    placeholder="e.g. 45 Days, 18 Months, Per visa policyâ€¦"
-                    id="control-validity-custom"
-                    helper="Custom value overrides the dropdown above."
-                  />
                 </div>
               </ExpandableAdminControlCard>
               </div>
@@ -6857,11 +7790,8 @@ const Dashboard = () => {
                       />
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Same model as Visa Type / Validity â€” sets a single global{" "}
-                      <span className="text-text-primary font-medium">Processing Days</span>{" "}
-                      (e.g. <span className="text-text-primary font-medium">5-10 days</span>) on every country card and detail page.
-                      Per-country overrides are restored to the global value when you click{" "}
-                      <span className="text-text-primary font-medium">Update All Processing Days</span>.
+                      Set one default <span className="text-text-primary font-medium">Processing Days</span> for all active
+                      countries, then optionally define a different value for one country or a selected group of countries.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
@@ -6876,55 +7806,172 @@ const Dashboard = () => {
                       )}
                     </p>
                   </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <VisaTypeScopeConfigSection
+                    title="Single Country"
+                    description="Pick one active country and give it its own processing days override."
+                    mode="single"
+                    countries={allCountryOptions}
+                    suggestions={PROCESSING_DAYS_SUGGESTIONS}
+                    pickerLabel="Pick Processing Days"
+                    customPlaceholder="e.g. 4-6 days, 2 weeks, Per visa policy"
+                    countryId={processingDaysSaveAllDraft.singleCountryDraft.countryId}
+                    onCountryIdChange={(countryId) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
+                      }))
+                    }
+                    visaTypePicker={processingDaysSaveAllDraft.singleCountryDraft.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={processingDaysSaveAllDraft.singleCountryDraft.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        singleCountryDraft: {
+                          ...prev.singleCountryDraft,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
+                        },
+                      }))
+                    }
+                  >
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full"
+                        leftIcon={<Plus size={15} />}
+                        onClick={addSingleCountryProcessingDaysOverride}
+                      >
+                        Add Single Country
+                      </Button>
+
+                      <div className="rounded-xl border border-border bg-background">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            Each country in this list keeps its own processing days override.
+                          </p>
+                        </div>
+                        {(processingDaysSaveAllDraft.singleCountryOverrides || []).length === 0 ? (
+                          <div className="px-4 py-4 text-sm text-text-muted">No single-country processing days overrides added yet.</div>
+                        ) : (
+                          <div className="divide-y divide-border">
+                            {(processingDaysSaveAllDraft.singleCountryOverrides || []).map((item) => {
+                              const countryId = String(item?.countryId ?? "").trim();
+                              const countryName =
+                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
+                                countryId;
+                              const processingDays = resolvePickerOrCustomValue(item?.picker, item?.custom);
+                              return (
+                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
+                                    <p className="mt-1 text-xs text-text-muted">{processingDays}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSingleCountryProcessingDaysOverride(countryId)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
+                                    title={`Remove ${countryName}`}
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </VisaTypeScopeConfigSection>
+                  <VisaTypeScopeConfigSection
+                    title="Some Countries"
+                    description="Choose multiple active countries that should share the same processing days."
+                    mode="some"
+                    countries={allCountryOptions}
+                    suggestions={PROCESSING_DAYS_SUGGESTIONS}
+                    pickerLabel="Pick Processing Days"
+                    customPlaceholder="e.g. 4-6 days, 2 weeks, Per visa policy"
+                    countryIds={processingDaysSaveAllDraft.someCountries.countryIds}
+                    onCountryIdsChange={(countryIds) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, countryIds },
+                      }))
+                    }
+                    visaTypePicker={processingDaysSaveAllDraft.someCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={processingDaysSaveAllDraft.someCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        someCountries: {
+                          ...prev.someCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.someCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                  <VisaTypeScopeConfigSection
+                    title="All Countries"
+                    description="Set the default processing days applied across all active countries."
+                    mode="all"
+                    countries={allCountryOptions}
+                    suggestions={PROCESSING_DAYS_SUGGESTIONS}
+                    pickerLabel="Pick Processing Days"
+                    customPlaceholder="e.g. 4-6 days, 2 weeks, Per visa policy"
+                    visaTypePicker={processingDaysSaveAllDraft.allCountries.picker}
+                    onVisaTypePickerChange={(value) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
+                      }))
+                    }
+                    visaTypeCustom={processingDaysSaveAllDraft.allCountries.custom}
+                    onVisaTypeCustomChange={(value) =>
+                      setProcessingDaysSaveAllDraft((prev) => ({
+                        ...prev,
+                        allCountries: {
+                          ...prev.allCountries,
+                          custom: value,
+                          picker: value.trim() ? "" : prev.allCountries.picker,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-text-muted">
+                    Review the default processing days plus any single-country or grouped-country overrides, then save everything together.
+                  </p>
                   <Button
                     variant="primary"
                     size="sm"
                     className="shrink-0"
                     leftIcon={<Save size={15} />}
                     loading={savingControlKey === "processing-days"}
-                    disabled={!resolveControlValue(processingDaysPicker, processingDaysCustom)}
+                    disabled={!processingDaysHasUnsavedChanges}
                     onClick={runUpdateGlobalProcessingDays}
                   >
-                    Update All Processing Days
+                    Save All Changes
                   </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Pick Processing Days"
-                    value={processingDaysPicker}
-                    onChange={(e) => {
-                      setProcessingDaysPicker(e.target.value);
-                      setProcessingDaysCustom("");
-                    }}
-                    options={PROCESSING_DAYS_SUGGESTIONS.map((v) => ({ value: v, label: v }))}
-                    placeholder="â€” choose one â€”"
-                    id="control-processing-days-picker"
-                  />
-                  <Input
-                    label="Or type a custom value"
-                    value={processingDaysCustom}
-                    onChange={(e) => {
-                      setProcessingDaysCustom(e.target.value);
-                      if (e.target.value.trim()) setProcessingDaysPicker("");
-                    }}
-                    placeholder="e.g. 4-6 days, 2 weeks, Per visa policyâ€¦"
-                    id="control-processing-days-custom"
-                    helper="Custom value overrides the dropdown above."
-                  />
-                </div>
-                <div className="mt-4">
-                  <CountryVisibilitySelector
-                    item={globalDefaults.globalProcessingDaysVisibility}
-                    activeCountries={activeCountryOptions}
-                    itemLabel="these processing days"
-                    mode="applied"
-                    allKey="applyToAllActiveCountries"
-                    selectedKey="selectedCountries"
-                    onChange={(next) =>
-                      setGlobalDefaults((prev) => ({ ...prev, globalProcessingDaysVisibility: next }))
-                    }
-                  />
                 </div>
               </ExpandableAdminControlCard>
               </div>
