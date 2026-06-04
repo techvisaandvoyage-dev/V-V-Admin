@@ -683,12 +683,17 @@ const DEFAULT_FOOTER_SOCIAL_ICON_FORM = {
 const normalizeFooterSocialIconType = (value) => String(value ?? "").trim().toLowerCase();
 const normalizeFooterEmailValue = (value) => String(value ?? "").trim().replace(/^mailto:/i, "");
 const buildFooterEmailUrl = (value) => {
-  const email = normalizeFooterEmailValue(value);
-  return email ? `mailto:${email}` : "";
+  const str = String(value || "").trim();
+  if (!str) return "";
+  if (/^https?:\/\//i.test(str)) return str;
+  if (/^mailto:/i.test(str)) return str;
+  if (str.includes("@")) return `mailto:${str}`;
+  return str;
 };
 const isValidFooterHttpsUrl = (value) => /^https:\/\/.+/i.test(String(value || "").trim());
 const isValidFooterMailto = (value) => /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(String(value || "").trim());
 const isValidFooterEmailAddress = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(normalizeFooterEmailValue(value));
+const isValidFooterGmailCompose = (value) => /^https:\/\/mail\.google\.com\/.+/i.test(String(value || "").trim());
 const isValidFooterWhatsapp = (value) => /^https:\/\/wa\.me\/[0-9]{6,20}(?:\?.*)?$/i.test(String(value || "").trim());
 
 const validateFooterSocialIconFormValues = (values) => {
@@ -703,8 +708,8 @@ const validateFooterSocialIconFormValues = (values) => {
   }
   if (!url) {
     nextErrors.url = "Icon URL is required.";
-  } else if (type === "email" && !isValidFooterMailto(url) && !isValidFooterEmailAddress(url)) {
-    nextErrors.url = "Use a valid email address or mailto: link.";
+  } else if (type === "email" && !isValidFooterMailto(url) && !isValidFooterEmailAddress(url) && !isValidFooterGmailCompose(url)) {
+    nextErrors.url = "Use a valid email address, mailto: link, or Gmail compose URL.";
   } else if (type === "whatsapp" && !isValidFooterWhatsapp(url)) {
     nextErrors.url = "Use a valid https://wa.me/ link.";
   } else if (type !== "email" && type !== "whatsapp" && !isValidFooterHttpsUrl(url)) {
@@ -1431,8 +1436,7 @@ const mapApiSettingsToFormState = (s, activeCountryIds = []) => ({
   customerChatDescription: s.customerChatDescription || "Get instant support from our visa team",
   customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
   customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
-  footerBrandPrimaryText: s.footerBrandPrimaryText || "",
-  footerBrandAccentText: s.footerBrandAccentText || "",
+  footerLogo: s.footerLogo || "",
   footerDescription: s.footerDescription || "",
   seoWebsiteTitle: s.seoWebsiteTitle || "Visa & Voyage",
   seoMetaDescription: s.seoMetaDescription || "",
@@ -2270,8 +2274,7 @@ const Dashboard = () => {
     customerChatDescription: "Get instant support from our visa team",
     customerChatHeaderTitle: "Chat with us",
     customerChatHeaderSubtitle: "We typically reply in a few minutes",
-    footerBrandPrimaryText: "",
-    footerBrandAccentText: "",
+    footerLogo: "",
     footerDescription: "",
     seoWebsiteTitle: "Visa & Voyage",
     seoMetaDescription: "",
@@ -3008,8 +3011,7 @@ const Dashboard = () => {
               customerChatDescription: s.customerChatDescription || "Get instant support from our visa team",
               customerChatHeaderTitle: s.customerChatHeaderTitle || "Chat with us",
               customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
-              footerBrandPrimaryText: s.footerBrandPrimaryText || "",
-              footerBrandAccentText: s.footerBrandAccentText || "",
+              footerLogo: s.footerLogo || "",
               footerDescription: s.footerDescription || "",
               whatsappTemplate: s.whatsappTemplate || "",
             }));
@@ -8593,26 +8595,43 @@ const Dashboard = () => {
                       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
                         Footer Content
                       </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input
-                          label="Logo Primary Text"
-                          value={settingsForm.footerBrandPrimaryText}
-                          onChange={(e) =>
-                            setSettingsForm((prev) => ({ ...prev, footerBrandPrimaryText: e.target.value }))
-                          }
-                          placeholder='Visa &'
-                          helper="Leave blank to keep the current default footer logo text."
-                        />
-                        <Input
-                          label="Logo Accent Text"
-                          value={settingsForm.footerBrandAccentText}
-                          onChange={(e) =>
-                            setSettingsForm((prev) => ({ ...prev, footerBrandAccentText: e.target.value }))
-                          }
-                          placeholder="Voyage"
-                          helper="This keeps the highlighted second part of the logo."
-                        />
-                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+  <div className="w-full">
+    <p className="text-sm font-medium text-text-primary mb-1">Footer Logo</p>
+    <p className="text-xs text-text-muted mb-2">Upload a logo to display in the website footer. Must be WEBP and under 50KB.</p>
+    <div className="flex items-center gap-4">
+      {settingsForm.footerLogo && (
+        <div className="bg-surface-3 p-2 rounded-lg border border-border">
+          <img src={settingsForm.footerLogo} alt="Footer Logo" className="h-10 object-contain" />
+        </div>
+      )}
+      <input
+        type="file"
+        accept="image/webp"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          if (file.type !== "image/webp") {
+            showToast("Only WEBP logo is allowed.", "error");
+            e.target.value = "";
+            return;
+          }
+          if (file.size > 50 * 1024) {
+            showToast("Logo size must be under 50 KB.", "error");
+            e.target.value = "";
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            setSettingsForm((prev) => ({ ...prev, footerLogo: ev.target.result }));
+          };
+          reader.readAsDataURL(file);
+        }}
+        className="text-sm"
+      />
+    </div>
+  </div>
+</div>
                       <div className="mt-4">
                         <Textarea
                           label="Footer Description"
@@ -8633,7 +8652,7 @@ const Dashboard = () => {
                       </p>
                       <div className="mb-3 flex items-center">
                         <img
-                          src="/images/visa-voyage-logo.webp"
+                          src={settingsForm.footerLogo || "/images/visa-voyage-logo.webp"}
                           alt="Visa & Voyage"
                           className="block h-12 max-h-12 w-auto object-contain"
                         />
@@ -8652,8 +8671,7 @@ const Dashboard = () => {
                           saveSettingsPartial(
                             "footer-content",
                             {
-                              footerBrandPrimaryText: settingsForm.footerBrandPrimaryText,
-                              footerBrandAccentText: settingsForm.footerBrandAccentText,
+                              footerLogo: settingsForm.footerLogo,
                               footerDescription: settingsForm.footerDescription,
                             },
                             "Footer content updated successfully."
