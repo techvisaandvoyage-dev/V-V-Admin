@@ -1475,6 +1475,13 @@ const DEFAULT_OTP_SETTINGS = {
   email: { enabled: true, provider: "Custom SMTP", apiKey: "", senderEmail: "", senderName: "", templateId: "", otpLength: "6" },
   priority: { primary: "whatsapp", fallback1: "sms", fallback2: "email" },
   testing: { enabled: false, autofillEnabled: true },
+  authControls: {
+    passwordEnabled: true,
+    googleEnabled: true,
+    facebookEnabled: false,
+    phoneOtpEnabled: true,
+    emailOtpEnabled: true,
+  },
 };
 
 const mapApiOtpSettingsToFormState = (settings = {}) => ({
@@ -1483,6 +1490,7 @@ const mapApiOtpSettingsToFormState = (settings = {}) => ({
   email: { ...DEFAULT_OTP_SETTINGS.email, ...(settings.email || {}) },
   priority: { ...DEFAULT_OTP_SETTINGS.priority, ...(settings.priority || {}) },
   testing: { ...DEFAULT_OTP_SETTINGS.testing, ...(settings.testing || {}) },
+  authControls: { ...DEFAULT_OTP_SETTINGS.authControls, ...(settings.authControls || {}) },
 });
 
 /**
@@ -1519,6 +1527,30 @@ const DisplayToggle = ({ active, busy, onClick, labelOn = "Visible on client", l
     </button>
   );
 };
+
+const AuthControlToggle = ({ title, description, checked, onChange }) => (
+  <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-background px-4 py-4">
+    <div>
+      <p className="text-sm font-semibold text-text-primary">{title}</p>
+      <p className="mt-1 text-xs text-text-secondary">{description}</p>
+    </div>
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors ${
+        checked ? "border-emerald-500 bg-emerald-500" : "border-border bg-surface-2"
+      }`}
+      aria-pressed={checked}
+      aria-label={title}
+    >
+      <span
+        className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  </div>
+);
 
 const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
   return (
@@ -9974,6 +10006,81 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-5">
+                  <SettingsSectionCard
+                    title="Authentication Controls"
+                    description="Control which login and signup methods are visible on the public client."
+                    saveLabel="Save Authentication Controls"
+                    saveButtonId="save-auth-controls"
+                    isSaving={savingSettingsKey === "auth-controls"}
+                    onSave={() =>
+                      saveOtpSettingsCard("auth-controls", "/admin/auth-settings/auth-controls", {
+                        passwordEnabled: otpSettingsForm.authControls.passwordEnabled,
+                        googleEnabled: otpSettingsForm.authControls.googleEnabled,
+                        facebookEnabled: otpSettingsForm.authControls.facebookEnabled,
+                        phoneOtpEnabled: otpSettingsForm.authControls.phoneOtpEnabled,
+                        emailOtpEnabled: otpSettingsForm.authControls.emailOtpEnabled,
+                      }, "Authentication controls saved.")
+                    }
+                  >
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                      <AuthControlToggle
+                        title="Password Login"
+                        description="Allow users to login/signup using email and password"
+                        checked={otpSettingsForm.authControls.passwordEnabled}
+                        onChange={(checked) =>
+                          setOtpSettingsForm((p) => ({
+                            ...p,
+                            authControls: { ...p.authControls, passwordEnabled: checked },
+                          }))
+                        }
+                      />
+                      <AuthControlToggle
+                        title="Google Login"
+                        description="Allow users to continue with Google"
+                        checked={otpSettingsForm.authControls.googleEnabled}
+                        onChange={(checked) =>
+                          setOtpSettingsForm((p) => ({
+                            ...p,
+                            authControls: { ...p.authControls, googleEnabled: checked },
+                          }))
+                        }
+                      />
+                      <AuthControlToggle
+                        title="Facebook Login"
+                        description="Allow users to continue with Facebook"
+                        checked={otpSettingsForm.authControls.facebookEnabled}
+                        onChange={(checked) =>
+                          setOtpSettingsForm((p) => ({
+                            ...p,
+                            authControls: { ...p.authControls, facebookEnabled: checked },
+                          }))
+                        }
+                      />
+                      <AuthControlToggle
+                        title="Phone OTP"
+                        description="Allow users to login/signup using mobile OTP"
+                        checked={otpSettingsForm.authControls.phoneOtpEnabled}
+                        onChange={(checked) =>
+                          setOtpSettingsForm((p) => ({
+                            ...p,
+                            authControls: { ...p.authControls, phoneOtpEnabled: checked },
+                          }))
+                        }
+                      />
+                      <AuthControlToggle
+                        title="Email OTP"
+                        description="Allow users to login/signup using email OTP"
+                        checked={otpSettingsForm.authControls.emailOtpEnabled}
+                        onChange={(checked) =>
+                          setOtpSettingsForm((p) => ({
+                            ...p,
+                            authControls: { ...p.authControls, emailOtpEnabled: checked },
+                          }))
+                        }
+                      />
+                    </div>
+                  </SettingsSectionCard>
+
                   <SettingsSectionCard
                     title="OTP Testing Only"
                     description="Use local test OTP without SMS, WhatsApp, or email provider setup. Turn this off before using real OTP providers."
