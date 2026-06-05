@@ -3224,6 +3224,19 @@ const Dashboard = () => {
   const [bulkCountryToggleBusy, setBulkCountryToggleBusy] = useState(false);
   const [resettingPopularityKey, setResettingPopularityKey] = useState(null);
   const [resettingAllPopularity, setResettingAllPopularity] = useState(false);
+  const [showActiveCountriesFirst, setShowActiveCountriesFirst] = useState(false);
+  const activeCountryCount = useMemo(
+    () => countries.filter((country) => country?.isActive !== false).length,
+    [countries]
+  );
+  const countryManagerRows = useMemo(() => {
+    if (!showActiveCountriesFirst) return filteredCountries;
+    return [...filteredCountries].sort((a, b) => {
+      const aActive = a?.isActive !== false ? 1 : 0;
+      const bActive = b?.isActive !== false ? 1 : 0;
+      return bActive - aActive;
+    });
+  }, [filteredCountries, showActiveCountriesFirst]);
   const syncVisaInfoCoreField = (field, value) => {
     setCountryForm((prev) => {
       const visaInformation = createVisaInformationState(prev);
@@ -6221,6 +6234,17 @@ const Dashboard = () => {
                         {resettingAllPopularity ? "Resetting..." : "Reset All Popularity"}
                       </Button>
                       <Button
+                        variant={showActiveCountriesFirst ? "primary" : "ghost"}
+                        size="sm"
+                        onClick={() => setShowActiveCountriesFirst((value) => !value)}
+                        disabled={countries.length === 0}
+                        id="country-manager-selected-countries"
+                      >
+                        {showActiveCountriesFirst
+                          ? "Normal Order"
+                          : `Selected Countries (${activeCountryCount})`}
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => bulkSetCountryActive(true)}
@@ -6249,6 +6273,11 @@ const Dashboard = () => {
                         id="country-manager-search"
                       />
                     </div>
+                    {showActiveCountriesFirst && (
+                      <p className="text-right text-xs text-text-muted">
+                        Showing countries with visibility on at the top.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -6267,7 +6296,7 @@ const Dashboard = () => {
                     <p className="font-medium">No country matches your search.</p>
                   </div>
                 )}
-                {filteredCountries.map((c) => (
+                {countryManagerRows.map((c) => (
                     <div
                       key={c._id || c.id}
                       className="bg-surface-2 border border-border rounded-xl overflow-hidden hover:border-cyan/20 transition-colors flex flex-col"
