@@ -14,8 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import Button from "../ui/Button";
-
-const BRAND_LOGO_SRC = "/images/visa-voyage-logo.webp";
+import { useSiteLogo } from "../../hooks/useSiteLogo";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -34,6 +33,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);       // Solid bg after scroll
   const [userMenuOpen, setUserMenuOpen] = useState(false); // User dropdown
   const userMenuRef = useRef(null);
+  const siteLogo = useSiteLogo();
 
   // ── Detect scroll to toggle navbar style ─────────────────
   useEffect(() => {
@@ -89,9 +89,9 @@ const Navbar = () => {
               aria-label="Visa & Voyage Home"
             >
               <img
-                src={BRAND_LOGO_SRC}
+                src={siteLogo}
                 alt="Visa & Voyage"
-                className="block h-16 w-auto object-contain scale-[2.2] sm:scale-[2.8] origin-left"
+                className="block h-11 w-auto object-contain sm:h-12"
               />
             </Link>
 

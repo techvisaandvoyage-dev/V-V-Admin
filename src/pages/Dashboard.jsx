@@ -1298,6 +1298,8 @@ const normalizeGlobalRequiredDocumentEntriesFromApi = (items, fallbackKeys = [],
     .filter(Boolean);
 };
 
+const normalizeGlobalOptionalDocumentEntriesFromApi = normalizeGlobalRequiredDocumentEntriesFromApi;
+
 const mapDestinationWhyBookNowFromApi = (s) => {
   const a = s?.destinationWhyBookNow;
   return Array.isArray(a) && a.length
@@ -2331,6 +2333,14 @@ const Dashboard = () => {
     globalProcessingDaysVisibility: { applyToAllActiveCountries: true, selectedCountries: [] },
     globalRequiredDocuments: [],
     globalRequiredDocumentEntries: [],
+    globalOptionalDocuments: [],
+    globalOptionalDocumentEntries: [],
+    documentSectionCopy: {
+      requiredHeading: "Documents Required",
+      requiredDescription: "These are the country documents required for this application.",
+      optionalHeading: "Optional Documents",
+      optionalDescription: "You can also attach other documents in the same Drive link.",
+    },
   });
   const [globalDefaultStats, setGlobalDefaultStats] = useState({
     totalCountries: 0,
@@ -2363,6 +2373,7 @@ const Dashboard = () => {
     maintenanceModeEnabled: false,
   });
   const controlSections = [
+    { key: "site-logo", label: "Site Logo" },
     { key: "upload-methods", label: "Document Upload Methods" },
     { key: "landing-highlights", label: "Landing Highlights" },
     { key: "base-price", label: "Update Service Fee (universal)" },
@@ -2604,6 +2615,8 @@ const Dashboard = () => {
   const [documentCatalog, setDocumentCatalog] = useState([]);
   /** Current selection in the Required Documents universal-control checkbox grid. */
   const [requiredDocsDraft, setRequiredDocsDraft] = useState([]);
+  /** Current selection in the Optional Documents universal-control checkbox grid. */
+  const [optionalDocsDraft, setOptionalDocsDraft] = useState([]);
   /** Free-text field used to add a brand-new custom document type. */
   const [newCustomDocLabel, setNewCustomDocLabel] = useState("");
   const [newCustomDocDescription, setNewCustomDocDescription] = useState("");
@@ -2747,6 +2760,19 @@ const Dashboard = () => {
   const buildGlobalRequiredDocumentEntriesPayload = () =>
     (Array.isArray(requiredDocsDraft) ? requiredDocsDraft.filter(Boolean) : []).map((key) => {
       const existing = (globalDefaults.globalRequiredDocumentEntries || []).find((item) => item.key === key);
+      return {
+        key,
+        showInAllActiveCountries: existing?.showInAllActiveCountries !== false,
+        selectedCountries:
+          existing?.showInAllActiveCountries !== false
+            ? [...activeCountryIds]
+            : normalizeCountrySelectorIds(existing?.selectedCountries),
+      };
+    });
+
+  const buildGlobalOptionalDocumentEntriesPayload = () =>
+    (Array.isArray(optionalDocsDraft) ? optionalDocsDraft.filter(Boolean) : []).map((key) => {
+      const existing = (globalDefaults.globalOptionalDocumentEntries || []).find((item) => item.key === key);
       return {
         key,
         showInAllActiveCountries: existing?.showInAllActiveCountries !== false,
@@ -3822,6 +3848,26 @@ const Dashboard = () => {
             data.defaults?.globalRequiredDocuments,
             activeCountryIds
           ),
+          globalOptionalDocuments: Array.isArray(data.defaults?.globalOptionalDocuments)
+            ? data.defaults.globalOptionalDocuments
+                .map((k) => String(k ?? "").trim())
+                .filter(Boolean)
+            : [],
+          globalOptionalDocumentEntries: normalizeGlobalOptionalDocumentEntriesFromApi(
+            data.defaults?.globalOptionalDocumentEntries,
+            data.defaults?.globalOptionalDocuments,
+            activeCountryIds
+          ),
+          documentSectionCopy: {
+            requiredHeading: String(data.defaults?.documentSectionCopy?.requiredHeading ?? "Documents Required").trim() || "Documents Required",
+            requiredDescription:
+              String(data.defaults?.documentSectionCopy?.requiredDescription ?? "These are the country documents required for this application.").trim() ||
+              "These are the country documents required for this application.",
+            optionalHeading: String(data.defaults?.documentSectionCopy?.optionalHeading ?? "Optional Documents").trim() || "Optional Documents",
+            optionalDescription:
+              String(data.defaults?.documentSectionCopy?.optionalDescription ?? "You can also attach other documents in the same Drive link.").trim() ||
+              "You can also attach other documents in the same Drive link.",
+          },
         };
         next.visaTypeScopeTargets = {
           ...next.visaTypeScopeTargets,
@@ -3930,6 +3976,7 @@ const Dashboard = () => {
         setRequiredDocsDraft(
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
+        setOptionalDocsDraft(next.globalOptionalDocuments.length ? [...next.globalOptionalDocuments] : []);
         setBasePriceApplyScope(toFeeApplyScope(next.globalBasePriceVisibility));
         setGovernmentFeeApplyScope(toFeeApplyScope(next.globalGovernmentFeeVisibility));
         const nextServiceFeeDraft = buildFeeSaveAllDraft(
@@ -5342,6 +5389,106 @@ const Dashboard = () => {
     }
   };
 
+  const handleSiteLogoFileChange = (file) => {
+    if (!file) return false;
+    if (file.type !== "image/webp") {
+      showToast("Only WEBP logo is allowed.", "error");
+      return false;
+    }
+    if (file.size > 50 * 1024) {
+      showToast("Logo size must be under 50 KB.", "error");
+      return false;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setSettingsForm((prev) => ({ ...prev, footerLogo: ev.target.result }));
+    };
+    reader.readAsDataURL(file);
+    return true;
+  };
+
+  const runUpdateGlobalOptionalDocuments = async () => {
+    const docs = Array.isArray(optionalDocsDraft) ? optionalDocsDraft.filter(Boolean) : [];
+    const entries = buildGlobalOptionalDocumentEntriesPayload();
+    if (!validateCountryVisibilitySelection(entries, "Each optional document", (item) => item?.selectedCountries)) {
+      return;
+    }
+    setSavingControlKey("optional-documents");
+    try {
+      const { data } = await api.post("/admin/control/optional-documents", {
+        optionalDocuments: entries,
+      });
+      if (data?.success) {
+        showToast(
+          data.message || `Optional Documents updated (${docs.length} item${docs.length === 1 ? "" : "s"}).`,
+          "success"
+        );
+        await Promise.all([loadGlobalCountryDefaults(), fetchCountries()]);
+      } else {
+        showToast(data?.message || "Failed to update optional documents.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.message;
+      let toastMsg = serverMsg || error?.message || "Failed to update optional documents.";
+      if (status === 404) {
+        toastMsg =
+          "Control endpoint not found - restart the API so /api/admin/control/optional-documents is available.";
+      } else if (status) {
+        toastMsg = `${toastMsg} (HTTP ${status})`;
+      }
+      console.error("Update global optional documents failed:", { status, serverMsg, error });
+      showToast(toastMsg, "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
+  const runUpdateDocumentSectionCopy = async () => {
+    const copy = globalDefaults.documentSectionCopy || {};
+    setSavingControlKey("document-section-copy");
+    try {
+      const { data } = await api.post("/admin/control/document-section-copy", {
+        requiredDocumentsHeading: copy.requiredHeading,
+        requiredDocumentsDescription: copy.requiredDescription,
+        optionalDocumentsHeading: copy.optionalHeading,
+        optionalDocumentsDescription: copy.optionalDescription,
+      });
+      if (data?.success) {
+        const nextCopy = data.documentSectionCopy || {};
+        setGlobalDefaults((prev) => ({
+          ...prev,
+          documentSectionCopy: {
+            requiredHeading: String(nextCopy.requiredHeading ?? copy.requiredHeading ?? "Documents Required").trim() || "Documents Required",
+            requiredDescription:
+              String(nextCopy.requiredDescription ?? copy.requiredDescription ?? "These are the country documents required for this application.").trim() ||
+              "These are the country documents required for this application.",
+            optionalHeading: String(nextCopy.optionalHeading ?? copy.optionalHeading ?? "Optional Documents").trim() || "Optional Documents",
+            optionalDescription:
+              String(nextCopy.optionalDescription ?? copy.optionalDescription ?? "You can also attach other documents in the same Drive link.").trim() ||
+              "You can also attach other documents in the same Drive link.",
+          },
+        }));
+        showToast(data.message || "Document section copy updated.", "success");
+        await fetchCountries();
+      } else {
+        showToast(data?.message || "Failed to update document section copy.", "error");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      showToast(error?.response?.data?.message || error?.message || "Failed to update document section copy.", "error");
+    } finally {
+      setSavingControlKey(null);
+    }
+  };
+
   const runUpdateCatalogVisibility = async () => {
     const activeKeys = Array.isArray(selectedCatalogDocs) ? selectedCatalogDocs.filter(Boolean) : [];
     setSavingControlKey("catalog-visibility");
@@ -5469,11 +5616,22 @@ const Dashboard = () => {
       return;
     }
     const requiredDocEntries = buildGlobalRequiredDocumentEntriesPayload();
+    const optionalDocEntries = buildGlobalOptionalDocumentEntriesPayload();
     if (
       requiredDocEntries.some((item) => item.key === key) &&
       !validateCountryVisibilitySelection(
         requiredDocEntries.filter((item) => item.key === key),
         "This global document",
+        (item) => item?.selectedCountries
+      )
+    ) {
+      return;
+    }
+    if (
+      optionalDocEntries.some((item) => item.key === key) &&
+      !validateCountryVisibilitySelection(
+        optionalDocEntries.filter((item) => item.key === key),
+        "This optional document",
         (item) => item?.selectedCountries
       )
     ) {
@@ -5495,6 +5653,15 @@ const Dashboard = () => {
           });
           if (!visibilityRes?.data?.success) {
             showToast(visibilityRes?.data?.message || "Failed to save document visibility.", "error");
+            return;
+          }
+        }
+        if (optionalDocEntries.length) {
+          const visibilityRes = await api.post("/admin/control/optional-documents", {
+            optionalDocuments: optionalDocEntries,
+          });
+          if (!visibilityRes?.data?.success) {
+            showToast(visibilityRes?.data?.message || "Failed to save optional document visibility.", "error");
             return;
           }
         }
@@ -5564,6 +5731,7 @@ const Dashboard = () => {
         // Drop the removed key from the local draft so the "Apply" payload
         // doesn't try to re-introduce a doc that no longer exists.
         setRequiredDocsDraft((prev) => prev.filter((k) => k !== key));
+        setOptionalDocsDraft((prev) => prev.filter((k) => k !== key));
       } else {
         showToast(data?.message || "Failed to remove custom document.", "error");
       }
@@ -6442,6 +6610,82 @@ const Dashboard = () => {
                   </div>
                 </aside>
                 <div className="space-y-6">
+                  <Card className={activeControlSection === "site-logo" ? "" : "hidden"}>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                            <ImageIcon size={18} className="text-cyan" />
+                            Site Logo
+                          </h2>
+                        </div>
+                        <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
+                          Upload one shared brand logo for the public site, user dashboard, admin panel, and footer. Removing it restores the built-in default logo everywhere.
+                        </p>
+                        <p className="text-xs text-text-muted mt-3 leading-relaxed">
+                          Format: <span className="text-text-primary font-medium">WEBP</span> · File size: <span className="text-text-primary font-medium">under 50 KB</span> · Recommended dimensions: <span className="text-text-primary font-medium">480 x 160 px</span> or <span className="text-text-primary font-medium">600 x 180 px</span> with tight crop and no extra transparent padding.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                      <div className="rounded-2xl border border-border bg-surface-2/20 p-4">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <input
+                              type="file"
+                              accept="image/webp"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                const ok = handleSiteLogoFileChange(file);
+                                if (!ok) e.target.value = "";
+                              }}
+                              className="text-sm"
+                            />
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              disabled={!String(settingsForm.footerLogo || "").trim()}
+                              onClick={() => setSettingsForm((prev) => ({ ...prev, footerLogo: "" }))}
+                            >
+                              Remove Logo
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              leftIcon={<Save size={15} />}
+                              loading={savingSettingsKey === "site-logo"}
+                              onClick={() =>
+                                saveSettingsPartial(
+                                  "site-logo",
+                                  { footerLogo: settingsForm.footerLogo },
+                                  "Site logo updated successfully."
+                                )
+                              }
+                            >
+                              Save Site Logo
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-border bg-background p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
+                          Preview
+                        </p>
+                        <div className="min-h-[120px] rounded-xl border border-border bg-white px-4 py-5 flex items-center">
+                          <img
+                            src={settingsForm.footerLogo || "/images/visa-voyage-logo.webp"}
+                            alt="Site logo preview"
+                            className="block h-16 w-auto object-contain"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
                   <Card className={activeControlSection === "upload-methods" ? "" : "hidden"}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
@@ -8102,6 +8346,55 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
+                <div className="mb-4 rounded-2xl border border-border bg-surface-2/40 p-4">
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Required section copy</p>
+                      <p className="mt-1 text-xs text-text-muted">Edits the main required-document heading and description on the public document section.</p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<Save size={14} />}
+                      loading={savingControlKey === "document-section-copy"}
+                      onClick={runUpdateDocumentSectionCopy}
+                    >
+                      Save Copy
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Input
+                      label="Heading"
+                      value={globalDefaults.documentSectionCopy?.requiredHeading || ""}
+                      onChange={(e) =>
+                        setGlobalDefaults((prev) => ({
+                          ...prev,
+                          documentSectionCopy: {
+                            ...prev.documentSectionCopy,
+                            requiredHeading: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Documents Required"
+                    />
+                    <Textarea
+                      label="Description"
+                      rows={2}
+                      value={globalDefaults.documentSectionCopy?.requiredDescription || ""}
+                      onChange={(e) =>
+                        setGlobalDefaults((prev) => ({
+                          ...prev,
+                          documentSectionCopy: {
+                            ...prev.documentSectionCopy,
+                            requiredDescription: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="These are the country documents required for this application."
+                    />
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <Button
                     variant="secondary"
@@ -8422,26 +8715,125 @@ const Dashboard = () => {
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-semibold text-text-primary flex items-center gap-2">
                         <ScrollText size={18} className="text-cyan" />
-                        Optional Documents Catalog (global)
+                        Optional Documents (global)
                       </h2>
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Manage the global supporting-document library separately from required documents. Add, edit, or remove optional documents here and assign a Remix icon for each item.
+                      Select optional supporting documents globally, then choose whether each one appears for all active countries or only selected countries. Catalog visibility still controls which document types are active anywhere.
+                    </p>
+                    <p className="text-[11px] text-text-muted mt-2">
+                      Current optional:{" "}
+                      <span className="text-text-primary font-medium">
+                        {optionalDocsDraft.length
+                          ? `${optionalDocsDraft.length} document${optionalDocsDraft.length === 1 ? "" : "s"}`
+                          : "None selected"}
+                      </span>
                     </p>
                   </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingControlKey === "catalog-visibility"}
-                    onClick={runUpdateCatalogVisibility}
-                  >
-                    Save Catalog Visibility
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="shrink-0"
+                      leftIcon={<Save size={15} />}
+                      loading={savingControlKey === "catalog-visibility"}
+                      onClick={runUpdateCatalogVisibility}
+                    >
+                      Save Catalog Visibility
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="shrink-0"
+                      leftIcon={<Save size={15} />}
+                      loading={savingControlKey === "optional-documents"}
+                      onClick={runUpdateGlobalOptionalDocuments}
+                    >
+                      Update Optional Documents
+                    </Button>
+                  </div>
                 </div>
 
+                <div className="mb-4 rounded-2xl border border-border bg-surface-2/40 p-4">
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Optional section copy</p>
+                      <p className="mt-1 text-xs text-text-muted">Edits the main optional-document heading and description on the public document section.</p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<Save size={14} />}
+                      loading={savingControlKey === "document-section-copy"}
+                      onClick={runUpdateDocumentSectionCopy}
+                    >
+                      Save Copy
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Input
+                      label="Heading"
+                      value={globalDefaults.documentSectionCopy?.optionalHeading || ""}
+                      onChange={(e) =>
+                        setGlobalDefaults((prev) => ({
+                          ...prev,
+                          documentSectionCopy: {
+                            ...prev.documentSectionCopy,
+                            optionalHeading: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="Optional Documents"
+                    />
+                    <Textarea
+                      label="Description"
+                      rows={2}
+                      value={globalDefaults.documentSectionCopy?.optionalDescription || ""}
+                      onChange={(e) =>
+                        setGlobalDefaults((prev) => ({
+                          ...prev,
+                          documentSectionCopy: {
+                            ...prev.documentSectionCopy,
+                            optionalDescription: e.target.value,
+                          },
+                        }))
+                      }
+                      placeholder="You can also attach other documents in the same Drive link."
+                    />
+                  </div>
+                </div>
 
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const keys = documentCatalog.filter((d) => !d.deleted).map((d) => d.key);
+                      setOptionalDocsDraft(keys);
+                      setGlobalDefaults((prev) => {
+                        const existing = Array.isArray(prev.globalOptionalDocumentEntries)
+                          ? prev.globalOptionalDocumentEntries
+                          : [];
+                        const merged = [...existing];
+                        keys.forEach((key) => {
+                          if (!merged.some((entry) => entry.key === key)) {
+                            merged.push(withCountryVisibilityMeta({ key }, activeCountryIds));
+                          }
+                        });
+                        return { ...prev, globalOptionalDocumentEntries: merged };
+                      });
+                    }}
+                  >
+                    Select All Optional
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setOptionalDocsDraft([])}
+                  >
+                    Deselect All Optional
+                  </Button>
+                </div>
 
                 <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {documentCatalog.length === 0 && (
@@ -8451,7 +8843,11 @@ const Dashboard = () => {
                   )}
                   {documentCatalog.map((doc, index) => {
                     const { key, label, description, builtIn, icon } = doc;
-                    const checked = selectedCatalogDocs.includes(key);
+                    const catalogActive = selectedCatalogDocs.includes(key);
+                    const checked = optionalDocsDraft.includes(key);
+                    const visibilityEntry =
+                      (globalDefaults.globalOptionalDocumentEntries || []).find((item) => item.key === key) ||
+                      withCountryVisibilityMeta({ key }, activeCountryIds);
                     const DocIcon = getDocumentIcon(key);
                     const isEditing = editingCatalogDocKey === key;
                     return (
@@ -8465,11 +8861,28 @@ const Dashboard = () => {
                       >
                         <button
                           type="button"
-                          onClick={() =>
-                            setSelectedCatalogDocs((prev) =>
-                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-                            )
-                          }
+                          onClick={() => {
+                            setOptionalDocsDraft((prev) => {
+                              const exists = prev.includes(key);
+                              if (!exists) {
+                                setGlobalDefaults((current) => {
+                                  const entries = Array.isArray(current.globalOptionalDocumentEntries)
+                                    ? current.globalOptionalDocumentEntries
+                                    : [];
+                                  if (entries.some((entry) => entry.key === key)) return current;
+                                  return {
+                                    ...current,
+                                    globalOptionalDocumentEntries: [
+                                      ...entries,
+                                      withCountryVisibilityMeta({ key }, activeCountryIds),
+                                    ],
+                                  };
+                                });
+                              }
+                              return exists ? prev.filter((k) => k !== key) : [...prev, key];
+                            });
+                            setSelectedCatalogDocs((prev) => (prev.includes(key) ? prev : [...prev, key]));
+                          }}
                           className="flex w-full items-start gap-3 text-left pr-8"
                           id={`control-catalog-doc-toggle-${key}`}
                         >
@@ -8495,6 +8908,11 @@ const Dashboard = () => {
                               <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${builtIn ? "bg-background text-text-muted" : "bg-cyan/12 text-cyan"}`}>
                                 {builtIn ? "built in" : "custom"}
                               </span>
+                              {!catalogActive && (
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-amber-300">
+                                  hidden
+                                </span>
+                              )}
                             </span>
                             <span className="mt-1 block text-xs leading-relaxed text-text-muted">
                               {description || "No helper description yet."}
@@ -8546,6 +8964,24 @@ const Dashboard = () => {
                               }}
                               placeholder="Short document description shown to applicants"
                             />
+                            {checked && (
+                              <CountryVisibilitySelector
+                                item={visibilityEntry}
+                                activeCountries={activeCountryOptions}
+                                itemLabel="this optional document"
+                                onChange={(nextItem) =>
+                                  setGlobalDefaults((prev) => {
+                                    const nextEntries = Array.isArray(prev.globalOptionalDocumentEntries)
+                                      ? [...prev.globalOptionalDocumentEntries]
+                                      : [];
+                                    const existingIndex = nextEntries.findIndex((entry) => entry.key === key);
+                                    if (existingIndex >= 0) nextEntries[existingIndex] = nextItem;
+                                    else nextEntries.push(nextItem);
+                                    return { ...prev, globalOptionalDocumentEntries: nextEntries };
+                                  })
+                                }
+                              />
+                            )}
                             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
                               <div className="w-full">
                                 <Input
@@ -8613,7 +9049,7 @@ const Dashboard = () => {
                       </h2>
                     </div>
                     <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Manage the footer logo text, description, and social icons from one place. Current live footer content stays as the fallback until you save your own values here.
+                      Manage the footer description and social icons from one place. The shared logo now lives in the Site Logo control at the top of this panel.
                     </p>
                   </div>
                 </div>
@@ -8624,43 +9060,6 @@ const Dashboard = () => {
                       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
                         Footer Content
                       </p>
-                      <div className="grid grid-cols-1 gap-4">
-  <div className="w-full">
-    <p className="text-sm font-medium text-text-primary mb-1">Footer Logo</p>
-    <p className="text-xs text-text-muted mb-2">Upload a logo to display in the website footer. Must be WEBP and under 50KB.</p>
-    <div className="flex items-center gap-4">
-      {settingsForm.footerLogo && (
-        <div className="bg-surface-3 p-2 rounded-lg border border-border">
-          <img src={settingsForm.footerLogo} alt="Footer Logo" className="h-10 object-contain" />
-        </div>
-      )}
-      <input
-        type="file"
-        accept="image/webp"
-        onChange={(e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          if (file.type !== "image/webp") {
-            showToast("Only WEBP logo is allowed.", "error");
-            e.target.value = "";
-            return;
-          }
-          if (file.size > 50 * 1024) {
-            showToast("Logo size must be under 50 KB.", "error");
-            e.target.value = "";
-            return;
-          }
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            setSettingsForm((prev) => ({ ...prev, footerLogo: ev.target.result }));
-          };
-          reader.readAsDataURL(file);
-        }}
-        className="text-sm"
-      />
-    </div>
-  </div>
-</div>
                       <div className="mt-4">
                         <Textarea
                           label="Footer Description"
@@ -8700,7 +9099,6 @@ const Dashboard = () => {
                           saveSettingsPartial(
                             "footer-content",
                             {
-                              footerLogo: settingsForm.footerLogo,
                               footerDescription: settingsForm.footerDescription,
                             },
                             "Footer content updated successfully."
