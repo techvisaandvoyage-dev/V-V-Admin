@@ -27,11 +27,11 @@ const USER_NAV = [
 
 const ADMIN_NAV = [
   { label: "Analytics",        icon: BarChart2,         to: "/",             id: "nav-admin-analytics" },
-  { label: "Static Pages",     icon: Globe,             to: "/pages",        id: "nav-admin-pages" },
-  { label: "Blog",            icon: BookOpen,          to: "/blogs",        id: "nav-admin-blogs" },
-  { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
   { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
+  { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
   { label: "Country Manager",  icon: MapPin,            to: "/countries",   id: "nav-admin-countries" },
+  { label: "Website Content",  icon: Globe,             to: "/pages",        id: "nav-admin-pages" },
+  { label: "Blog",             icon: BookOpen,          to: "/blogs",        id: "nav-admin-blogs" },
   { label: "Support Chat",     icon: MessageSquare,     to: "/support-chat", id: "nav-admin-support-chat" },
   { label: "Controls",         icon: Sliders,           to: "/controls",    id: "nav-admin-controls" },
   { label: "SEO Manager",      icon: Search,            to: "/seo",         id: "nav-admin-seo" },

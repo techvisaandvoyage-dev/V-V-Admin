@@ -61,7 +61,7 @@ const VisaTypeScopeConfigSection = ({
         : "Selected: None";
 
   return (
-    <div className="rounded-2xl border border-border bg-surface/70 p-5">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-surface/70 p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
@@ -129,7 +129,7 @@ const VisaTypeScopeConfigSection = ({
                           )
                         )}
                       </span>
-                      <span className="min-w-0">{country?.name}</span>
+                      <span className="min-w-0 truncate">{country?.name}</span>
                     </button>
                   );
                 })}
@@ -139,7 +139,7 @@ const VisaTypeScopeConfigSection = ({
               )}
             </div>
 
-            <div className="rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-text-muted">
+            <div className="break-words rounded-xl border border-border bg-background px-3 py-2.5 text-xs text-text-muted">
               {selectedPreview}
             </div>
           </div>

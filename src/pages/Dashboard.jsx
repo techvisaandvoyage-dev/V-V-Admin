@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 //  Admin Dashboard Page
 //  Sections:
 //  1. Analytics overview (4 stat cards + Recharts line chart)
@@ -184,7 +184,7 @@ const IconPickerPreviewButton = ({
   );
 };
 
-// â”€â”€ Recharts custom tooltip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Recharts custom tooltip Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -761,7 +761,7 @@ const SettingsSectionCard = ({
     <div className="space-y-4">{children}</div>
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-4 border-t border-border">
       <p className="text-[11px] text-text-muted order-2 sm:order-1">
-        Only this section is saved — other sections are unchanged.
+        Only this section is saved â€” other sections are unchanged.
       </p>
       <Button
         variant="primary"
@@ -778,134 +778,17 @@ const SettingsSectionCard = ({
   </Card>
 );
 
-const CONTROL_CARD_MIN_HEIGHT = 420;
-const CONTROL_CARD_PREVIEW_HEIGHT = 300;
-
 const ExpandableAdminControlCard = ({
   children,
-  previewHeight = CONTROL_CARD_PREVIEW_HEIGHT,
-  expandMode = "inline",
-  showToggle = true,
-  forceShowToggle = false,
-  allowBodyOverflow = false,
-  expanded: controlledExpanded,
-  onExpandedChange,
-  fullscreenTitle = "Editor",
 }) => {
-  const bodyRef = useRef(null);
-  const [internalExpanded, setInternalExpanded] = useState(false);
-  const [canExpand, setCanExpand] = useState(false);
-  const isFullscreen = expandMode === "fullscreen";
-  const expanded = typeof controlledExpanded === "boolean" ? controlledExpanded : internalExpanded;
-  const setExpanded = (valueOrUpdater) => {
-    const nextValue =
-      typeof valueOrUpdater === "function" ? valueOrUpdater(expanded) : valueOrUpdater;
-    if (typeof controlledExpanded === "boolean") {
-      onExpandedChange?.(nextValue);
-      return;
-    }
-    setInternalExpanded(nextValue);
-    onExpandedChange?.(nextValue);
-  };
-
-  useEffect(() => {
-    const measure = () => {
-      const node = bodyRef.current;
-      if (!node) return;
-      const nextCanExpand = node.scrollHeight > previewHeight + 12;
-      setCanExpand(nextCanExpand);
-      if (!nextCanExpand && expanded) setExpanded(false);
-    };
-
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [children, previewHeight, expanded]);
-
-  useEffect(() => {
-    if (!expanded || !isFullscreen) return undefined;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [expanded, isFullscreen]);
-
   return (
-    <>
-      <div
-        className={`relative ${expanded && !isFullscreen ? "z-40" : ""}`}
-        style={{ height: `${CONTROL_CARD_MIN_HEIGHT}px` }}
-      >
-        <Card
-          className={`${
-            expanded && !isFullscreen ? "absolute inset-x-0 top-0 shadow-2xl" : "h-full"
-          }`}
-        >
-          <div className="flex h-full flex-col">
-            <div
-              ref={bodyRef}
-              className={`relative ${
-                expanded && !isFullscreen
-                  ? ""
-                  : allowBodyOverflow
-                    ? "overflow-visible"
-                    : "overflow-hidden"
-              }`}
-              style={expanded && !isFullscreen ? undefined : { maxHeight: `${previewHeight}px` }}
-            >
-              {children}
-              {canExpand && !expanded && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-surface via-surface/95 to-transparent" />
-              )}
-            </div>
-
-            {(canExpand || forceShowToggle) && showToggle && (
-              <div className="mt-4 border-t border-border pt-4">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setExpanded((prev) => !prev)}
-                >
-                  {expanded ? "Hide" : "View"}
-                </Button>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {expanded && isFullscreen && (
-        <div className="fixed inset-0 z-[120] overflow-y-auto bg-background">
-          <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-            <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6">
-              <div>
-                <p className="text-sm font-semibold text-text-primary">{fullscreenTitle}</p>
-                <p className="text-xs text-text-muted">Full-page workspace</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setExpanded(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-text-primary transition-colors hover:bg-surface-2"
-                aria-label="Close full-page editor"
-                title="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="w-full px-4 py-4 sm:px-6 sm:py-6">
-            <div className="min-h-[calc(100vh-72px)] rounded-2xl border border-border bg-surface p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-6">
-              {children}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <Card className="min-w-0 max-w-full overflow-hidden">
+      <div className="min-w-0">{children}</div>
+    </Card>
   );
 };
 
-/** Defaults match client destination page — used until admin saves custom copy. */
+/** Defaults match client destination page â€” used until admin saves custom copy. */
 const DESTINATION_PAGE_DEFAULT_WHY_BOOK_NOW = [
   "Fast document pre-check by visa specialists",
   "Transparent pricing and status updates",
@@ -937,7 +820,7 @@ const DESTINATION_PAGE_DEFAULT_FAQS = [
   {
     question: "How long does processing take?",
     answer:
-      "Typical processing varies by destination — each country page lists estimated timelines based on current embassy guidance.",
+      "Typical processing varies by destination â€” each country page lists estimated timelines based on current embassy guidance.",
   },
   {
     question: "Can I track my application?",
@@ -958,7 +841,7 @@ const DESTINATION_PAGE_DEFAULT_HOW_IT_WORKS = [
   { title: "Enjoy your vacation", description: "Thanks for choosing VisaAndVoyage and we wish you an amazing journey." },
 ];
 
-/** Suggestions shown in the Visa Type combo-box on the country edit modal — admins can pick or type their own. */
+/** Suggestions shown in the Visa Type combo-box on the country edit modal â€” admins can pick or type their own. */
 const VISA_TYPE_SUGGESTIONS = [
   "Tourist Visa",
   "Business Visa",
@@ -1501,7 +1384,7 @@ const mapApiOtpSettingsToFormState = (settings = {}) => ({
 
 /**
  * Compact "switch" used inside each universal control card header. Renders as a
- * pill with an animated knob — green when the field is visible on the public
+ * pill with an animated knob â€” green when the field is visible on the public
  * client, neutral when hidden. While the API call is in flight the button is
  * disabled so users can't double-click it.
  */
@@ -1566,7 +1449,7 @@ const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
       disabled={busy}
       className={`inline-flex items-center rounded-full border p-1 transition-colors ${
         active
-          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/60"
+          ? "border-cyan/40 bg-cyan/10 text-cyan hover:border-cyan/70"
           : "border-border bg-surface-3 text-text-muted hover:border-cyan/30"
       } ${busy ? "cursor-wait opacity-60" : "cursor-pointer"}`}
       aria-label={`${active ? "Disable" : "Enable"} ${countryName}`}
@@ -1575,7 +1458,7 @@ const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
     >
       <span
         className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
-          active ? "bg-emerald-500" : "bg-surface-2 border border-border"
+          active ? "bg-cyan" : "bg-surface-2 border border-border"
         }`}
       >
         <span
@@ -1588,9 +1471,9 @@ const CountryCardActiveToggle = ({ active, busy, onClick, countryName }) => {
   );
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 //  COMPONENT
-// â”€â”€ Live Support Chat Mock Conversations & Workspace â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Live Support Chat Mock Conversations & Workspace Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const INITIAL_CONVERSATIONS = [
   {
     id: "1",
@@ -1603,8 +1486,8 @@ const INITIAL_CONVERSATIONS = [
     messages: [
       { id: "m1", sender: "user", text: "Hi, I need help with my Dubai visa application.", time: "10:30 AM" },
       { id: "m2", sender: "user", text: "What documents are required for a tourist visa?", time: "10:31 AM" },
-      { id: "m3", sender: "admin", text: "Hello Rohit! ðŸ‘‹\n\nI'll be happy to help you with your Dubai visa.", time: "10:32 AM" },
-      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\n• Passport (valid 6+ months)\n• Passport size photo\n• Confirmed return ticket\n• Hotel booking\n• Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
+      { id: "m3", sender: "admin", text: "Hello Rohit! Ã°Å¸â€˜â€¹\n\nI'll be happy to help you with your Dubai visa.", time: "10:32 AM" },
+      { id: "m4", sender: "admin", text: "For Dubai tourist visa, you need:\nâ€¢ Passport (valid 6+ months)\nâ€¢ Passport size photo\nâ€¢ Confirmed return ticket\nâ€¢ Hotel booking\nâ€¢ Bank statement (last 3 months)\n\nAnything else I can help you with?", time: "10:33 AM" },
       { id: "m5", sender: "user", text: "Thank you! How long does it take to process?", time: "10:34 AM" },
       { id: "m6", sender: "admin", text: "It usually takes 3-4 working days. Let me know if you have any other questions.", time: "10:35 AM" }
     ]
@@ -1722,7 +1605,7 @@ const renderAvatar = (name, sizeClass = "w-10 h-10 text-xs") => {
 };
 
 const SupportChatWorkspace = () => {
-  const chatEmojis = ["ðŸ˜€", "ðŸ˜Š", "ðŸ˜", "ðŸ‘", "ðŸ™", "ðŸŽ‰", "â¤ï¸", "ðŸ˜„", "ðŸ¤", "âœ¨"];
+  const chatEmojis = ["Ã°Å¸Ëœâ‚¬", "Ã°Å¸ËœÅ ", "Ã°Å¸ËœÂ", "Ã°Å¸â€˜Â", "Ã°Å¸â„¢Â", "Ã°Å¸Å½â€°", "Ã¢ÂÂ¤Ã¯Â¸Â", "Ã°Å¸Ëœâ€ž", "Ã°Å¸Â¤Â", "Ã¢Å“Â¨"];
   const [conversations, setConversations] = useState([]);
   const [selectedId, setSelectedId] = useState("1");
   const [activeTab, setActiveTab] = useState("all"); // "all" | "unread" | "resolved"
@@ -2044,9 +1927,9 @@ const SupportChatWorkspace = () => {
                   </h3>
                   <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
                     <span className="truncate max-w-[150px] sm:max-w-[200px]">{activeConversation.email}</span>
-                    <span className="text-border/60">•</span>
+                    <span className="text-border/60">â€¢</span>
                     <span>{activeConversation.phone}</span>
-                    <span className="text-border/60">•</span>
+                    <span className="text-border/60">â€¢</span>
                     <a href="#profile" className="text-cyan font-bold hover:underline">View Profile</a>
                   </p>
                 </div>
@@ -2180,7 +2063,7 @@ const SupportChatWorkspace = () => {
   );
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const Dashboard = () => {
   const {
     showToast,
@@ -2191,7 +2074,7 @@ const Dashboard = () => {
     setSelectedCountry,
   } = useUIStore();
 
-  // â”€â”€ Route & State Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Route & State Navigation Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const navigate       = useNavigate();
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
@@ -2203,7 +2086,7 @@ const Dashboard = () => {
     navigate("/", { replace: true });
   }, [navigate, tabParam, validAdminTabIds]);
 
-  // â”€â”€ Global Data Store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Global Data Store Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const { bookings, countries, fetchAllApplications, fetchCountries, fetchPages, updateCountry } = useDataStore();
   const activeCountryOptions = useMemo(
     () =>
@@ -2229,7 +2112,7 @@ const Dashboard = () => {
   );
   const allCountryIds = useMemo(() => [...activeCountryIds], [activeCountryIds]);
 
-  // â”€â”€ Local state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Local state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const [searchQuery, setSearchQuery]        = useState("");
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
   const [statusFilter, setStatusFilter]      = useState("all");
@@ -2300,7 +2183,7 @@ const Dashboard = () => {
   /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
   /**
-   * Universal control system — admin sets a single global Visa Type / Validity that
+   * Universal control system â€” admin sets a single global Visa Type / Validity that
    * applies to every country card and detail page unless an individual country edit
    * carries a per-country override. `defaults` mirrors the server state, while the
    * `*Picker`/`*Custom` pair drives the dropdown + free-text controls.
@@ -2361,7 +2244,7 @@ const Dashboard = () => {
     overridingProcessingDays: 0,
     overridingRequiredDocuments: 0,
   });
-  /** Mirrors `Settings.show*` — when false, the public client hides that tile/section. */
+  /** Mirrors `Settings.show*` â€” when false, the public client hides that tile/section. */
   const [displayToggles, setDisplayToggles] = useState({
     showVisaType: true,
     showValidity: true,
@@ -2372,27 +2255,85 @@ const Dashboard = () => {
     showVisaRequirements: true,
     maintenanceModeEnabled: false,
   });
-  const controlSections = [
-    { key: "site-logo", label: "Site Logo" },
-    { key: "upload-methods", label: "Document Upload Methods" },
-    { key: "landing-highlights", label: "Landing Highlights" },
-    { key: "base-price", label: "Update Service Fee (universal)" },
-    { key: "government-fee", label: "Update Government Fee (universal)" },
-    { key: "fee-update-manager", label: "Fee Update Manager" },
-    { key: "visa-type", label: "Update Visa Type (universal)" },
-    { key: "manage-visa-types", label: "Manage Visa Types" },
-    { key: "length-of-stay", label: "Update Length of Stay (universal)" },
-    { key: "entry-type", label: "Update Entry (universal)" },
-    { key: "validity", label: "Update Validity (universal)" },
-    { key: "processing-days", label: "Update Processing Days (universal)" },
-    { key: "required-docs", label: "Documents Required (global)" },
-    { key: "other-docs", label: "Optional Documents Catalog (global)" },
-    { key: "footer-social-icons", label: "Footer Manager" },
-    { key: "maintenance-mode", label: "Site maintenance mode" },
-    { key: "customer-support", label: "Customer Support Widget" },
-    { key: "destination-pages", label: "Destination pages (all countries)" },
+  const controlGroups = [
+    {
+      key: "website-content",
+      label: "Website Content",
+      description: "Homepage, country pages, and footer content",
+      sections: [
+        { key: "site-logo", label: "Site Logo", subgroup: "Homepage" },
+        { key: "landing-highlights", label: "Landing Highlights", subgroup: "Homepage" },
+        { key: "destination-pages", label: "Destination pages (all countries)", subgroup: "Country Pages" },
+        { key: "footer-social-icons", label: "Footer Manager", subgroup: "Footer" },
+      ],
+    },
+    {
+      key: "documents",
+      label: "Documents",
+      description: "Upload methods and document catalogs",
+      sections: [
+        { key: "upload-methods", label: "Document Upload Methods" },
+        { key: "required-docs", label: "Documents Required (global)" },
+        { key: "other-docs", label: "Optional Documents Catalog (global)" },
+      ],
+    },
+    {
+      key: "fees",
+      label: "Fees",
+      description: "Service and government fee controls",
+      sections: [
+        { key: "base-price", label: "Update Service Fee (universal)" },
+        { key: "government-fee", label: "Update Government Fee (universal)" },
+        { key: "fee-update-manager", label: "Fee Update Manager" },
+      ],
+    },
+    {
+      key: "visa-settings",
+      label: "Visa Settings",
+      description: "Visa type and visa detail defaults",
+      sections: [
+        { key: "visa-type", label: "Update Visa Type (universal)" },
+        { key: "manage-visa-types", label: "Manage Visa Types" },
+        { key: "length-of-stay", label: "Update Length of Stay (universal)" },
+        { key: "entry-type", label: "Update Entry (universal)" },
+        { key: "validity", label: "Update Validity (universal)" },
+        { key: "processing-days", label: "Update Processing Days (universal)" },
+      ],
+    },
+    {
+      key: "system",
+      label: "System / Display",
+      description: "Maintenance and support widget settings",
+      sections: [
+        { key: "maintenance-mode", label: "Site maintenance mode" },
+        { key: "customer-support", label: "Customer Support Widget" },
+      ],
+    },
   ];
+  const controlSections = controlGroups.flatMap((group) =>
+    group.sections.map((section) => ({ ...section, groupKey: group.key, groupLabel: group.label }))
+  );
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
+  const destinationPageSectionTabs = [
+    { key: "why-book-now", label: "Why book now?" },
+    { key: "whats-included", label: "What's included" },
+    { key: "how-it-works", label: "How it works" },
+    { key: "faqs", label: "FAQs" },
+    { key: "visa-requirements", label: "Visa Requirements" },
+  ];
+  const [activeDestinationPageSection, setActiveDestinationPageSection] = useState(destinationPageSectionTabs[0].key);
+  const activeControlSectionMeta = controlSections.find((section) => section.key === activeControlSection) || controlSections[0];
+  const activeControlGroup = controlGroups.find((group) => group.key === activeControlSectionMeta.groupKey) || controlGroups[0];
+  const activeControlGroupSections = activeControlGroup.sections;
+  const activeControlPageTitle = activeControlSectionMeta.label;
+  const activeControlBreadcrumb = [
+    "Controls",
+    activeControlGroup.label,
+    activeControlSectionMeta.subgroup,
+    activeControlSectionMeta.label,
+  ].filter(Boolean);
+  const visibleControlSectionKeys = new Set([activeControlSection]);
+  const isControlSectionVisible = (sectionKey) => visibleControlSectionKeys.has(sectionKey);
   const [expandedControlCards, setExpandedControlCards] = useState({});
   const selectControlSection = (nextKey) => {
     setActiveControlSection((prevKey) => {
@@ -2401,6 +2342,11 @@ const Dashboard = () => {
       }
       return nextKey;
     });
+  };
+  const selectControlGroup = (groupKey) => {
+    const group = controlGroups.find((item) => item.key === groupKey);
+    const firstSectionKey = group?.sections?.[0]?.key;
+    if (firstSectionKey) selectControlSection(firstSectionKey);
   };
   const getControlCardExpansionProps = (key) => ({
     expanded: Boolean(expandedControlCards[key]),
@@ -3063,7 +3009,7 @@ const Dashboard = () => {
     fetchData();
   }, [activeTab, fetchAllApplications, fetchCountries]);
 
-  // â”€â”€ Drag & Drop state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Drag & Drop state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const [isDragging, setIsDragging]          = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef                         = useRef(null);
@@ -3107,10 +3053,35 @@ const Dashboard = () => {
     { key: "businessLicense", label: "Business License" },
     { key: "companyRegistration", label: "Company Registration Certificate" },
   ];
+  const countryDocLabelByKey = new Map(DOC_OPTIONS.map((doc) => [doc.key, doc.label]));
+  const formatCountryDocLabel = (key) => countryDocLabelByKey.get(key) || key;
+  const getCountryDocumentLabels = (country) =>
+    (Array.isArray(country?.requiredDocuments) ? country.requiredDocuments : [])
+      .map((doc) => formatCountryDocLabel(doc))
+      .filter(Boolean);
+  const countryMatchesManagerSearch = (country, rawTerm) => {
+    const term = String(rawTerm || "").trim().toLowerCase();
+    if (!term) return true;
+    if (matchesCountrySearch(country, rawTerm)) return true;
+    const searchableValues = [
+      country?.city,
+      country?.region,
+      country?.subtitle,
+      country?.governmentFee,
+      country?.basePrice,
+      country?.processingDays,
+      country?.successRate,
+      ...getCountryDocumentLabels(country),
+      ...(Array.isArray(country?.cities) ? country.cities : []),
+    ];
+    return searchableValues.some((value) =>
+      String(value ?? "").toLowerCase().includes(term)
+    );
+  };
 
   // Country form state
   const [countryForm, setCountryForm] = useState({
-    name: "", flagEmoji: "ðŸŒ", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
+    name: "", flagEmoji: "Ã°Å¸Å’Â", basePrice: "", governmentFee: "", processingDays: "", difficulty: "moderate",
     visaType: "", validity: "", lengthOfStay: "", entryType: "", continent: "", description: "", requirements: [""], imageUrl: "",
     requiredDocuments: ["passport"], successRate: "80", isActive: true,
     visaInformation: createVisaInformationState({}),
@@ -3130,7 +3101,7 @@ const Dashboard = () => {
     excludeDestinationVisaRequirements: [],
   });
 
-  /** Snapshot of Settings → Destinations (for merging in the country edit modal). */
+  /** Snapshot of Settings â†’ Destinations (for merging in the country edit modal). */
   const [countryModalGlobalDest, setCountryModalGlobalDest] = useState({
     whyBookNow: [],
     includedItems: [],
@@ -3139,7 +3110,7 @@ const Dashboard = () => {
     visaRequirements: [],
   });
 
-  // â”€â”€ Filter applications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Filter applications Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const filteredBookings = bookings.filter((b) => {
     const q = searchQuery.toLowerCase();
     const idStr = String(b.applicationId || b._id || b.id || "").toLowerCase();
@@ -3189,7 +3160,7 @@ const Dashboard = () => {
 
   const filteredCountries = useMemo(() => {
     const base = countries.filter((country) =>
-      matchesCountrySearch(country, countrySearchQuery)
+      countryMatchesManagerSearch(country, countrySearchQuery)
     );
     const q = countrySearchQuery.trim();
     if (!q || q.length < 3) return base;
@@ -3244,25 +3215,116 @@ const Dashboard = () => {
     };
   }, [countryModalOpen]);
 
-  // â”€â”€ Country Manager handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Country Manager handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const [isSavingCountry, setIsSavingCountry] = useState(false);
   const [togglingCountryKey, setTogglingCountryKey] = useState(null);
   const [bulkCountryToggleBusy, setBulkCountryToggleBusy] = useState(false);
   const [resettingPopularityKey, setResettingPopularityKey] = useState(null);
   const [resettingAllPopularity, setResettingAllPopularity] = useState(false);
   const [showActiveCountriesFirst, setShowActiveCountriesFirst] = useState(false);
+  const [countryStatusFilter, setCountryStatusFilter] = useState("all");
+  const [countryVisaTypeFilter, setCountryVisaTypeFilter] = useState("all");
+  const [countrySortMode, setCountrySortMode] = useState("default");
+  const [countryPageSize, setCountryPageSize] = useState(25);
+  const [countryPage, setCountryPage] = useState(1);
   const activeCountryCount = useMemo(
     () => countries.filter((country) => country?.isActive !== false).length,
     [countries]
   );
+  const countryVisaTypes = useMemo(() => {
+    const values = countries
+      .map((country) => String(country?.visaType || "").trim())
+      .filter(Boolean);
+    return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
+  }, [countries]);
   const countryManagerRows = useMemo(() => {
-    if (!showActiveCountriesFirst) return filteredCountries;
-    return [...filteredCountries].sort((a, b) => {
-      const aActive = a?.isActive !== false ? 1 : 0;
-      const bActive = b?.isActive !== false ? 1 : 0;
-      return bActive - aActive;
+    let rows = filteredCountries.filter((country) => {
+      const isActive = country?.isActive !== false;
+      if (countryStatusFilter === "active" && !isActive) return false;
+      if (countryStatusFilter === "inactive" && isActive) return false;
+      if (
+        countryVisaTypeFilter !== "all" &&
+        String(country?.visaType || "").trim() !== countryVisaTypeFilter
+      ) {
+        return false;
+      }
+      return true;
     });
-  }, [filteredCountries, showActiveCountriesFirst]);
+    rows = [...rows];
+    if (showActiveCountriesFirst) {
+      rows.sort((a, b) => {
+        const aActive = a?.isActive !== false ? 1 : 0;
+        const bActive = b?.isActive !== false ? 1 : 0;
+        return bActive - aActive;
+      });
+    }
+    if (countrySortMode === "mostVisited") {
+      rows.sort((a, b) => Number(b?.visitCount || 0) - Number(a?.visitCount || 0));
+    }
+    if (countrySortMode === "recentlyVisited") {
+      rows.sort((a, b) => {
+        const aTime = a?.lastVisitedAt ? new Date(a.lastVisitedAt).getTime() : 0;
+        const bTime = b?.lastVisitedAt ? new Date(b.lastVisitedAt).getTime() : 0;
+        return bTime - aTime;
+      });
+    }
+    return rows;
+  }, [
+    filteredCountries,
+    showActiveCountriesFirst,
+    countryStatusFilter,
+    countryVisaTypeFilter,
+    countrySortMode,
+  ]);
+  const countryPageCount = Math.max(1, Math.ceil(countryManagerRows.length / countryPageSize));
+  const countryPageRows = useMemo(() => {
+    const safePage = Math.min(countryPage, countryPageCount);
+    const start = (safePage - 1) * countryPageSize;
+    return countryManagerRows.slice(start, start + countryPageSize);
+  }, [countryManagerRows, countryPage, countryPageCount, countryPageSize]);
+  useEffect(() => {
+    setCountryPage(1);
+  }, [
+    countrySearchQuery,
+    countryStatusFilter,
+    countryVisaTypeFilter,
+    countrySortMode,
+    countryPageSize,
+  ]);
+  useEffect(() => {
+    if (countryPage > countryPageCount) setCountryPage(countryPageCount);
+  }, [countryPage, countryPageCount]);
+  const countryVisibleStart =
+    countryManagerRows.length === 0 ? 0 : (Math.min(countryPage, countryPageCount) - 1) * countryPageSize + 1;
+  const countryVisibleEnd = Math.min(
+    Math.min(countryPage, countryPageCount) * countryPageSize,
+    countryManagerRows.length
+  );
+  const renderCountryDocuments = (country) => {
+    const docs = getCountryDocumentLabels(country);
+    if (docs.length === 0) {
+      return <span className="text-xs text-text-muted">Missing</span>;
+    }
+    const visibleDocs = docs.slice(0, 3);
+    const hiddenCount = docs.length - visibleDocs.length;
+    return (
+      <div className="flex max-w-[18rem] flex-wrap gap-1" title={docs.join(", ")}>
+        {visibleDocs.map((doc) => (
+          <span
+            key={doc}
+            className="rounded-md border border-cyan/15 bg-cyan/10 px-2 py-0.5 text-[11px] font-medium text-cyan"
+          >
+            {doc}
+          </span>
+        ))}
+        {hiddenCount > 0 && (
+          <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text-secondary">
+            +{hiddenCount} more
+          </span>
+        )}
+      </div>
+    );
+  };
   const syncVisaInfoCoreField = (field, value) => {
     setCountryForm((prev) => {
       const visaInformation = createVisaInformationState(prev);
@@ -3608,7 +3670,7 @@ const Dashboard = () => {
     }));
   };
 
-  // â”€â”€ Image upload helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Image upload helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const uploadImageToServer = async (file) => {
     if (!file || !file.type.startsWith("image/")) {
       showToast("Please select a valid image file.", "error");
@@ -3633,7 +3695,7 @@ const Dashboard = () => {
     }
   };
 
-  // â”€â”€ Drag & Drop handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Drag & Drop handlers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop = (e) => {
@@ -3972,7 +4034,7 @@ const Dashboard = () => {
         }
         // Pre-populate the required-docs draft from the live global selection so
         // the admin sees exactly what's currently applied. Falls back to just
-        // "passport" if no global has been set yet — matches the legacy default.
+        // "passport" if no global has been set yet â€” matches the legacy default.
         setRequiredDocsDraft(
           next.globalRequiredDocuments.length ? [...next.globalRequiredDocuments] : ["passport"]
         );
@@ -4032,7 +4094,7 @@ const Dashboard = () => {
       if (error?.response?.status === 401) {
         handleUnauthorized();
       }
-      // Defaults stay at their initial empty values — the UI will show "Not set yet".
+      // Defaults stay at their initial empty values â€” the UI will show "Not set yet".
     }
   };
 
@@ -4146,7 +4208,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    if (activeControlSection !== "base-price") return;
+    if (!isControlSectionVisible("base-price")) return;
     loadServiceFeeCountryOverrides({ silent: serviceFeeCountryOverrides.length > 0 });
   }, [activeControlSection]);
 
@@ -4547,7 +4609,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save visa type changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/visa-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -4588,7 +4650,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save validity changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/validity is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/validity is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5072,7 +5134,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save length of stay changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/length-of-stay is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5112,7 +5174,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save entry changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/entry-type is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5153,7 +5215,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to save processing days changes.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/control/processing-days is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5200,7 +5262,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update fee";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
+          "Control endpoint not found â€” restart the API locally or redeploy the server so /api/admin/fees/bulk-update is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5377,7 +5439,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update required documents.";
       if (status === 404) {
         toastMsg =
-          "Control endpoint not found — restart the API so /api/admin/control/required-documents is available.";
+          "Control endpoint not found â€” restart the API so /api/admin/control/required-documents is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5589,7 +5651,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to add custom document.";
       if (status === 404) {
         toastMsg =
-          "Endpoint not found — restart the API so /api/admin/control/custom-documents is available.";
+          "Endpoint not found â€” restart the API so /api/admin/control/custom-documents is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5803,7 +5865,7 @@ const Dashboard = () => {
       let toastMsg = serverMsg || error?.message || "Failed to update display toggle.";
       if (status === 404) {
         toastMsg =
-          "Toggle endpoint not found — restart the API so /api/admin/control/display-toggles is available.";
+          "Toggle endpoint not found â€” restart the API so /api/admin/control/display-toggles is available.";
       } else if (status) {
         toastMsg = `${toastMsg} (HTTP ${status})`;
       }
@@ -5828,7 +5890,7 @@ const Dashboard = () => {
     if (onlyTrending) scopeLabel = "Trending countries only";
     else if (onlyActive) scopeLabel = "Active countries only";
     else if (onlyMissing) scopeLabel = "Missing images only";
-    setUnsplashFetchProgress(`Starting ${scopeLabel.toLowerCase()} — first batch may take ~10–20s (Unsplash rate limits)…`);
+    setUnsplashFetchProgress(`Starting ${scopeLabel.toLowerCase()} â€” first batch may take ~10â€“20s (Unsplash rate limits)â€¦`);
     let totalUpdated = 0;
     let totalFailed = 0;
     try {
@@ -5903,7 +5965,7 @@ const Dashboard = () => {
     setIsChangingPassword(false);
   };
 
-  // â”€â”€ Requirements field helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Requirements field helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const addRequirement = () =>
     setCountryForm((p) => ({ ...p, requirements: [...p.requirements, ""] }));
   const updateRequirement = (index, value) =>
@@ -5915,7 +5977,7 @@ const Dashboard = () => {
   const removeRequirement = (index) =>
     setCountryForm((p) => ({ ...p, requirements: p.requirements.filter((_, i) => i !== index) }));
 
-  // â”€â”€ Recalculate live analytics from current applications â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Recalculate live analytics from current applications Ã¢â€â‚¬Ã¢â€â‚¬
   const liveAnalytics = useMemo(() => {
     const statusCounts = {
       pending: 0,
@@ -6003,9 +6065,9 @@ const Dashboard = () => {
       }}
     >
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB: TRANSACTIONS
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "transactions" && <PaymentsPage transactions={transactions} />}
           {false && activeTab === "transactions" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -6064,9 +6126,9 @@ const Dashboard = () => {
 
           {activeTab === "blogs" && <BlogAdminPanel />}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB 1: ANALYTICS
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "analytics" && (
             <AnalyticsPage
               bookings={bookings}
@@ -6205,9 +6267,9 @@ const Dashboard = () => {
             </motion.div>
           )}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB 2: APPLICATIONS TABLE
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "applications" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <Card>
@@ -6249,7 +6311,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Table — horizontally scrollable on mobile */}
+                {/* Table â€” horizontally scrollable on mobile */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -6264,6 +6326,8 @@ const Dashboard = () => {
                     <tbody className="divide-y divide-border/40">
                       {filteredBookings.map((b) => {
                         const progress = getApplicationProgress(b, settingsForm);
+                        const transactionId =
+                          b.transactionId && b.transactionId !== "pending" ? b.transactionId : "";
                         return (
                           <tr key={b._id || b.id} className="hover:bg-surface-3/50 transition-colors group">
                           <td className="py-3 pr-6 font-mono text-xs text-text-muted whitespace-nowrap">
@@ -6316,7 +6380,7 @@ const Dashboard = () => {
                                       : "Pending payment"}
                               </p>
                               <p className="font-mono text-[11px] text-text-secondary max-w-[140px] truncate" title={b.transactionId || ""}>
-                                {b.transactionId && b.transactionId !== "pending" ? b.transactionId : "—"}
+                                {transactionId || "No transaction yet"}
                               </p>
                             </div>
                           </td>
@@ -6370,25 +6434,25 @@ const Dashboard = () => {
                     Showing {filteredBookings.length} of {bookings.length} applications
                   </p>
                   <div className="flex gap-2">
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">â† Prev</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">Prev</button>
                     <button className="px-3 py-1.5 text-xs rounded-lg bg-cyan text-background font-medium" id="admin-page-1">1</button>
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next →</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next</button>
                   </div>
                 </div>
               </Card>
             </motion.div>
           )}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB 3: COUNTRY MANAGER
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "countries" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <Card>
                 <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
                   <div>
                     <h2 className="font-semibold text-text-primary">Country Manager</h2>
-                    <p className="text-xs text-text-muted">Edit pricing, visa type, documents, requirements, images, and display details for all 195 countries.</p>
+                    <p className="text-xs text-text-muted">Edit pricing, visa type, documents, requirements, and display details for all 195 countries.</p>
                   </div>
                   <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[24rem]">
                     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -6436,7 +6500,7 @@ const Dashboard = () => {
                       <input
                         value={countrySearchQuery}
                         onChange={(e) => setCountrySearchQuery(e.target.value)}
-                        placeholder="Search country, city, visa type..."
+                        placeholder="Search country, city, visa type, document, fee..."
                         className="w-full bg-surface-2 border border-border text-text-primary text-sm rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-cyan/20 focus:border-cyan placeholder-text-muted"
                         id="country-manager-search"
                       />
@@ -6449,168 +6513,312 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Country cards grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {countries.length === 0 && (
-                  <div className="col-span-3 text-center py-16 text-text-muted">
-                    <Globe size={36} className="mx-auto mb-3 opacity-40" />
-                    <p className="font-medium">No countries loaded yet.</p>
-                    <p className="text-xs mt-1">The manager uses the 195 countries already present in MongoDB.</p>
-                  </div>
-                )}
-                {countries.length > 0 && filteredCountries.length === 0 && (
-                  <div className="col-span-3 text-center py-16 text-text-muted">
-                    <Search size={36} className="mx-auto mb-3 opacity-40" />
-                    <p className="font-medium">No country matches your search.</p>
-                  </div>
-                )}
-                {countryManagerRows.map((c) => (
-                    <div
-                      key={c._id || c.id}
-                      className="bg-surface-2 border border-border rounded-xl overflow-hidden hover:border-cyan/20 transition-colors flex flex-col"
-                    >
-                      {/* Image Banner */}
-                      <div 
-                        className="h-28 bg-cover bg-center relative"
-                        style={{ backgroundImage: `url('${c.imageUrl || '/images/visa-card-fallback.svg'}')` }}
+                <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <label className="text-xs font-medium text-text-secondary">
+                      Status
+                      <select
+                        value={countryStatusFilter}
+                        onChange={(e) => setCountryStatusFilter(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
                       >
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-                        <span className="absolute bottom-2 left-3 w-11 h-11 rounded-full bg-white/95 border border-white/70 shadow-lg flex items-center justify-center text-2xl">
-                          {c.flagEmoji}
-                        </span>
-                      </div>
+                        <option value="all">All countries</option>
+                        <option value="active">Active only</option>
+                        <option value="inactive">Inactive only</option>
+                      </select>
+                    </label>
+                    <label className="text-xs font-medium text-text-secondary">
+                      Visa type
+                      <select
+                        value={countryVisaTypeFilter}
+                        onChange={(e) => setCountryVisaTypeFilter(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                      >
+                        <option value="all">All visa types</option>
+                        {countryVisaTypes.map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs font-medium text-text-secondary">
+                      Sort
+                      <select
+                        value={countrySortMode}
+                        onChange={(e) => setCountrySortMode(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                      >
+                        <option value="default">Default order</option>
+                        <option value="mostVisited">Most visited</option>
+                        <option value="recentlyVisited">Recently visited</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-text-muted lg:justify-end">
+                    <span>Selected Countries: <span className="font-semibold text-text-primary">{activeCountryCount}</span></span>
+                    <label className="flex items-center gap-2">
+                      Rows
+                      <select
+                        value={countryPageSize}
+                        onChange={(e) => setCountryPageSize(Number(e.target.value))}
+                        className="rounded-md border border-border bg-background px-2 py-1 text-xs text-text-primary focus:border-cyan focus:outline-none"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
 
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <h3 className="font-semibold text-text-primary text-sm">{c.name}</h3>
-                              <p className="text-xs text-text-muted">{c.visaType}</p>
-                              {getCountrySearchHint(c, countrySearchQuery) && (
-                                <p className="text-[10px] text-cyan mt-1">{getCountrySearchHint(c, countrySearchQuery)}</p>
-                              )}
-                            </div>
-                          </div>
-                          {/* Actions */}
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => resetCountryPopularity(c)}
-                              disabled={Boolean(resettingPopularityKey && resettingPopularityKey !== String(c._id || c.id || c.slug))}
-                              className="p-1.5 rounded-lg hover:bg-cyan/10 text-text-muted hover:text-cyan transition-colors disabled:opacity-50"
-                              aria-label={`Reset popularity for ${c.name}`}
-                              title="Reset popularity"
-                            >
-                              <RotateCcw size={14} className={resettingPopularityKey === String(c._id || c.id || c.slug) ? "animate-spin" : ""} />
-                            </button>
-                            <CountryCardActiveToggle
-                              active={c.isActive !== false}
-                              busy={togglingCountryKey === String(c._id || c.id || c.slug)}
-                              onClick={() => toggleCountryActive(c)}
-                              countryName={c.name}
-                            />
-                            <button
-                              id={`edit-country-${c._id || c.id}`}
-                              onClick={() => openEditCountry(c)}
-                              className="p-1.5 rounded-lg hover:bg-cyan/10 text-text-muted hover:text-cyan transition-colors"
-                              aria-label={`Edit ${c.name}`}
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                          </div>
-                      </div>
-
-                      {/* Required docs badges */}
-                      {c.requiredDocuments?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {c.requiredDocuments.map((d) => (
-                            <span key={d} className="px-2 py-0.5 text-[10px] rounded-md bg-cyan/10 text-cyan border border-cyan/20 font-medium">
-                              {DOC_OPTIONS.find((o) => o.key === d)?.label || d}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Details row */}
-                      <div className="flex items-center gap-4 text-xs text-text-muted mt-auto pt-3 border-t border-border/40">
-                        <span className="flex items-center gap-1">
-                          <IndianRupee size={11} /> ₹{c.basePrice}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock size={11} /> {c.processingDays}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CheckCircle size={11} /> {c.successRate}%
-                        </span>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-text-muted">
-                        <span>Visits: {formatVisitCount(c.visitCount)}</span>
-                        <span className="truncate text-right">
-                          {c.lastVisitedAt ? `Last visit ${fmtDate(c.lastVisitedAt)}` : "No visits yet"}
-                        </span>
-                      </div>
+                <div className="overflow-hidden rounded-xl border border-border bg-white">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[1120px] w-full text-left text-sm">
+                      <thead className="border-b border-border bg-surface-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                        <tr>
+                          <th className="w-12 px-4 py-3">Select</th>
+                          <th className="px-4 py-3">Country</th>
+                          <th className="px-4 py-3">Visa Type</th>
+                          <th className="px-4 py-3">Documents</th>
+                          <th className="px-4 py-3">Govt Visa Fee</th>
+                          <th className="px-4 py-3">Processing Time</th>
+                          <th className="px-4 py-3">Success Rate</th>
+                          <th className="px-4 py-3">Visits</th>
+                          <th className="px-4 py-3">Last Visit</th>
+                          <th className="px-4 py-3 text-center">Active</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border text-text-secondary">
+                        {countries.length === 0 && (
+                          <tr>
+                            <td colSpan={11} className="px-4 py-14 text-center text-text-muted">
+                              <p className="font-medium">No countries loaded yet.</p>
+                              <p className="mt-1 text-xs">The manager uses the 195 countries already present in MongoDB.</p>
+                            </td>
+                          </tr>
+                        )}
+                        {countries.length > 0 && countryManagerRows.length === 0 && (
+                          <tr>
+                            <td colSpan={11} className="px-4 py-14 text-center text-text-muted">
+                              <Search size={28} className="mx-auto mb-3 opacity-40" />
+                              <p className="font-medium">No country matches your search or filters.</p>
+                            </td>
+                          </tr>
+                        )}
+                        {countryPageRows.map((c) => {
+                          const rowKey = String(c._id || c.id || c.slug || c.name);
+                          const active = c.isActive !== false;
+                          return (
+                            <tr key={rowKey} className="transition-colors hover:bg-cyan/5">
+                              <td className="px-4 py-3 align-middle">
+                                <input
+                                  type="checkbox"
+                                  checked={active}
+                                  disabled={togglingCountryKey === rowKey}
+                                  onChange={() => toggleCountryActive(c)}
+                                  className="h-4 w-4 rounded border-border text-cyan focus:ring-cyan/30"
+                                  aria-label={`${active ? "Deselect" : "Select"} ${c.name}`}
+                                />
+                              </td>
+                              <td className="px-4 py-3 align-middle">
+                                <div className="min-w-[12rem]">
+                                  <p className="font-semibold text-text-primary">{c.name}</p>
+                                  {(c.city || c.region || c.subtitle || getCountrySearchHint(c, countrySearchQuery)) && (
+                                    <p className="mt-0.5 text-xs text-text-muted">
+                                      {c.city || c.region || c.subtitle || getCountrySearchHint(c, countrySearchQuery)}
+                                    </p>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-middle text-text-primary">{c.visaType || "Not set"}</td>
+                              <td className="px-4 py-3 align-middle">{renderCountryDocuments(c)}</td>
+                              <td className="px-4 py-3 align-middle whitespace-nowrap text-text-primary">
+                                {formatPriceINR(c.governmentFee ?? c.basePrice)}
+                              </td>
+                              <td className="px-4 py-3 align-middle whitespace-nowrap">{c.processingDays || "Not set"}</td>
+                              <td className="px-4 py-3 align-middle whitespace-nowrap">
+                                <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400">
+                                  {Number.isFinite(Number(c.successRate)) ? `${c.successRate}%` : "Not set"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 align-middle whitespace-nowrap">{formatVisitCount(c.visitCount)}</td>
+                              <td className="px-4 py-3 align-middle whitespace-nowrap text-xs">
+                                {c.lastVisitedAt ? fmtDate(c.lastVisitedAt) : "No visits yet"}
+                              </td>
+                              <td className="px-4 py-3 align-middle">
+                                <div className="flex justify-center">
+                                  <CountryCardActiveToggle
+                                    active={active}
+                                    busy={togglingCountryKey === rowKey}
+                                    onClick={() => toggleCountryActive(c)}
+                                    countryName={c.name}
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 align-middle">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    id={`edit-country-${c._id || c.id}`}
+                                    onClick={() => openEditCountry(c)}
+                                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-cyan/10 hover:text-cyan"
+                                    aria-label={`Edit ${c.name}`}
+                                  >
+                                    <Edit3 size={14} />
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => resetCountryPopularity(c)}
+                                    disabled={Boolean(resettingPopularityKey && resettingPopularityKey !== rowKey)}
+                                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-cyan/10 hover:text-cyan disabled:opacity-50"
+                                    aria-label={`Reset popularity for ${c.name}`}
+                                    title="Reset popularity"
+                                  >
+                                    <RotateCcw size={14} className={resettingPopularityKey === rowKey ? "animate-spin" : ""} />
+                                    Reset
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-col gap-3 border-t border-border bg-surface-2 px-4 py-3 text-xs text-text-muted sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Showing {countryVisibleStart}-{countryVisibleEnd} of {countryManagerRows.length} countries
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCountryPage((page) => Math.max(1, page - 1))}
+                        disabled={countryPage <= 1}
+                        className="rounded-lg border border-border bg-white px-3 py-1.5 font-medium text-text-secondary transition-colors hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Prev
+                      </button>
+                      <span className="rounded-lg bg-white px-3 py-1.5 text-text-primary">
+                        Page {Math.min(countryPage, countryPageCount)} of {countryPageCount}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCountryPage((page) => Math.min(countryPageCount, page + 1))}
+                        disabled={countryPage >= countryPageCount}
+                        className="rounded-lg border border-border bg-white px-3 py-1.5 font-medium text-text-secondary transition-colors hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Next
+                      </button>
                     </div>
                   </div>
-                  ))}
-                </div>
-              </Card>
+                </div>              </Card>
             </motion.div>
           )}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB: SUPPORT CHAT
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "support-chat" && <SupportChatWorkspace />}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB 4: CONTROLS
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "controls" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <div className="space-y-4 lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-6">
-                <aside className="lg:sticky lg:top-24">
-                  <div className="hidden lg:block rounded-3xl border border-border bg-surface p-4">
-                    <h3 className="text-sm font-semibold text-text-primary mb-4">Controls</h3>
-                    <div className="space-y-2">
-                      {controlSections.map((section) => (
-                        <button
-                          key={section.key}
-                          type="button"
-                          onClick={() => selectControlSection(section.key)}
-                          className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-medium transition ${
-                            activeControlSection === section.key
-                              ? "border-cyan bg-cyan/10 text-cyan"
-                              : "border-border bg-background text-text-secondary hover:border-cyan/40 hover:bg-surface"
-                          }`}
-                        >
-                          <span>{section.label}</span>
-                        </button>
-                      ))}
+              <div className="min-w-0 space-y-4 overflow-hidden lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start lg:gap-6">
+                <aside className="min-w-0 lg:sticky lg:top-24">
+                  <div className="hidden lg:block rounded-2xl border border-border bg-white p-4">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-text-primary">Controls</h3>
+                      <p className="mt-1 text-xs text-text-muted">Choose a category, then open a related control.</p>
                     </div>
-                  </div>
-                  <div className="lg:hidden">
-                    <div className="overflow-x-auto pb-2">
-                      <div className="flex gap-2 min-w-max px-2">
-                        {controlSections.map((section) => (
+                    <div className="space-y-2">
+                      {controlGroups.map((group) => {
+                        const active = group.key === activeControlGroup.key;
+                        return (
                           <button
-                            key={section.key}
+                            key={group.key}
                             type="button"
-                            onClick={() => selectControlSection(section.key)}
-                            className={`whitespace-nowrap rounded-2xl border px-3 py-2 text-sm font-medium transition ${
-                              activeControlSection === section.key
-                                ? "border-cyan bg-cyan/10 text-cyan"
-                                : "border-border bg-background text-text-secondary hover:border-cyan/40 hover:bg-surface"
+                            onClick={() => selectControlGroup(group.key)}
+                            className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                              active
+                                ? "border-cyan bg-cyan/10"
+                                : "border-border bg-background hover:border-cyan/40 hover:bg-surface-2"
                             }`}
                           >
-                            {section.label}
+                            <span className={`block text-sm font-semibold ${active ? "text-cyan" : "text-text-primary"}`}>
+                              {group.label}
+                            </span>
+                            <span className="mt-1 block text-xs leading-relaxed text-text-muted">
+                              {group.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="lg:hidden space-y-3">
+                    <div className="overflow-x-auto pb-1">
+                      <div className="flex gap-2 min-w-max px-1">
+                        {controlGroups.map((group) => (
+                          <button
+                            key={group.key}
+                            type="button"
+                            onClick={() => selectControlGroup(group.key)}
+                            className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                              group.key === activeControlGroup.key
+                                ? "border-cyan bg-cyan/10 text-cyan"
+                                : "border-border bg-white text-text-secondary hover:border-cyan/40"
+                            }`}
+                          >
+                            {group.label}
                           </button>
                         ))}
                       </div>
                     </div>
                   </div>
                 </aside>
-                <div className="space-y-6">
-                  <Card className={activeControlSection === "site-logo" ? "" : "hidden"}>
+                <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
+                  <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-white px-4 py-4">
+                    <div className="flex flex-col gap-4">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                          {activeControlBreadcrumb.map((item, index) => (
+                            <span key={`${item}-${index}`} className="flex items-center gap-2">
+                              <span className={index === activeControlBreadcrumb.length - 1 ? "font-semibold text-text-primary" : ""}>
+                                {item}
+                              </span>
+                              {index < activeControlBreadcrumb.length - 1 && <span>/</span>}
+                            </span>
+                          ))}
+                        </div>
+                        <h2 className="mt-2 text-xl font-semibold text-text-primary">
+                          {activeControlPageTitle}
+                        </h2>
+                        <p className="mt-1 text-sm text-text-muted">
+                          {activeControlGroup.description}
+                        </p>
+                      </div>
+                      <div className="max-w-full overflow-x-auto overscroll-x-contain pb-1">
+                        <div className="flex w-max gap-2">
+                          {activeControlGroupSections.map((section) => (
+                            <button
+                              key={section.key}
+                              type="button"
+                              onClick={() => selectControlSection(section.key)}
+                              className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                                activeControlSection === section.key
+                                  ? "border-cyan bg-cyan text-white shadow-cyan-glow"
+                                  : "border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+                              }`}
+                            >
+                              {section.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <Card className={isControlSectionVisible("site-logo") ? "" : "hidden"}>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
@@ -6623,7 +6831,7 @@ const Dashboard = () => {
                           Upload one shared brand logo for the public site, user dashboard, admin panel, and footer. Removing it restores the built-in default logo everywhere.
                         </p>
                         <p className="text-xs text-text-muted mt-3 leading-relaxed">
-                          Format: <span className="text-text-primary font-medium">WEBP</span> · File size: <span className="text-text-primary font-medium">under 50 KB</span> · Recommended dimensions: <span className="text-text-primary font-medium">480 x 160 px</span> or <span className="text-text-primary font-medium">600 x 180 px</span> with tight crop and no extra transparent padding.
+                          Format: <span className="text-text-primary font-medium">WEBP</span> Â· File size: <span className="text-text-primary font-medium">under 50 KB</span> Â· Recommended dimensions: <span className="text-text-primary font-medium">480 x 160 px</span> or <span className="text-text-primary font-medium">600 x 180 px</span> with tight crop and no extra transparent padding.
                         </p>
                       </div>
                     </div>
@@ -6686,7 +6894,7 @@ const Dashboard = () => {
                     </div>
                   </Card>
 
-                  <Card className={activeControlSection === "upload-methods" ? "" : "hidden"}>
+                  <Card className={isControlSectionVisible("upload-methods") ? "" : "hidden"}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className="font-semibold text-text-primary">System Controls</h2>
@@ -6721,7 +6929,7 @@ const Dashboard = () => {
                       Document Upload Methods
                     </h3>
                     <p className="text-xs text-text-muted mb-6">
-                      Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screen—they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done — only that section is saved.
+                      Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screenâ€”they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done â€” only that section is saved.
                     </p>
                     
                     <div className="space-y-4 max-w-lg">
@@ -6821,27 +7029,27 @@ const Dashboard = () => {
                 </div>
               </Card>
 
-              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Visa Type control — sets `Settings.globalVisaType`
+              {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+                  Universal Visa Type control â€” sets `Settings.globalVisaType`
                   and resets every country's `useGlobalVisaType=true`. Admins
                   can later override one country individually in Country Manager.
                   The toggle in the header hides the Visa Type tile on every
                   public card / details page when switched off.
-                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-              {activeControlSection === "fee-update-manager" ? (
+                  Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+              {isControlSectionVisible("fee-update-manager") ? (
                 <div className="w-full max-w-none flex-1">
                   <FeeUpdateManager
-                    isActive={activeControlSection === "fee-update-manager"}
+                    isActive={isControlSectionVisible("fee-update-manager")}
                     showToast={showToast}
                     onFeesUpdated={fetchCountries}
                   />
                 </div>
               ) : null}
 
-              <div className={activeControlSection === "fee-update-manager" ? "hidden" : "grid grid-cols-1 xl:grid-cols-2 gap-6 items-start"}>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
               <div
                 className={
-                  activeControlSection === "landing-highlights"
+                  isControlSectionVisible("landing-highlights")
                     ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
                     : "hidden"
                 }
@@ -6964,7 +7172,7 @@ const Dashboard = () => {
 
               <div
                 className={
-                  activeControlSection === "base-price"
+                  isControlSectionVisible("base-price")
                     ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
                     : "hidden"
                 }
@@ -6995,7 +7203,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}Â· {globalDefaultStats.usingGlobalBasePrice}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Ã‚Â· {globalDefaultStats.usingGlobalBasePrice}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingBasePrice}</span> override it.
                         </>
                         )}
@@ -7150,7 +7358,7 @@ const Dashboard = () => {
 
               <div
                 className={
-                  activeControlSection === "government-fee"
+                  isControlSectionVisible("government-fee")
                     ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
                     : "hidden"
                 }
@@ -7181,7 +7389,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}ï¿½ {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Ã¯Â¿Â½ {globalDefaultStats.usingGlobalGovernmentFee}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingGovernmentFee}</span> override it.
                         </>
                         )}
@@ -7266,7 +7474,7 @@ const Dashboard = () => {
 
               </div>
 
-              <div className={activeControlSection === "visa-type" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("visa-type") ? "" : "hidden"}>
               <ExpandableAdminControlCard expandMode="fullscreen" {...getControlCardExpansionProps("visa-type")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -7294,7 +7502,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalVisaType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalVisaType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingVisaType}</span> override it.
                         </>
                       )}
@@ -7302,7 +7510,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
                   <VisaTypeScopeConfigSection
                     title="Single Country"
                     description="Pick one active country and give it its own visa type override."
@@ -7464,7 +7672,7 @@ const Dashboard = () => {
                 </div>
               </ExpandableAdminControlCard>
               </div>
-              <div className={activeControlSection === "length-of-stay" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("length-of-stay") ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("length-of-stay")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -7492,7 +7700,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}· {globalDefaultStats.usingGlobalLengthOfStay}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Â· {globalDefaultStats.usingGlobalLengthOfStay}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingLengthOfStay}</span> override it.
                         </>
                       )}
@@ -7500,7 +7708,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
                   <VisaTypeScopeConfigSection
                     title="Single Country"
                     description="Pick one active country and give it its own length of stay override."
@@ -7667,7 +7875,7 @@ const Dashboard = () => {
                 </div>
               </ExpandableAdminControlCard>
               </div>
-              <div className={activeControlSection === "entry-type" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("entry-type") ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("entry-type")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -7695,7 +7903,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}Â· {globalDefaultStats.usingGlobalEntryType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Ã‚Â· {globalDefaultStats.usingGlobalEntryType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingEntryType}</span> override it.
                         </>
                       )}
@@ -7703,7 +7911,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
                   <VisaTypeScopeConfigSection
                     title="Single Country"
                     description="Pick one active country and give it its own entry override."
@@ -7871,10 +8079,10 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Validity control — mirror of the Visa Type card.
-                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-              <div className={activeControlSection === "validity" ? "" : "hidden"}>
+              {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+                  Universal Validity control â€” mirror of the Visa Type card.
+                  Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+              <div className={isControlSectionVisible("validity") ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("validity")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -7898,11 +8106,11 @@ const Dashboard = () => {
                     <p className="text-[11px] text-text-muted mt-2">
                       Current global:{" "}
                       <span className="text-text-primary font-medium">
-                        {globalDefaults.globalValidity || "Not set yet (cards show '—' when neither global nor per-country exists)"}
+                        {globalDefaults.globalValidity || "Not set yet (cards show 'â€”' when neither global nor per-country exists)"}
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}Â· {globalDefaultStats.usingGlobalValidity}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Ã‚Â· {globalDefaultStats.usingGlobalValidity}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingValidity}</span> override it.
                         </>
                       )}
@@ -7910,7 +8118,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
                   <VisaTypeScopeConfigSection
                     title="Single Country"
                     description="Pick one active country and give it its own validity override."
@@ -8078,11 +8286,11 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Processing Days control — mirror of the other two.
+              {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+                  Universal Processing Days control â€” mirror of the other two.
                   The toggle hides the Processing tile on the public client.
-                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-              <div className={activeControlSection === "processing-days" ? "" : "hidden"}>
+                  Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+              <div className={isControlSectionVisible("processing-days") ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("processing-days")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -8110,7 +8318,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}Â· {globalDefaultStats.usingGlobalProcessingDays}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Ã‚Â· {globalDefaultStats.usingGlobalProcessingDays}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingProcessingDays}</span> override it.
                         </>
                       )}
@@ -8118,7 +8326,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
                   <VisaTypeScopeConfigSection
                     title="Single Country"
                     description="Pick one active country and give it its own processing days override."
@@ -8286,13 +8494,13 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-                  Universal Required Documents control — admin picks the
+              {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+                  Universal Required Documents control â€” admin picks the
                   catalog rows that apply to every country, can add custom
                   document types, and toggles the whole section on/off for
                   the public client.
-                  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-              <div className={activeControlSection === "required-docs" ? "" : "hidden"}>
+                  Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+              <div className={isControlSectionVisible("required-docs") ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("required-docs")}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -8314,7 +8522,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">Update All Documents Required</span>{" "}
                       to apply it to every country. Per-country edits in{" "}
                       <span className="text-text-primary font-medium">Country Manager</span> are restored to the
-                      global list. Need a new document type? Add it at the top — it appears in this checklist and on
+                      global list. Need a new document type? Add it at the top â€” it appears in this checklist and on
                       every country edit modal instantly.
                     </p>
                     <p className="text-[11px] text-text-muted mt-2">
@@ -8328,7 +8536,7 @@ const Dashboard = () => {
                       </span>
                       {globalDefaultStats.totalCountries > 0 && (
                         <>
-                          {" "}Â· {globalDefaultStats.usingGlobalRequiredDocuments}/{globalDefaultStats.totalCountries} countries use the global,{" "}
+                          {" "}Ã‚Â· {globalDefaultStats.usingGlobalRequiredDocuments}/{globalDefaultStats.totalCountries} countries use the global,{" "}
                           <span className="text-amber-400/90">{globalDefaultStats.overridingRequiredDocuments}</span> override it.
                         </>
                       )}
@@ -8427,7 +8635,7 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                {/* Add custom document â€” admin types a label, server slugifies + prefixes. */}
                 {/* Checkbox grid built from the merged catalog. */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {documentCatalog.filter((d) => !d.deleted).length === 0 && (
@@ -8623,11 +8831,11 @@ const Dashboard = () => {
                 </div>
                 {requiredDocsDraft.length === 0 && (
                   <p className="text-xs text-amber-400 mt-3">
-                    âš  With zero documents selected the public site will fall back to each country's stored override.
+                    Ã¢Å¡Â  With zero documents selected the public site will fall back to each country's stored override.
                   </p>
                 )}
 
-                {/* Add custom document — admin types a label, server slugifies + prefixes. */}
+                {/* Add custom document â€” admin types a label, server slugifies + prefixes. */}
                 <div className="mt-5 rounded-2xl border border-dashed border-border bg-surface-2/40 p-5 space-y-4">
                   <div>
                     <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -8708,7 +8916,7 @@ const Dashboard = () => {
               </ExpandableAdminControlCard>
               </div>
 
-              <div className={activeControlSection === "other-docs" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("other-docs") ? "" : "hidden"}>
               <ExpandableAdminControlCard {...getControlCardExpansionProps("other-docs")}>
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/40 pb-4 mb-5">
                   <div className="flex-1 min-w-0">
@@ -9038,7 +9246,7 @@ const Dashboard = () => {
 
               </div>
 
-              <div className={activeControlSection === "footer-social-icons" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("footer-social-icons") ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                   <div className="flex-1 min-w-0">
@@ -9225,7 +9433,7 @@ const Dashboard = () => {
               </Card>
               </div>
 
-              <div className={activeControlSection === "maintenance-mode" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("maintenance-mode") ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1 min-w-0">
@@ -9260,7 +9468,7 @@ const Dashboard = () => {
               </Card>
             </div>
 
-              <div className={activeControlSection === "customer-support" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("customer-support") ? "" : "hidden"}>
               <SettingsSectionCard
                 title="Customer Support Widget"
                 description="Redesign and manage the floating support widget. Set custom header titles, descriptions, and link the card directly to your active WhatsApp or custom helpdesk."
@@ -9384,7 +9592,7 @@ const Dashboard = () => {
               </SettingsSectionCard>
             </div>
 
-              <div className={activeControlSection === "destination-pages" ? "" : "hidden"}>
+              <div className={isControlSectionVisible("destination-pages") ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                   <div className="flex-1 min-w-0">
@@ -9408,7 +9616,7 @@ const Dashboard = () => {
                       <span className="text-text-primary font-medium">How it works</span> and{" "}
                       <span className="text-text-primary font-medium">Visa Requirements</span> on every public destination page read from here.
                       These items show on <span className="text-text-primary font-medium">every country</span>. Any extras you add in{" "}
-                      <span className="text-text-primary font-medium">Country Manager → Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
+                      <span className="text-text-primary font-medium">Country Manager â†’ Edit Country</span> are appended <span className="text-text-primary font-medium">below</span> these for that one country (duplicates are skipped).
                     </p>
                   </div>
                   <Button
@@ -9491,7 +9699,7 @@ const Dashboard = () => {
                           destinationHowItWorks: howItWorks,
                           destinationVisaRequirements: visaRequirements,
                         },
-                        "Destination copy saved — visible on all country pages.",
+                        "Destination copy saved â€” visible on all country pages.",
                       );
                     }}
                   >
@@ -9499,7 +9707,27 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                <div className="mb-5 max-w-full overflow-x-auto overscroll-x-contain pb-1">
+                  <div className="flex w-max gap-2">
+                    {destinationPageSectionTabs.map((section) => (
+                      <button
+                        key={section.key}
+                        type="button"
+                        onClick={() => setActiveDestinationPageSection(section.key)}
+                        className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                          activeDestinationPageSection === section.key
+                            ? "border-cyan bg-cyan text-white shadow-cyan-glow"
+                            : "border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+                        }`}
+                      >
+                        {section.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="min-w-0 space-y-6">
+                  <div className={activeDestinationPageSection === "why-book-now" ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-why-book-now")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9596,7 +9824,9 @@ const Dashboard = () => {
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
+                  </div>
 
+                  <div className={activeDestinationPageSection === "whats-included" ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-whats-included")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9757,7 +9987,9 @@ const Dashboard = () => {
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
+                  </div>
 
+                  <div className={activeDestinationPageSection === "faqs" ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-faq")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9864,7 +10096,9 @@ const Dashboard = () => {
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
+                  </div>
 
+                  <div className={activeDestinationPageSection === "how-it-works" ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-how-it-works")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9974,7 +10208,9 @@ const Dashboard = () => {
                     </div>
                   </div>
                   </ExpandableAdminControlCard>
+                  </div>
 
+                  <div className={activeDestinationPageSection === "visa-requirements" ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-visa-requirements")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
@@ -9992,7 +10228,7 @@ const Dashboard = () => {
                     </div>
                     <p className="text-xs text-text-muted mb-4">
                       One requirement per line. These show on every destination page (below &quot;How it works&quot;). Per-country
-                      extras you add inside Country Manager are appended below — duplicates are skipped.
+                      extras you add inside Country Manager are appended below â€” duplicates are skipped.
                     </p>
                     <div className="space-y-3 max-w-2xl">
                       {(settingsForm.destinationVisaRequirements || []).map((item, idx) => (
@@ -10081,11 +10317,12 @@ const Dashboard = () => {
                   </div>
                   </ExpandableAdminControlCard>
                   </div>
+                  </div>
               </Card>
               </div>
 
-              {/* â”€â”€ Manage Visa Types â”€â”€ */}
-              <div className={activeControlSection === "manage-visa-types" ? "" : "hidden"}>
+              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Manage Visa Types Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              <div className={isControlSectionVisible("manage-visa-types") ? "" : "hidden"}>
                 <VisaTypesManager activeCountries={activeCountryOptions} />
               </div>
 
@@ -10094,9 +10331,9 @@ const Dashboard = () => {
             </motion.div>
           )}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
               TAB 5: SETTINGS
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           {activeTab === "seo" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <SeoManagerPanel
@@ -10122,16 +10359,16 @@ const Dashboard = () => {
               <Card>
                 <h2 className="font-semibold text-text-primary text-base">Appearance</h2>
                 <p className="text-sm text-text-muted mt-1.5 leading-relaxed">
-                  Dashboard look is fixed for now. There is no server setting to change here — skip this block if you are only configuring payments or auth.
+                  Dashboard look is fixed for now. There is no server setting to change here â€” skip this block if you are only configuring payments or auth.
                 </p>
               </Card>
 
               <SettingsSectionCard
-                title="Payments — Razorpay"
+                title="Payments â€” Razorpay"
                 description="Used when customers pay on the site. Paste both keys from the same Razorpay account."
                 whereToFind={
                   <>
-                    Razorpay Dashboard → <span className="text-text-secondary">Account &amp; Settings</span> →{" "}
+                    Razorpay Dashboard â†’ <span className="text-text-secondary">Account &amp; Settings</span> â†’{" "}
                     <span className="text-text-secondary">API Keys</span>: copy <strong className="text-text-primary">Key ID</strong> and{" "}
                     <strong className="text-text-primary">Key Secret</strong> into the fields below.
                   </>
@@ -10166,7 +10403,7 @@ const Dashboard = () => {
                     value={settingsForm.razorpayKeyId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeyId: e.target.value }))}
                     id="setting-razorpay-key"
-                    placeholder="rzp_live_… or rzp_test_…"
+                    placeholder="rzp_live_â€¦ or rzp_test_â€¦"
                   />
                   <Input
                     label="Paste Key Secret here"
@@ -10200,14 +10437,14 @@ const Dashboard = () => {
               </SettingsSectionCard>
 
               <SettingsSectionCard
-                title="Country images — Unsplash"
+                title="Country images â€” Unsplash"
                 description="Store your Unsplash app keys, then fetch photo URLs into MongoDB the same way as searching the country name on Unsplash (name first, then landmark hints). Optional: set UNSPLASH_ORIENTATION on the server to restrict orientation."
                 whereToFind={
                   <>
                     <a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener noreferrer" className="text-cyan hover:underline">
                       unsplash.com/oauth/applications
                     </a>{" "}
-                    → your app → copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
+                    â†’ your app â†’ copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
                     <strong className="text-text-primary">Access Key</strong> (required for image fetch), and{" "}
                     <strong className="text-text-primary">Secret Key</strong> (optional; for OAuth only).
                   </>
@@ -10215,7 +10452,7 @@ const Dashboard = () => {
                 statusSlot={
                   <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isUnsplashConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
                     {isUnsplashConfigured
-                      ? "Access Key is on file — you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
+                      ? "Access Key is on file â€” you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
                       : "Paste an Access Key below to fetch, or save this card to store keys for the CLI (node fetchCountryImages.js)."}
                   </div>
                 }
@@ -10243,12 +10480,12 @@ const Dashboard = () => {
                     placeholder="From Unsplash app page"
                   />
                   <Input
-                    label="Access Key — paste here"
+                    label="Access Key â€” paste here"
                     type="password"
                     value={settingsForm.unsplashAccessKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashAccessKey: e.target.value }))}
                     id="setting-unsplash-access-key"
-                    placeholder="Required — used by Fetch buttons and fetchCountryImages.js"
+                    placeholder="Required â€” used by Fetch buttons and fetchCountryImages.js"
                   />
                   <Input
                     label="Secret Key (optional)"
@@ -10256,16 +10493,16 @@ const Dashboard = () => {
                     value={settingsForm.unsplashSecretKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashSecretKey: e.target.value }))}
                     id="setting-unsplash-secret-key"
-                    placeholder="OAuth only — not used by image script"
+                    placeholder="OAuth only â€” not used by image script"
                   />
                 </div>
 
                 <div className="rounded-xl border border-border bg-surface-2/60 p-4 mt-5 space-y-3">
                   <p className="text-xs text-text-muted leading-relaxed">
-                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> (“France”, “France travel”, …), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
-                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits — keep this tab open until the success toast.
-                    Watch the status line below while it runs. In DevTools → Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
-                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked “Show as trending” in Country Manager — same list as the landing page) can be refreshed alone with landmark searches. “Fetch all” processes those first, then every other country.
+                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> (â€œFranceâ€, â€œFrance travelâ€, â€¦), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
+                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits â€” keep this tab open until the success toast.
+                    Watch the status line below while it runs. In DevTools â†’ Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
+                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked â€œShow as trendingâ€ in Country Manager â€” same list as the landing page) can be refreshed alone with landmark searches. â€œFetch allâ€ processes those first, then every other country.
                     You can use the Access Key above without saving first; saving stores it for CLI scripts.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -10307,12 +10544,12 @@ const Dashboard = () => {
               </SettingsSectionCard>
 
               <SettingsSectionCard
-                title="Firebase — web app + server verification"
-                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here — set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
+                title="Firebase â€” web app + server verification"
+                description="Paste the Firebase web app fields below for the client. The service account private key is not stored here â€” set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
                 whereToFind={
                   <>
-                    Firebase Console → <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">General</span> → Your apps (Web) → copy into the fields below. For the Admin SDK JSON:{" "}
-                    <span className="text-text-secondary">Project settings</span> → <span className="text-text-secondary">Service accounts</span> → <strong className="text-text-primary">Generate new private key</strong> → put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
+                    Firebase Console â†’ <span className="text-text-secondary">Project settings</span> â†’ <span className="text-text-secondary">General</span> â†’ Your apps (Web) â†’ copy into the fields below. For the Admin SDK JSON:{" "}
+                    <span className="text-text-secondary">Project settings</span> â†’ <span className="text-text-secondary">Service accounts</span> â†’ <strong className="text-text-primary">Generate new private key</strong> â†’ put the whole JSON in server environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> (single line or use newline escaping per your host).
                   </>
                 }
                 statusSlot={
@@ -10320,7 +10557,7 @@ const Dashboard = () => {
                     {isFirebaseConfigured
                       ? "Web config is saved and the server reports Firebase Admin credentials (env)."
                       : settingsForm.firebaseAdminFromEnv
-                        ? "Server has Admin JSON in env — finish the web fields above and save."
+                        ? "Server has Admin JSON in env â€” finish the web fields above and save."
                         : "Save the web fields below, then set FIREBASE_SERVICE_ACCOUNT_JSON on the server and restart the API."}
                   </div>
                 }
@@ -10344,41 +10581,41 @@ const Dashboard = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="API Key — paste here"
+                    label="API Key â€” paste here"
                     type="password"
                     value={settingsForm.firebaseApiKey}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseApiKey: e.target.value }))}
                     id="setting-firebase-api-key"
                   />
                   <Input
-                    label="Auth Domain — paste here"
+                    label="Auth Domain â€” paste here"
                     value={settingsForm.firebaseAuthDomain}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAuthDomain: e.target.value }))}
                     id="setting-firebase-auth-domain"
                     placeholder="your-project.firebaseapp.com"
-                    helper="Must be your-project-id.firebaseapp.com from Firebase → Project settings → Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate — add Render hostname there."
+                    helper="Must be your-project-id.firebaseapp.com from Firebase â†’ Project settings â†’ Web app (never your Vercel/Render URL). Putting a deploy URL here breaks OAuth: Google sends you to that-host/__/auth/handler and you get 404. Authorized domains is separate â€” add Render hostname there."
                   />
                   <Input
-                    label="Project ID — paste here"
+                    label="Project ID â€” paste here"
                     value={settingsForm.firebaseProjectId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseProjectId: e.target.value }))}
                     id="setting-firebase-project-id"
                   />
                   <Input
-                    label="App ID — paste here"
+                    label="App ID â€” paste here"
                     type="password"
                     value={settingsForm.firebaseAppId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseAppId: e.target.value }))}
                     id="setting-firebase-app-id"
                   />
                   <Input
-                    label="Storage bucket — paste here"
+                    label="Storage bucket â€” paste here"
                     value={settingsForm.firebaseStorageBucket}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseStorageBucket: e.target.value }))}
                     id="setting-firebase-storage-bucket"
                   />
                   <Input
-                    label="Messaging sender ID — paste here"
+                    label="Messaging sender ID â€” paste here"
                     value={settingsForm.firebaseMessagingSenderId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, firebaseMessagingSenderId: e.target.value }))}
                     id="setting-firebase-sender-id"
@@ -10389,7 +10626,7 @@ const Dashboard = () => {
                   <p>
                     Set environment variable <code className="text-cyan">FIREBASE_SERVICE_ACCOUNT_JSON</code> on the machine that runs this API (see <code className="text-cyan">server/.env.example</code>). Value is the full JSON object as a string. After changing env, restart the server. Current API process:{" "}
                     <span className={settingsForm.firebaseAdminFromEnv ? "text-emerald-400 font-medium" : "text-amber-300 font-medium"}>
-                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected — Google / token login will fail until set"}
+                      {settingsForm.firebaseAdminFromEnv ? "variable is set" : "variable not detected â€” Google / token login will fail until set"}
                     </span>
                     .
                   </p>
@@ -10401,7 +10638,7 @@ const Dashboard = () => {
                 description="If you use Google sign-in flows that need a separate OAuth client, paste those credentials here. Many setups only need Firebase above."
                 whereToFind={
                   <>
-                    Google Cloud Console → <span className="text-text-secondary">APIs &amp; Services</span> → <span className="text-text-secondary">Credentials</span> → OAuth 2.0 Client IDs → copy <strong className="text-text-primary">Client ID</strong> and <strong className="text-text-primary">Client secret</strong>.
+                    Google Cloud Console â†’ <span className="text-text-secondary">APIs &amp; Services</span> â†’ <span className="text-text-secondary">Credentials</span> â†’ OAuth 2.0 Client IDs â†’ copy <strong className="text-text-primary">Client ID</strong> and <strong className="text-text-primary">Client secret</strong>.
                   </>
                 }
                 saveLabel="Save Google OAuth"
@@ -10420,19 +10657,19 @@ const Dashboard = () => {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="Client ID — paste here"
+                    label="Client ID â€” paste here"
                     value={settingsForm.googleClientId}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, googleClientId: e.target.value }))}
                     id="setting-google-client-id"
-                    placeholder="….apps.googleusercontent.com"
+                    placeholder="â€¦.apps.googleusercontent.com"
                   />
                   <Input
-                    label="Client secret — paste here"
+                    label="Client secret â€” paste here"
                     type="password"
                     value={settingsForm.googleClientSecret}
                     onChange={(e) => setSettingsForm((p) => ({ ...p, googleClientSecret: e.target.value }))}
                     id="setting-google-client-secret"
-                    placeholder="GOCSPX-…"
+                    placeholder="GOCSPX-â€¦"
                   />
                 </div>
               </SettingsSectionCard>
@@ -10667,7 +10904,7 @@ const Dashboard = () => {
                   <h2 className="font-semibold text-text-primary">Security</h2>
                 </div>
                 <p className="text-sm text-text-muted mb-6 leading-relaxed">
-                  Change your admin login password. This is separate from API keys above — use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
+                  Change your admin login password. This is separate from API keys above â€” use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-4">
@@ -10702,9 +10939,9 @@ const Dashboard = () => {
               </Card>
             </motion.div>
           )}
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
           COUNTRIES WITH BANNER (UNSPLASH / UPLOADS)
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <Modal
         isOpen={fetchedCountriesModalOpen}
         onClose={closeFetchedCountriesModal}
@@ -10713,7 +10950,7 @@ const Dashboard = () => {
         footer={
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-text-muted">
-              {countriesWithBanner.length} with a saved image URL Â· {filteredFetchedCountries.length} shown
+              {countriesWithBanner.length} with a saved image URL Ã‚Â· {filteredFetchedCountries.length} shown
               {fetchedCountriesSearch.trim() ? " (filtered)" : ""}
             </p>
             <Button variant="primary" size="sm" onClick={closeFetchedCountriesModal} id="btn-fetched-countries-close">
@@ -10724,7 +10961,7 @@ const Dashboard = () => {
       >
         <div className="mx-auto max-w-6xl space-y-4">
           <p className="text-sm text-text-muted leading-relaxed">
-            Rows come from MongoDB <span className="text-text-primary font-medium">Country.imageUrl</span>. “Unsplash” means the URL points at images.unsplash.com; uploads use <span className="font-mono text-xs">/uploads/…</span>.
+            Rows come from MongoDB <span className="text-text-primary font-medium">Country.imageUrl</span>. â€œUnsplashâ€ means the URL points at images.unsplash.com; uploads use <span className="font-mono text-xs">/uploads/â€¦</span>.
           </p>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} aria-hidden />
@@ -10732,7 +10969,7 @@ const Dashboard = () => {
               type="search"
               value={fetchedCountriesSearch}
               onChange={(e) => setFetchedCountriesSearch(e.target.value)}
-              placeholder="Filter by country name or slug…"
+              placeholder="Filter by country name or slugâ€¦"
               className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
               id="fetched-countries-search"
             />
@@ -10740,7 +10977,7 @@ const Dashboard = () => {
           {filteredFetchedCountries.length === 0 ? (
             <div className="rounded-xl border border-border bg-surface-2/60 px-4 py-8 text-center text-sm text-text-muted">
               {countriesWithBanner.length === 0
-                ? "No countries have a banner URL yet. Run “Fetch images” above or upload images from Country Manager."
+                ? "No countries have a banner URL yet. Run â€œFetch imagesâ€ above or upload images from Country Manager."
                 : "No countries match your search."}
             </div>
           ) : (
@@ -10778,12 +11015,12 @@ const Dashboard = () => {
                         </td>
                         <td className="px-3 py-2 font-medium text-text-primary">
                           <span className="mr-1.5" aria-hidden>
-                            {c.flagEmoji || "ðŸŒ"}
+                            {c.flagEmoji || "Ã°Å¸Å’Â"}
                           </span>
                           {c.name}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs text-text-secondary">{c.slug}</td>
-                        <td className="px-3 py-2 text-text-secondary">{c.continent || "—"}</td>
+                        <td className="px-3 py-2 text-text-secondary">{c.continent || "â€”"}</td>
                         <td className="px-3 py-2">
                           <span
                             className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -10819,9 +11056,9 @@ const Dashboard = () => {
         </div>
       </Modal>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
           COUNTRY MANAGER MODAL
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <Modal
         isOpen={iconPickerOpen}
         onClose={closeIconPicker}
@@ -10949,10 +11186,10 @@ const Dashboard = () => {
         }
       >
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch max-w-[1400px] mx-auto w-full lg:h-[calc(100vh-11.5rem)]">
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-              LEFT — country basics, cover image, fees, type, etc.
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+              LEFT â€” country basics, cover image, fees, type, etc.
               Independent scrollbar on lg+ so left + right scroll separately.
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           <div className="lg:col-span-5 xl:col-span-4 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
             <div className="flex items-center gap-2">
               <BadgeCheck size={14} className="text-cyan" />
@@ -10988,7 +11225,7 @@ const Dashboard = () => {
               value={countryForm.flagEmoji}
               onChange={(e) => setCountryForm((p) => ({ ...p, flagEmoji: e.target.value }))}
               id="country-flag"
-              placeholder="ðŸŒ"
+              placeholder="Ã°Å¸Å’Â"
             />
             <div className="col-span-2">
               <Input
@@ -11020,12 +11257,12 @@ const Dashboard = () => {
               </datalist>
               {/* Universal control hint: shows whether this country is following the
                   global default or carrying a per-country override. Toggles
-                  automatically based on what the admin types — clear the field or
+                  automatically based on what the admin types â€” clear the field or
                   match the global value to revert to global. */}
               {selectedCountry?.useGlobalVisaType === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalVisaType || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11052,7 +11289,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalValidity === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalValidity || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11079,7 +11316,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalLengthOfStay === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalLengthOfStay || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11106,7 +11343,7 @@ const Dashboard = () => {
               {selectedCountry?.useGlobalEntryType === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalEntryType || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11194,13 +11431,13 @@ const Dashboard = () => {
                   <option key={v} value={v} />
                 ))}
               </datalist>
-              {/* Mirrors the Visa Type / Validity hints — flips automatically based
+              {/* Mirrors the Visa Type / Validity hints â€” flips automatically based
                   on whether this country is currently following the global default
                   (`useGlobalProcessingDays`) or has its own override. */}
               {selectedCountry?.useGlobalProcessingDays === false ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  Custom override — clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
+                  Custom override â€” clear or match the global ({globalDefaults.globalProcessingDays || "not set"}) to use global again.
                 </p>
               ) : (
                 <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11290,7 +11527,7 @@ const Dashboard = () => {
               {isUploadingImage ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-10 h-10 rounded-full border-2 border-cyan/40 border-t-cyan animate-spin" />
-                  <p className="text-sm text-text-muted">Uploading image…</p>
+                  <p className="text-sm text-text-muted">Uploading imageâ€¦</p>
                 </div>
               ) : countryForm.imageUrl ? (
                 <div className="relative group mx-auto w-full max-w-[240px] rounded-lg overflow-hidden border border-border shadow-sm">
@@ -11343,10 +11580,10 @@ const Dashboard = () => {
           />
           </div>{/* /LEFT column */}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-              RIGHT — required docs, free-text requirements, destination copy
+          {/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+              RIGHT â€” required docs, free-text requirements, destination copy
               Independent scrollbar on lg+.
-              â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+              Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6 lg:h-full lg:overflow-y-auto lg:pr-3 lg:pb-2">
           <div className="rounded-2xl border border-border bg-surface-2/50 p-4 sm:p-5 space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -11410,7 +11647,7 @@ const Dashboard = () => {
                     <div>
                       <p className="text-sm font-semibold text-text-primary">{item.id || `Item ${index + 1}`}</p>
                       <p className="text-[11px] text-text-muted">
-                        Icon: {item.icon || "default"} Â· Accent: {item.color || "blue"}
+                        Icon: {item.icon || "default"} Ã‚Â· Accent: {item.color || "blue"}
                       </p>
                     </div>
                     <label className="inline-flex items-center gap-2 text-xs text-text-primary">
@@ -11451,7 +11688,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Required Documents — universal control aware. The checklist now
+          {/* Required Documents â€” universal control aware. The checklist now
               uses the merged catalog (built-in + admin's custom doc types) and
               shows a green/amber badge plus a "Reset to global" helper button
               that mirrors the same pattern as Visa Type / Validity. */}
@@ -11461,7 +11698,7 @@ const Dashboard = () => {
                 Documents Required
                 <span className="ml-2 text-xs text-text-muted font-normal">Select which documents applicants must upload</span>
               </label>
-              {/* Quick "use global" helper — sets the local list to the global
+              {/* Quick "use global" helper â€” sets the local list to the global
                   default. Saving with the same set as global will flip the
                   flag back automatically (server-side comparison). */}
               {globalDefaults.globalRequiredDocuments.length > 0 && (
@@ -11614,12 +11851,12 @@ const Dashboard = () => {
               );
             })()}
             {countryForm.requiredDocuments.length === 0 && (
-              <p className="text-xs text-amber-400 mt-2">âš  At least one document type should be selected.</p>
+              <p className="text-xs text-amber-400 mt-2">Ã¢Å¡Â  At least one document type should be selected.</p>
             )}
             {selectedCountry?.useGlobalRequiredDocuments === false ? (
               <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                Custom override — match the global selection (or click "Reset to global") to use the universal list again.
+                Custom override â€” match the global selection (or click "Reset to global") to use the universal list again.
               </p>
             ) : (
               <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-emerald-300">
@@ -11629,11 +11866,11 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
               Destination-page copy for THIS country.
-              Shows global lines (from Settings → Destinations) with X to
+              Shows global lines (from Settings â†’ Destinations) with X to
               hide them on this country, then per-country additions below.
-              â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
           {(() => {
             const excludedWhy = new Set(countryForm.excludeDestinationWhyBookNow || []);
             const excludedInc = new Set(countryForm.excludeDestinationIncludedItems || []);
@@ -11661,13 +11898,13 @@ const Dashboard = () => {
           <div className="rounded-2xl border border-border bg-surface-2/40 p-5">
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-text-primary">
-                Destination page copy — {countryForm.name || "this country"}
+                Destination page copy â€” {countryForm.name || "this country"}
               </h3>
               <p className="text-xs text-text-muted mt-1 leading-relaxed">
                 <span className="text-text-primary font-medium">Global items</span> from{" "}
-                <span className="text-text-primary font-medium">Settings → Destinations</span> are shown first on every country.
+                <span className="text-text-primary font-medium">Settings â†’ Destinations</span> are shown first on every country.
                 Click the <X size={11} className="inline -mt-0.5" /> next to a global item to hide it on{" "}
-                {countryForm.name || "this country"} only — hidden items move to{" "}
+                {countryForm.name || "this country"} only â€” hidden items move to{" "}
                 <span className="text-text-primary font-medium">Hidden on this country</span> below each section so you can restore them.
                 Anything you add under{" "}
                 <span className="text-text-primary font-medium">extras for this country</span> is appended below
@@ -11701,7 +11938,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.whyBookNow.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global items yet — add them in Settings → Destinations.
+                    No global items yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -11850,7 +12087,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.includedItems.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global items yet — add them in Settings → Destinations.
+                    No global items yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -12072,7 +12309,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {countryModalGlobalDest.faqs.length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global FAQs yet — add them in Settings → Destinations.
+                    No global FAQs yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -12259,7 +12496,7 @@ const Dashboard = () => {
                   if ((countryModalGlobalDest.howItWorks || []).length === 0) {
                     return (
                       <p className="text-xs text-text-muted italic px-1">
-                        No global steps yet — add them in Settings → Destinations.
+                        No global steps yet â€” add them in Settings â†’ Destinations.
                       </p>
                     );
                   }
@@ -12432,7 +12669,7 @@ const Dashboard = () => {
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-text-muted mb-2">Global (every country)</p>
                 {(countryModalGlobalDest.visaRequirements || []).length === 0 ? (
                   <p className="text-xs text-text-muted italic px-1">
-                    No global requirements yet — add them in Settings → Destinations.
+                    No global requirements yet â€” add them in Settings â†’ Destinations.
                   </p>
                 ) : (
                   (() => {
@@ -12658,6 +12895,8 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
 
 
 
