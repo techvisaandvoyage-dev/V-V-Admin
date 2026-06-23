@@ -6,7 +6,7 @@
 //  3. Country Manager (add/edit countries via modal)
 // ============================================================
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   BarChart2, TrendingUp, DollarSign, Clock, CheckCircle, CheckCheck, Smile, Send, MoreVertical,
   Search, Filter, ChevronDown, Plus, Edit3,
@@ -33,6 +33,7 @@ import PaymentsPage from "./admin/PaymentsPage";
 import VisaTypesManager from "../components/controls/VisaTypesManager";
 import CountryVisibilitySelector from "../components/controls/CountryVisibilitySelector";
 import FeeUpdateManager from "../components/controls/FeeUpdateManager";
+import VisaDetailsTable from "../components/controls/VisaDetailsTable";
 import FeeScopeConfigSection from "../components/controls/FeeScopeConfigSection";
 import VisaTypeScopeConfigSection from "../components/controls/VisaTypeScopeConfigSection";
 import AdminLayout from "../layouts/AdminLayout";
@@ -2078,6 +2079,8 @@ const Dashboard = () => {
   const navigate       = useNavigate();
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
+  const [searchParams] = useSearchParams();
+  const isControlsTab = ["controls", "landing-page", "cards", "footer", "document-legacy", "authentication", "system-display"].includes(activeTab);
   const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
 
   useEffect(() => {
@@ -2268,7 +2271,7 @@ const Dashboard = () => {
       ],
     },
     {
-      key: "documents",
+      key: "document-legacy",
       label: "Documents",
       description: "Upload methods and document catalogs",
       sections: [
@@ -2288,12 +2291,13 @@ const Dashboard = () => {
       ],
     },
     {
-      key: "visa-settings",
-      label: "Visa Settings",
-      description: "Visa type and visa detail defaults",
+      key: "cards",
+      label: "Cards",
+      description: "Visa processing, fees, destination sections",
       sections: [
         { key: "visa-type", label: "Update Visa Type (universal)" },
         { key: "manage-visa-types", label: "Manage Visa Types" },
+        { key: "visa-details-table", label: "Visa Details Management" },
         { key: "length-of-stay", label: "Update Length of Stay (universal)" },
         { key: "entry-type", label: "Update Entry (universal)" },
         { key: "validity", label: "Update Validity (universal)" },
@@ -2301,7 +2305,7 @@ const Dashboard = () => {
       ],
     },
     {
-      key: "authentication-otp",
+      key: "authentication",
       label: "Authentication & OTP",
       description: "Login methods, OTP providers, and auth integrations",
       sections: [
@@ -2316,7 +2320,7 @@ const Dashboard = () => {
       ],
     },
     {
-      key: "system",
+      key: "system-display",
       label: "System / Display",
       description: "Maintenance and support widget settings",
       sections: [
@@ -2358,6 +2362,20 @@ const Dashboard = () => {
       return nextKey;
     });
   };
+  // Sync activeControlSection with URL query parameter
+  useEffect(() => {
+    if (!isControlsTab) return;
+    const group = controlGroups.find((g) => g.key === activeTab);
+    if (!group) return;
+    const sectionParam = searchParams.get("section");
+    if (sectionParam) {
+      const section = controlSections.find((s) => s.key === sectionParam && s.groupKey === activeTab);
+      if (section) {
+        selectControlSection(section.key);
+        return;
+      }
+    }
+  }, [activeTab, searchParams]);
   const selectControlGroup = (groupKey) => {
     const group = controlGroups.find((item) => item.key === groupKey);
     const firstSectionKey = group?.sections?.[0]?.key;
@@ -6838,9 +6856,9 @@ const Dashboard = () => {
           {/* ======================================
               TAB 4: CONTROLS
               ====================================== */}
-          {activeTab === "controls" && (
+          {isControlsTab && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <div className="min-w-0 space-y-4 overflow-hidden lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start lg:gap-6">
+              <div className="min-w-0">
                 <aside className="min-w-0 lg:sticky lg:top-24">
                   <div className="hidden lg:block rounded-2xl border border-border bg-white p-4">
                     <div className="mb-4">
@@ -10221,7 +10239,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <div className="min-w-0 space-y-6">
+                <div className="min-w-0 w-full space-y-6">
                   <div className={activeDestinationPageSection === "why-book-now" ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-why-book-now")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
@@ -10819,6 +10837,10 @@ const Dashboard = () => {
               {/* -- Manage Visa Types -- */}
               <div className={isControlSectionVisible("manage-visa-types") ? "" : "hidden"}>
                 <VisaTypesManager activeCountries={activeCountryOptions} />
+              </div>
+
+              <div className={isControlSectionVisible("visa-details-table") ? "" : "hidden"}>
+                <VisaDetailsTable />
               </div>
 
             </div>

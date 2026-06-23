@@ -7,8 +7,8 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate, Link } from "react-router-dom";
 import {
-  LayoutDashboard, FileText, PlusCircle, Globe, Settings,
-  LogOut, ChevronLeft, ChevronRight, Shield, BarChart2,
+  LayoutDashboard, Home, FileText, PlusCircle, Globe, Settings,
+  LogOut, LayoutTemplate, MonitorPlay, FileArchive, ShieldCheck, ChevronDown, ChevronLeft, ChevronRight, Shield, BarChart2,
   MapPin, CreditCard, BookOpen, Sliders, MessageSquare, Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,11 +29,66 @@ const ADMIN_NAV = [
   { label: "Analytics",        icon: BarChart2,         to: "/",             id: "nav-admin-analytics" },
   { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
   { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
-  { label: "Country Manager",  icon: MapPin,            to: "/countries",   id: "nav-admin-countries" },
-  { label: "Website Content",  icon: Globe,             to: "/pages",        id: "nav-admin-pages" },
-  { label: "Blog",             icon: BookOpen,          to: "/blogs",        id: "nav-admin-blogs" },
+  { label: "Country Manager",  icon: MapPin,            to: "/countries",    id: "nav-admin-countries" },
+  { label: "Landing Page",     icon: Home,              to: "/landing-page", id: "nav-admin-landing",
+    subItems: [
+      { label: "Site Logo", sectionKey: "site-logo" },
+      { label: "Blog", sectionKey: "blog-manager" },
+      { label: "Landing Highlights", sectionKey: "landing-highlights" }
+    ]
+  },
+  { label: "Cards",            icon: CreditCard,        to: "/cards",        id: "nav-admin-cards",
+    subItems: [
+      { label: "Update Visa Type", sectionKey: "visa-type" },
+      { label: "Manage Visa Types", sectionKey: "manage-visa-types" },
+      { label: "Visa Details Management", sectionKey: "visa-details-table" },
+      { label: "Update Length of Stay", sectionKey: "length-of-stay" },
+      { label: "Update Entry", sectionKey: "entry-type" },
+      { label: "Update Validity", sectionKey: "validity" },
+      { label: "Update Processing Days", sectionKey: "processing-days" },
+      { label: "Update Service Fee", sectionKey: "base-price" },
+      { label: "Update Government Fee", sectionKey: "government-fee" },
+      { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
+      { label: "How it works", sectionKey: "how-it-works" },
+      { label: "Documents Required", sectionKey: "required-docs" },
+      { label: "Why book now?", sectionKey: "why-book-now" },
+      { label: "What's included", sectionKey: "whats-included" },
+      { label: "FAQs", sectionKey: "faqs" },
+      { label: "Visa Requirements", sectionKey: "visa-requirements" },
+      { label: "Destination Pages", sectionKey: "destination-pages" },
+    ]
+  },
+  { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
+    subItems: [
+      { label: "Static Pages", sectionKey: "static-pages" },
+      { label: "Footer Control", sectionKey: "footer-social-icons" }
+    ]
+  },
+  { label: "Document Legacy",  icon: FileArchive,       to: "/document-legacy", id: "nav-admin-docs",
+    subItems: [
+      { label: "Document Upload Methods", sectionKey: "upload-methods" },
+      { label: "Optional Documents Catalog", sectionKey: "other-docs" }
+    ]
+  },
+  { label: "Authentication",   icon: ShieldCheck,       to: "/authentication", id: "nav-admin-auth",
+    subItems: [
+      { label: "Login Methods", sectionKey: "auth-login-methods" },
+      { label: "OTP Settings", sectionKey: "auth-otp-testing" },
+      { label: "SMS OTP", sectionKey: "auth-sms-otp" },
+      { label: "WhatsApp OTP", sectionKey: "auth-whatsapp-otp" },
+      { label: "Email OTP", sectionKey: "auth-email-otp" },
+      { label: "OTP Priority", sectionKey: "auth-otp-priority" },
+      { label: "Google Login", sectionKey: "auth-firebase" },
+      { label: "Google OAuth", sectionKey: "auth-google-oauth" },
+    ]
+  },
+  { label: "System Display",   icon: MonitorPlay,       to: "/system-display", id: "nav-admin-system",
+    subItems: [
+      { label: "Site maintenance mode", sectionKey: "maintenance-mode" },
+      { label: "Customer Support Widget", sectionKey: "customer-support" },
+    ]
+  },
   { label: "Support Chat",     icon: MessageSquare,     to: "/support-chat", id: "nav-admin-support-chat" },
-  { label: "Controls",         icon: Sliders,           to: "/controls",    id: "nav-admin-controls" },
   { label: "SEO Manager",      icon: Search,            to: "/seo",         id: "nav-admin-seo" },
   { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
 ];
@@ -43,6 +98,7 @@ const Sidebar = () => {
   const { sidebarOpen, toggleSidebar, setSidebarOpen } = useUIStore();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hoveredNavItem, setHoveredNavItem] = useState(null);
   const siteLogo = useSiteLogo();
 
   useEffect(() => {
@@ -85,7 +141,7 @@ const Sidebar = () => {
         className={`
           hidden lg:flex flex-col
           bg-surface border-r border-border
-          h-screen sticky top-0 overflow-hidden flex-shrink-0
+          h-screen sticky top-0 overflow-visible flex-shrink-0
         `}
       >
         {/* Logo / Brand as Back Button & Collapse Toggle */}
@@ -137,22 +193,28 @@ const Sidebar = () => {
         )}
 
         {/* Navigation items */}
-        <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden" aria-label="Sidebar navigation">
+        <nav className="flex-1 py-4 overflow-visible" aria-label="Sidebar navigation">
           <ul className="space-y-1 px-2">
-            {navItems.map(({ label, icon: Icon, to, id }) => {
+            {navItems.map(({ label, icon: Icon, to, id, subItems }) => {
               const badge = id === "nav-admin-support-chat" && unreadCount > 0 ? unreadCount : null;
+              const hasSubItems = Boolean(subItems && subItems.length > 0);
+              const isHovered = hoveredNavItem === id;
+              
               return (
-                <li key={id}>
+                <li key={id} 
+                    className="relative"
+                    onMouseEnter={() => setHoveredNavItem(id)}
+                    onMouseLeave={() => setHoveredNavItem(null)}>
                   <NavLink
                     id={id}
                     to={to}
                     end={to === "/dashboard" || to === "/admin" || to === "/"}
                     className={({ isActive }) => `
                       flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
-                      transition-all duration-200 group relative
-                      ${isActive
+                      transition-all duration-200 group relative w-full text-left
+                      ${isActive || isHovered
                         ? "bg-cyan/10 text-cyan border border-cyan/20"
-                        : "text-text-secondary hover:text-text-primary hover:bg-surface-3"
+                        : "text-text-secondary hover:text-text-primary hover:bg-surface-3 border border-transparent"
                       }
                     `}
                   >
@@ -163,7 +225,6 @@ const Sidebar = () => {
                       )}
                     </div>
 
-                    {/* Label only when expanded */}
                     <AnimatePresence>
                       {sidebarOpen && (
                         <div className="flex-1 flex items-center justify-between min-w-0">
@@ -175,6 +236,9 @@ const Sidebar = () => {
                           >
                             {label}
                           </motion.span>
+                          {hasSubItems && (
+                            <ChevronDown size={14} className={`transition-transform ${isHovered ? "-rotate-90" : ""}`} />
+                          )}
                           {badge && (
                             <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm flex-shrink-0 animate-pulse">
                               {badge}
@@ -184,18 +248,46 @@ const Sidebar = () => {
                       )}
                     </AnimatePresence>
 
-                  {/* Tooltip on collapsed state */}
-                  {!sidebarOpen && (
+                  {!sidebarOpen && !hasSubItems && (
                     <span className="
                       absolute left-full ml-2 px-2 py-1 rounded-lg
                       bg-surface-3 border border-border text-xs text-text-primary
                       whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100
-                      transition-opacity z-50
+                      transition-opacity z-[200]
                     ">
                       {label}
                     </span>
                   )}
                   </NavLink>
+
+                  {/* Flyout Submenu */}
+                  <AnimatePresence>
+                    {hasSubItems && isHovered && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-[calc(100%+0.5rem)] top-0 w-64 rounded-xl border border-border bg-white shadow-xl overflow-y-auto max-h-[70vh] z-[200]"
+                      >
+                        <div className="py-2">
+                          <div className="px-4 py-2 text-xs font-bold text-text-muted uppercase tracking-wider border-b border-border mb-2">
+                            {label}
+                          </div>
+                          {subItems.map((sub) => (
+                            <Link
+                              key={sub.sectionKey}
+                              to={`${to}?section=${sub.sectionKey}`}
+                              onClick={() => setHoveredNavItem(null)}
+                              className="block w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-cyan/10 hover:text-cyan transition"
+                            >
+                              {sub.label}
+                            </Link>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </li>
               );
             })}
