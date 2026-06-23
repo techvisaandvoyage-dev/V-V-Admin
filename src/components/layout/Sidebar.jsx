@@ -39,29 +39,20 @@ const ADMIN_NAV = [
   },
   { label: "Cards",            icon: CreditCard,        to: "/cards",        id: "nav-admin-cards",
     subItems: [
-      { label: "Update Visa Type", sectionKey: "visa-type" },
-      { label: "Manage Visa Types", sectionKey: "manage-visa-types" },
       { label: "Visa Details Management", sectionKey: "visa-details-table" },
-      { label: "Update Length of Stay", sectionKey: "length-of-stay" },
-      { label: "Update Entry", sectionKey: "entry-type" },
-      { label: "Update Validity", sectionKey: "validity" },
-      { label: "Update Processing Days", sectionKey: "processing-days" },
-      { label: "Update Service Fee", sectionKey: "base-price" },
-      { label: "Update Government Fee", sectionKey: "government-fee" },
+      { label: "Service Fee", sectionKey: "base-price" },
+      { label: "Government Fee", sectionKey: "government-fee" },
       { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
-      { label: "How it works", sectionKey: "how-it-works" },
       { label: "Documents Required", sectionKey: "required-docs" },
-      { label: "Why book now?", sectionKey: "why-book-now" },
-      { label: "What's included", sectionKey: "whats-included" },
-      { label: "FAQs", sectionKey: "faqs" },
-      { label: "Visa Requirements", sectionKey: "visa-requirements" },
+      { label: "Optional Documents", sectionKey: "other-docs" },
+      { label: "Document Upload Methods", sectionKey: "upload-methods" },
       { label: "Destination Pages", sectionKey: "destination-pages" },
     ]
   },
   { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
     subItems: [
       { label: "Static Pages", sectionKey: "static-pages" },
-      { label: "Footer Control", sectionKey: "footer-social-icons" }
+      { label: "Footer Controls", sectionKey: "footer-social-icons" }
     ]
   },
   { label: "Document Legacy",  icon: FileArchive,       to: "/document-legacy", id: "nav-admin-docs",

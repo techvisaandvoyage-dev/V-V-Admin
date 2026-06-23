@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 //  Admin Dashboard Page
 //  Sections:
 //  1. Analytics overview (4 stat cards + Recharts line chart)
@@ -2260,48 +2260,37 @@ const Dashboard = () => {
   });
   const controlGroups = [
     {
-      key: "website-content",
-      label: "Website Content",
-      description: "Homepage, country pages, and footer content",
+      key: "landing-page",
+      label: "Landing Page",
+      description: "Branding, blog and landing highlights",
       sections: [
-        { key: "site-logo", label: "Site Logo", subgroup: "Homepage" },
-        { key: "landing-highlights", label: "Landing Highlights", subgroup: "Homepage" },
-        { key: "destination-pages", label: "Destination pages (all countries)", subgroup: "Country Pages" },
-        { key: "footer-social-icons", label: "Footer Manager", subgroup: "Footer" },
-      ],
-    },
-    {
-      key: "document-legacy",
-      label: "Documents",
-      description: "Upload methods and document catalogs",
-      sections: [
-        { key: "upload-methods", label: "Document Upload Methods" },
-        { key: "required-docs", label: "Documents Required (global)" },
-        { key: "other-docs", label: "Optional Documents Catalog (global)" },
-      ],
-    },
-    {
-      key: "fees",
-      label: "Fees",
-      description: "Service and government fee controls",
-      sections: [
-        { key: "base-price", label: "Update Service Fee (universal)" },
-        { key: "government-fee", label: "Update Government Fee (universal)" },
-        { key: "fee-update-manager", label: "Fee Update Manager" },
+        { key: "site-logo", label: "Site Logo" },
+        { key: "blog-manager", label: "Blog Manager" },
+        { key: "landing-highlights", label: "Landing Highlights" },
       ],
     },
     {
       key: "cards",
       label: "Cards",
-      description: "Visa processing, fees, destination sections",
+      description: "Visa details, fees and documents",
       sections: [
-        { key: "visa-type", label: "Update Visa Type (universal)" },
-        { key: "manage-visa-types", label: "Manage Visa Types" },
         { key: "visa-details-table", label: "Visa Details Management" },
-        { key: "length-of-stay", label: "Update Length of Stay (universal)" },
-        { key: "entry-type", label: "Update Entry (universal)" },
-        { key: "validity", label: "Update Validity (universal)" },
-        { key: "processing-days", label: "Update Processing Days (universal)" },
+        { key: "base-price", label: "Service Fee" },
+        { key: "government-fee", label: "Government Fee" },
+        { key: "fee-update-manager", label: "Fee Update Manager" },
+        { key: "required-docs", label: "Documents Required" },
+        { key: "other-docs", label: "Optional Documents" },
+        { key: "upload-methods", label: "Document Upload Methods" },
+        { key: "destination-pages", label: "Destination Pages" },
+      ],
+    },
+    {
+      key: "footer",
+      label: "Footer",
+      description: "Static pages and footer social icons",
+      sections: [
+        { key: "static-pages", label: "Static Pages" },
+        { key: "footer-social-icons", label: "Footer Controls" },
       ],
     },
     {
@@ -2329,10 +2318,13 @@ const Dashboard = () => {
       ],
     },
   ];
+
   const controlSections = controlGroups.flatMap((group) =>
     group.sections.map((section) => ({ ...section, groupKey: group.key, groupLabel: group.label }))
   );
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
+  // State-based group key — clicking a parent menu item updates this, NOT the URL
+  const [activeControlGroupKey, setActiveControlGroupKey] = useState(controlGroups[0].key);
   const destinationPageSectionTabs = [
     { key: "why-book-now", label: "Why book now?" },
     { key: "whats-included", label: "What's included" },
@@ -2341,12 +2333,12 @@ const Dashboard = () => {
     { key: "visa-requirements", label: "Visa Requirements" },
   ];
   const [activeDestinationPageSection, setActiveDestinationPageSection] = useState(destinationPageSectionTabs[0].key);
-  const activeControlSectionMeta = controlSections.find((section) => section.key === activeControlSection) || controlSections[0];
-  const activeControlGroup = controlGroups.find((group) => group.key === activeControlSectionMeta.groupKey) || controlGroups[0];
+  // Derive active group purely from state — no URL dependency
+  const activeControlGroup = controlGroups.find((group) => group.key === activeControlGroupKey) || controlGroups[0];
   const activeControlGroupSections = activeControlGroup.sections;
+  const activeControlSectionMeta = activeControlGroupSections.find((s) => s.key === activeControlSection) || activeControlGroupSections[0];
   const activeControlPageTitle = activeControlSectionMeta.label;
   const activeControlBreadcrumb = [
-    "Controls",
     activeControlGroup.label,
     activeControlSectionMeta.subgroup,
     activeControlSectionMeta.label,
@@ -2362,25 +2354,34 @@ const Dashboard = () => {
       return nextKey;
     });
   };
-  // Sync activeControlSection with URL query parameter
+  // Selecting a parent group: update group key state + default to first section (no routing)
+  const selectControlGroup = (groupKey) => {
+    const group = controlGroups.find((item) => item.key === groupKey);
+    if (!group) return;
+    setActiveControlGroupKey(groupKey);
+    const firstSectionKey = group.sections?.[0]?.key;
+    if (firstSectionKey) selectControlSection(firstSectionKey);
+  };
+  // Sync group + section whenever the URL tab changes
   useEffect(() => {
     if (!isControlsTab) return;
-    const group = controlGroups.find((g) => g.key === activeTab);
-    if (!group) return;
     const sectionParam = searchParams.get("section");
     if (sectionParam) {
-      const section = controlSections.find((s) => s.key === sectionParam && s.groupKey === activeTab);
+      // Sidebar flyout clicked with a ?section= param — set exact group + section
+      const section = controlSections.find((s) => s.key === sectionParam);
       if (section) {
+        setActiveControlGroupKey(section.groupKey);
         selectControlSection(section.key);
         return;
       }
     }
+    // No section param — sync group from URL tab (e.g. /cards → "cards")
+    const matchedGroup = controlGroups.find((g) => g.key === activeTab);
+    if (matchedGroup) {
+      setActiveControlGroupKey(matchedGroup.key);
+      selectControlSection(matchedGroup.sections[0].key);
+    }
   }, [activeTab, searchParams]);
-  const selectControlGroup = (groupKey) => {
-    const group = controlGroups.find((item) => item.key === groupKey);
-    const firstSectionKey = group?.sections?.[0]?.key;
-    if (firstSectionKey) selectControlSection(firstSectionKey);
-  };
   const getControlCardExpansionProps = (key) => ({
     expanded: Boolean(expandedControlCards[key]),
     onExpandedChange: (nextValue) =>
@@ -6859,7 +6860,7 @@ const Dashboard = () => {
           {isControlsTab && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="min-w-0">
-                <aside className="min-w-0 lg:sticky lg:top-24">
+                <aside className="hidden min-w-0 lg:sticky lg:top-24">
                   <div className="hidden lg:block rounded-2xl border border-border bg-white p-4">
                     <div className="mb-4">
                       <h3 className="text-sm font-semibold text-text-primary">Controls</h3>
@@ -6914,7 +6915,7 @@ const Dashboard = () => {
                 <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
                   <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-white px-4 py-4">
                     <div className="flex flex-col gap-4">
-                      <div className="min-w-0">
+                      <div className="hidden min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
                           {activeControlBreadcrumb.map((item, index) => (
                             <span key={`${item}-${index}`} className="flex items-center gap-2">
@@ -7613,6 +7614,10 @@ const Dashboard = () => {
               </Card>
               </div>
 
+              <div className={isControlSectionVisible("blog-manager") ? "" : "hidden"}>
+                <BlogAdminPanel />
+              </div>
+
               <div
                 className={
                   isControlSectionVisible("base-price")
@@ -7986,1027 +7991,6 @@ const Dashboard = () => {
               </div>
 
               </div>
-
-              <div className={isControlSectionVisible("visa-type") ? "" : "hidden"}>
-              <ExpandableAdminControlCard expandMode="fullscreen" {...getControlCardExpansionProps("visa-type")}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <ShieldCheck size={18} className="text-cyan" />
-                        Update Visa Type (universal)
-                      </h2>
-                      <DisplayToggle
-                        active={displayToggles.showVisaType}
-                        busy={togglingDisplayKey === "showVisaType"}
-                        onClick={() => runToggleDisplay("showVisaType")}
-                        labelOn="Visible on client"
-                        labelOff="Hidden on client"
-                      />
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Set one default <span className="text-text-primary font-medium">Visa Type</span> for all active countries,
-                      then optionally define a different visa type for one country or a selected group of countries.
-                    </p>
-                    <p className="text-[11px] text-text-muted mt-2">
-                      Current global:{" "}
-                      <span className="text-text-primary font-medium">
-                        {globalDefaults.globalVisaType || "Not set yet (cards fall back to each country's stored value)"}
-                      </span>
-                      {globalDefaultStats.totalCountries > 0 && (
-                        <>
-                          {" "}? {globalDefaultStats.usingGlobalVisaType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
-                          <span className="text-amber-400/90">{globalDefaultStats.overridingVisaType}</span> override it.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
-                  <VisaTypeScopeConfigSection
-                    title="Single Country"
-                    description="Pick one active country and give it its own visa type override."
-                    mode="single"
-                    countries={allCountryOptions}
-                    suggestions={VISA_TYPE_SUGGESTIONS}
-                    countryId={visaTypeSaveAllDraft.singleCountryDraft.countryId}
-                    onCountryIdChange={(countryId) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
-                      }))
-                    }
-                    visaTypePicker={visaTypeSaveAllDraft.singleCountryDraft.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={visaTypeSaveAllDraft.singleCountryDraft.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: {
-                          ...prev.singleCountryDraft,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
-                        },
-                      }))
-                    }
-                  >
-                    <div className="space-y-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        leftIcon={<Plus size={15} />}
-                        onClick={addSingleCountryVisaTypeOverride}
-                      >
-                        Add Single Country
-                      </Button>
-
-                      <div className="rounded-xl border border-border bg-background">
-                        <div className="border-b border-border px-4 py-3">
-                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
-                          <p className="mt-1 text-xs text-text-muted">
-                            Each country in this list keeps its own visa type override.
-                          </p>
-                        </div>
-                        {(visaTypeSaveAllDraft.singleCountryOverrides || []).length === 0 ? (
-                          <div className="px-4 py-4 text-sm text-text-muted">No single-country visa type overrides added yet.</div>
-                        ) : (
-                          <div className="divide-y divide-border">
-                            {(visaTypeSaveAllDraft.singleCountryOverrides || []).map((item) => {
-                              const countryId = String(item?.countryId ?? "").trim();
-                              const countryName =
-                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
-                                countryId;
-                              const visaType = resolvePickerOrCustomValue(item?.picker, item?.custom);
-                              return (
-                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
-                                    <p className="mt-1 text-xs text-text-muted">{visaType}</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSingleCountryVisaTypeOverride(countryId)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
-                                    title={`Remove ${countryName}`}
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  </VisaTypeScopeConfigSection>
-                  <VisaTypeScopeConfigSection
-                    title="Some Countries"
-                    description="Choose multiple active countries that should share the same visa type."
-                    mode="some"
-                    countries={allCountryOptions}
-                    suggestions={VISA_TYPE_SUGGESTIONS}
-                    countryIds={visaTypeSaveAllDraft.someCountries.countryIds}
-                    onCountryIdsChange={(countryIds) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, countryIds },
-                      }))
-                    }
-                    visaTypePicker={visaTypeSaveAllDraft.someCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={visaTypeSaveAllDraft.someCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: {
-                          ...prev.someCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.someCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                  <VisaTypeScopeConfigSection
-                    title="All Countries"
-                    description="Set the default visa type applied across all active countries."
-                    mode="all"
-                    countries={allCountryOptions}
-                    suggestions={VISA_TYPE_SUGGESTIONS}
-                    visaTypePicker={visaTypeSaveAllDraft.allCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={visaTypeSaveAllDraft.allCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setVisaTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: {
-                          ...prev.allCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.allCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-text-muted">
-                    Review the default visa type plus any single-country or grouped-country overrides, then save everything together.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingControlKey === "visa-type"}
-                    disabled={!visaTypeHasUnsavedChanges}
-                    onClick={runUpdateGlobalVisaType}
-                  >
-                    Save All Changes
-                  </Button>
-                </div>
-              </ExpandableAdminControlCard>
-              </div>
-              <div className={isControlSectionVisible("length-of-stay") ? "" : "hidden"}>
-              <ExpandableAdminControlCard {...getControlCardExpansionProps("length-of-stay")}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <ListChecks size={18} className="text-cyan" />
-                        Update Length of Stay (universal)
-                      </h2>
-                      <DisplayToggle
-                        active={displayToggles.showLengthOfStay}
-                        busy={togglingDisplayKey === "showLengthOfStay"}
-                        onClick={() => runToggleDisplay("showLengthOfStay")}
-                        labelOn="Visible on client"
-                        labelOff="Hidden on client"
-                      />
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Set one default <span className="text-text-primary font-medium">Length of Stay</span> for all active
-                      countries, then optionally define a different value for one country or a selected group of countries.
-                    </p>
-                    <p className="text-[11px] text-text-muted mt-2">
-                      Current global:{" "}
-                      <span className="text-text-primary font-medium">
-                        {globalDefaults.globalLengthOfStay || "Not set yet (destination pages fall back to each country's stored value)"}
-                      </span>
-                      {globalDefaultStats.totalCountries > 0 && (
-                        <>
-                          {" "}? {globalDefaultStats.usingGlobalLengthOfStay}/{globalDefaultStats.totalCountries} countries use the global,{" "}
-                          <span className="text-amber-400/90">{globalDefaultStats.overridingLengthOfStay}</span> override it.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
-                  <VisaTypeScopeConfigSection
-                    title="Single Country"
-                    description="Pick one active country and give it its own length of stay override."
-                    mode="single"
-                    countries={allCountryOptions}
-                    suggestions={LENGTH_OF_STAY_SUGGESTIONS}
-                    pickerLabel="Pick Length of Stay"
-                    customPlaceholder="e.g. 45 Days, Up to 30 days"
-                    countryId={lengthOfStaySaveAllDraft.singleCountryDraft.countryId}
-                    onCountryIdChange={(countryId) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
-                      }))
-                    }
-                    visaTypePicker={lengthOfStaySaveAllDraft.singleCountryDraft.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={lengthOfStaySaveAllDraft.singleCountryDraft.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: {
-                          ...prev.singleCountryDraft,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
-                        },
-                      }))
-                    }
-                  >
-                    <div className="space-y-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        leftIcon={<Plus size={15} />}
-                        onClick={addSingleCountryLengthOfStayOverride}
-                      >
-                        Add Single Country
-                      </Button>
-
-                      <div className="rounded-xl border border-border bg-background">
-                        <div className="border-b border-border px-4 py-3">
-                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
-                          <p className="mt-1 text-xs text-text-muted">
-                            Each country in this list keeps its own length of stay override.
-                          </p>
-                        </div>
-                        {(lengthOfStaySaveAllDraft.singleCountryOverrides || []).length === 0 ? (
-                          <div className="px-4 py-4 text-sm text-text-muted">No single-country length of stay overrides added yet.</div>
-                        ) : (
-                          <div className="divide-y divide-border">
-                            {(lengthOfStaySaveAllDraft.singleCountryOverrides || []).map((item) => {
-                              const countryId = String(item?.countryId ?? "").trim();
-                              const countryName =
-                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
-                                countryId;
-                              const lengthOfStay = resolvePickerOrCustomValue(item?.picker, item?.custom);
-                              return (
-                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
-                                    <p className="mt-1 text-xs text-text-muted">{lengthOfStay}</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSingleCountryLengthOfStayOverride(countryId)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
-                                    title={`Remove ${countryName}`}
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </VisaTypeScopeConfigSection>
-                  <VisaTypeScopeConfigSection
-                    title="Some Countries"
-                    description="Choose multiple active countries that should share the same length of stay."
-                    mode="some"
-                    countries={allCountryOptions}
-                    suggestions={LENGTH_OF_STAY_SUGGESTIONS}
-                    pickerLabel="Pick Length of Stay"
-                    customPlaceholder="e.g. 45 Days, Up to 30 days"
-                    countryIds={lengthOfStaySaveAllDraft.someCountries.countryIds}
-                    onCountryIdsChange={(countryIds) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, countryIds },
-                      }))
-                    }
-                    visaTypePicker={lengthOfStaySaveAllDraft.someCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={lengthOfStaySaveAllDraft.someCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: {
-                          ...prev.someCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.someCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                  <VisaTypeScopeConfigSection
-                    title="All Countries"
-                    description="Set the default length of stay applied across all active countries."
-                    mode="all"
-                    countries={allCountryOptions}
-                    suggestions={LENGTH_OF_STAY_SUGGESTIONS}
-                    pickerLabel="Pick Length of Stay"
-                    customPlaceholder="e.g. 45 Days, Up to 30 days"
-                    visaTypePicker={lengthOfStaySaveAllDraft.allCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={lengthOfStaySaveAllDraft.allCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setLengthOfStaySaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: {
-                          ...prev.allCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.allCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-text-muted">
-                    Review the default length of stay plus any single-country or grouped-country overrides, then save everything together.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingControlKey === "length-of-stay"}
-                    disabled={!lengthOfStayHasUnsavedChanges}
-                    onClick={runUpdateGlobalLengthOfStay}
-                  >
-                    Save All Changes
-                  </Button>
-                </div>
-              </ExpandableAdminControlCard>
-              </div>
-              <div className={isControlSectionVisible("entry-type") ? "" : "hidden"}>
-              <ExpandableAdminControlCard {...getControlCardExpansionProps("entry-type")}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <MapPin size={18} className="text-cyan" />
-                        Update Entry (universal)
-                      </h2>
-                      <DisplayToggle
-                        active={displayToggles.showEntryType}
-                        busy={togglingDisplayKey === "showEntryType"}
-                        onClick={() => runToggleDisplay("showEntryType")}
-                        labelOn="Visible on client"
-                        labelOff="Hidden on client"
-                      />
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Set one default <span className="text-text-primary font-medium">Entry</span> for all active countries,
-                      then optionally define a different value for one country or a selected group of countries.
-                    </p>
-                    <p className="text-[11px] text-text-muted mt-2">
-                      Current global:{" "}
-                      <span className="text-text-primary font-medium">
-                        {globalDefaults.globalEntryType || "Not set yet (destination pages fall back to each country's stored value)"}
-                      </span>
-                      {globalDefaultStats.totalCountries > 0 && (
-                        <>
-                          {" "}? {globalDefaultStats.usingGlobalEntryType}/{globalDefaultStats.totalCountries} countries use the global,{" "}
-                          <span className="text-amber-400/90">{globalDefaultStats.overridingEntryType}</span> override it.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
-                  <VisaTypeScopeConfigSection
-                    title="Single Country"
-                    description="Pick one active country and give it its own entry override."
-                    mode="single"
-                    countries={allCountryOptions}
-                    suggestions={ENTRY_TYPE_SUGGESTIONS}
-                    pickerLabel="Pick Entry"
-                    customPlaceholder="e.g. Single Entry, Double Entry"
-                    countryId={entryTypeSaveAllDraft.singleCountryDraft.countryId}
-                    onCountryIdChange={(countryId) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
-                      }))
-                    }
-                    visaTypePicker={entryTypeSaveAllDraft.singleCountryDraft.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={entryTypeSaveAllDraft.singleCountryDraft.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: {
-                          ...prev.singleCountryDraft,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
-                        },
-                      }))
-                    }
-                  >
-                    <div className="space-y-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        leftIcon={<Plus size={15} />}
-                        onClick={addSingleCountryEntryTypeOverride}
-                      >
-                        Add Single Country
-                      </Button>
-
-                      <div className="rounded-xl border border-border bg-background">
-                        <div className="border-b border-border px-4 py-3">
-                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
-                          <p className="mt-1 text-xs text-text-muted">
-                            Each country in this list keeps its own entry override.
-                          </p>
-                        </div>
-                        {(entryTypeSaveAllDraft.singleCountryOverrides || []).length === 0 ? (
-                          <div className="px-4 py-4 text-sm text-text-muted">No single-country entry overrides added yet.</div>
-                        ) : (
-                          <div className="divide-y divide-border">
-                            {(entryTypeSaveAllDraft.singleCountryOverrides || []).map((item) => {
-                              const countryId = String(item?.countryId ?? "").trim();
-                              const countryName =
-                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
-                                countryId;
-                              const entryType = resolvePickerOrCustomValue(item?.picker, item?.custom);
-                              return (
-                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
-                                    <p className="mt-1 text-xs text-text-muted">{entryType}</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSingleCountryEntryTypeOverride(countryId)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
-                                    title={`Remove ${countryName}`}
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </VisaTypeScopeConfigSection>
-                  <VisaTypeScopeConfigSection
-                    title="Some Countries"
-                    description="Choose multiple active countries that should share the same entry."
-                    mode="some"
-                    countries={allCountryOptions}
-                    suggestions={ENTRY_TYPE_SUGGESTIONS}
-                    pickerLabel="Pick Entry"
-                    customPlaceholder="e.g. Single Entry, Double Entry"
-                    countryIds={entryTypeSaveAllDraft.someCountries.countryIds}
-                    onCountryIdsChange={(countryIds) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, countryIds },
-                      }))
-                    }
-                    visaTypePicker={entryTypeSaveAllDraft.someCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={entryTypeSaveAllDraft.someCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: {
-                          ...prev.someCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.someCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                  <VisaTypeScopeConfigSection
-                    title="All Countries"
-                    description="Set the default entry applied across all active countries."
-                    mode="all"
-                    countries={allCountryOptions}
-                    suggestions={ENTRY_TYPE_SUGGESTIONS}
-                    pickerLabel="Pick Entry"
-                    customPlaceholder="e.g. Single Entry, Double Entry"
-                    visaTypePicker={entryTypeSaveAllDraft.allCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={entryTypeSaveAllDraft.allCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setEntryTypeSaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: {
-                          ...prev.allCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.allCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-text-muted">
-                    Review the default entry plus any single-country or grouped-country overrides, then save everything together.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingControlKey === "entry-type"}
-                    disabled={!entryTypeHasUnsavedChanges}
-                    onClick={runUpdateGlobalEntryType}
-                  >
-                    Save All Changes
-                  </Button>
-                </div>
-              </ExpandableAdminControlCard>
-              </div>
-
-              {/* ==========================================================
-                  Universal Validity control - mirror of the Visa Type card.
-                  ========================================================== */}
-              <div className={isControlSectionVisible("validity") ? "" : "hidden"}>
-              <ExpandableAdminControlCard {...getControlCardExpansionProps("validity")}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <CalendarDays size={18} className="text-cyan" />
-                        Update Validity (universal)
-                      </h2>
-                      <DisplayToggle
-                        active={displayToggles.showValidity}
-                        busy={togglingDisplayKey === "showValidity"}
-                        onClick={() => runToggleDisplay("showValidity")}
-                        labelOn="Visible on client"
-                        labelOff="Hidden on client"
-                      />
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Set one default <span className="text-text-primary font-medium">Validity</span> for all active countries,
-                      then optionally define a different value for one country or a selected group of countries.
-                    </p>
-                    <p className="text-[11px] text-text-muted mt-2">
-                      Current global:{" "}
-                      <span className="text-text-primary font-medium">
-                        {globalDefaults.globalValidity || "Not set yet (cards show '-' when neither global nor per-country exists)"}
-                      </span>
-                      {globalDefaultStats.totalCountries > 0 && (
-                        <>
-                          {" "}? {globalDefaultStats.usingGlobalValidity}/{globalDefaultStats.totalCountries} countries use the global,{" "}
-                          <span className="text-amber-400/90">{globalDefaultStats.overridingValidity}</span> override it.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
-                  <VisaTypeScopeConfigSection
-                    title="Single Country"
-                    description="Pick one active country and give it its own validity override."
-                    mode="single"
-                    countries={allCountryOptions}
-                    suggestions={VALIDITY_SUGGESTIONS}
-                    pickerLabel="Pick Validity"
-                    customPlaceholder="e.g. 45 Days, 18 Months, Per visa policy"
-                    countryId={validitySaveAllDraft.singleCountryDraft.countryId}
-                    onCountryIdChange={(countryId) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
-                      }))
-                    }
-                    visaTypePicker={validitySaveAllDraft.singleCountryDraft.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={validitySaveAllDraft.singleCountryDraft.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: {
-                          ...prev.singleCountryDraft,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
-                        },
-                      }))
-                    }
-                  >
-                    <div className="space-y-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        leftIcon={<Plus size={15} />}
-                        onClick={addSingleCountryValidityOverride}
-                      >
-                        Add Single Country
-                      </Button>
-
-                      <div className="rounded-xl border border-border bg-background">
-                        <div className="border-b border-border px-4 py-3">
-                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
-                          <p className="mt-1 text-xs text-text-muted">
-                            Each country in this list keeps its own validity override.
-                          </p>
-                        </div>
-                        {(validitySaveAllDraft.singleCountryOverrides || []).length === 0 ? (
-                          <div className="px-4 py-4 text-sm text-text-muted">No single-country validity overrides added yet.</div>
-                        ) : (
-                          <div className="divide-y divide-border">
-                            {(validitySaveAllDraft.singleCountryOverrides || []).map((item) => {
-                              const countryId = String(item?.countryId ?? "").trim();
-                              const countryName =
-                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
-                                countryId;
-                              const validity = resolvePickerOrCustomValue(item?.picker, item?.custom);
-                              return (
-                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
-                                    <p className="mt-1 text-xs text-text-muted">{validity}</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSingleCountryValidityOverride(countryId)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
-                                    title={`Remove ${countryName}`}
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </VisaTypeScopeConfigSection>
-                  <VisaTypeScopeConfigSection
-                    title="Some Countries"
-                    description="Choose multiple active countries that should share the same validity."
-                    mode="some"
-                    countries={allCountryOptions}
-                    suggestions={VALIDITY_SUGGESTIONS}
-                    pickerLabel="Pick Validity"
-                    customPlaceholder="e.g. 45 Days, 18 Months, Per visa policy"
-                    countryIds={validitySaveAllDraft.someCountries.countryIds}
-                    onCountryIdsChange={(countryIds) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, countryIds },
-                      }))
-                    }
-                    visaTypePicker={validitySaveAllDraft.someCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={validitySaveAllDraft.someCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: {
-                          ...prev.someCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.someCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                  <VisaTypeScopeConfigSection
-                    title="All Countries"
-                    description="Set the default validity applied across all active countries."
-                    mode="all"
-                    countries={allCountryOptions}
-                    suggestions={VALIDITY_SUGGESTIONS}
-                    pickerLabel="Pick Validity"
-                    customPlaceholder="e.g. 45 Days, 18 Months, Per visa policy"
-                    visaTypePicker={validitySaveAllDraft.allCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={validitySaveAllDraft.allCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setValiditySaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: {
-                          ...prev.allCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.allCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-text-muted">
-                    Review the default validity plus any single-country or grouped-country overrides, then save everything together.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingControlKey === "validity"}
-                    disabled={!validityHasUnsavedChanges}
-                    onClick={runUpdateGlobalValidity}
-                  >
-                    Save All Changes
-                  </Button>
-                </div>
-              </ExpandableAdminControlCard>
-              </div>
-
-              {/* ==========================================================
-                  Universal Processing Days control - mirror of the other two.
-                  The toggle hides the Processing tile on the public client.
-                  ========================================================== */}
-              <div className={isControlSectionVisible("processing-days") ? "" : "hidden"}>
-              <ExpandableAdminControlCard {...getControlCardExpansionProps("processing-days")}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <Clock size={18} className="text-cyan" />
-                        Update Processing Days (universal)
-                      </h2>
-                      <DisplayToggle
-                        active={displayToggles.showProcessingDays}
-                        busy={togglingDisplayKey === "showProcessingDays"}
-                        onClick={() => runToggleDisplay("showProcessingDays")}
-                        labelOn="Visible on client"
-                        labelOff="Hidden on client"
-                      />
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Set one default <span className="text-text-primary font-medium">Processing Days</span> for all active
-                      countries, then optionally define a different value for one country or a selected group of countries.
-                    </p>
-                    <p className="text-[11px] text-text-muted mt-2">
-                      Current global:{" "}
-                      <span className="text-text-primary font-medium">
-                        {globalDefaults.globalProcessingDays || "Not set yet (cards fall back to each country's stored value)"}
-                      </span>
-                      {globalDefaultStats.totalCountries > 0 && (
-                        <>
-                          {" "}? {globalDefaultStats.usingGlobalProcessingDays}/{globalDefaultStats.totalCountries} countries use the global,{" "}
-                          <span className="text-amber-400/90">{globalDefaultStats.overridingProcessingDays}</span> override it.
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid min-w-0 gap-4 2xl:grid-cols-3">
-                  <VisaTypeScopeConfigSection
-                    title="Single Country"
-                    description="Pick one active country and give it its own processing days override."
-                    mode="single"
-                    countries={allCountryOptions}
-                    suggestions={PROCESSING_DAYS_SUGGESTIONS}
-                    pickerLabel="Pick Processing Days"
-                    customPlaceholder="e.g. 4-6 days, 2 weeks, Per visa policy"
-                    countryId={processingDaysSaveAllDraft.singleCountryDraft.countryId}
-                    onCountryIdChange={(countryId) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, countryId },
-                      }))
-                    }
-                    visaTypePicker={processingDaysSaveAllDraft.singleCountryDraft.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: { ...prev.singleCountryDraft, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={processingDaysSaveAllDraft.singleCountryDraft.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        singleCountryDraft: {
-                          ...prev.singleCountryDraft,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.singleCountryDraft.picker,
-                        },
-                      }))
-                    }
-                  >
-                    <div className="space-y-3">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full"
-                        leftIcon={<Plus size={15} />}
-                        onClick={addSingleCountryProcessingDaysOverride}
-                      >
-                        Add Single Country
-                      </Button>
-
-                      <div className="rounded-xl border border-border bg-background">
-                        <div className="border-b border-border px-4 py-3">
-                          <p className="text-sm font-medium text-text-primary">Single Country List</p>
-                          <p className="mt-1 text-xs text-text-muted">
-                            Each country in this list keeps its own processing days override.
-                          </p>
-                        </div>
-                        {(processingDaysSaveAllDraft.singleCountryOverrides || []).length === 0 ? (
-                          <div className="px-4 py-4 text-sm text-text-muted">No single-country processing days overrides added yet.</div>
-                        ) : (
-                          <div className="divide-y divide-border">
-                            {(processingDaysSaveAllDraft.singleCountryOverrides || []).map((item) => {
-                              const countryId = String(item?.countryId ?? "").trim();
-                              const countryName =
-                                allCountryOptions.find((country) => String(country?._id || country?.slug || country?.id || "").trim() === countryId)?.name ||
-                                countryId;
-                              const processingDays = resolvePickerOrCustomValue(item?.picker, item?.custom);
-                              return (
-                                <div key={countryId} className="flex items-center justify-between gap-3 px-4 py-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-text-primary">{countryName}</p>
-                                    <p className="mt-1 text-xs text-text-muted">{processingDays}</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeSingleCountryProcessingDaysOverride(countryId)}
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-rose-500/10 hover:text-rose-300"
-                                    title={`Remove ${countryName}`}
-                                  >
-                                    <X size={15} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </VisaTypeScopeConfigSection>
-                  <VisaTypeScopeConfigSection
-                    title="Some Countries"
-                    description="Choose multiple active countries that should share the same processing days."
-                    mode="some"
-                    countries={allCountryOptions}
-                    suggestions={PROCESSING_DAYS_SUGGESTIONS}
-                    pickerLabel="Pick Processing Days"
-                    customPlaceholder="e.g. 4-6 days, 2 weeks, Per visa policy"
-                    countryIds={processingDaysSaveAllDraft.someCountries.countryIds}
-                    onCountryIdsChange={(countryIds) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, countryIds },
-                      }))
-                    }
-                    visaTypePicker={processingDaysSaveAllDraft.someCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: { ...prev.someCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={processingDaysSaveAllDraft.someCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        someCountries: {
-                          ...prev.someCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.someCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                  <VisaTypeScopeConfigSection
-                    title="All Countries"
-                    description="Set the default processing days applied across all active countries."
-                    mode="all"
-                    countries={allCountryOptions}
-                    suggestions={PROCESSING_DAYS_SUGGESTIONS}
-                    pickerLabel="Pick Processing Days"
-                    customPlaceholder="e.g. 4-6 days, 2 weeks, Per visa policy"
-                    visaTypePicker={processingDaysSaveAllDraft.allCountries.picker}
-                    onVisaTypePickerChange={(value) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: { ...prev.allCountries, picker: value, custom: "" },
-                      }))
-                    }
-                    visaTypeCustom={processingDaysSaveAllDraft.allCountries.custom}
-                    onVisaTypeCustomChange={(value) =>
-                      setProcessingDaysSaveAllDraft((prev) => ({
-                        ...prev,
-                        allCountries: {
-                          ...prev.allCountries,
-                          custom: value,
-                          picker: value.trim() ? "" : prev.allCountries.picker,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-text-muted">
-                    Review the default processing days plus any single-country or grouped-country overrides, then save everything together.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="shrink-0"
-                    leftIcon={<Save size={15} />}
-                    loading={savingControlKey === "processing-days"}
-                    disabled={!processingDaysHasUnsavedChanges}
-                    onClick={runUpdateGlobalProcessingDays}
-                  >
-                    Save All Changes
-                  </Button>
-                </div>
-              </ExpandableAdminControlCard>
-              </div>
-
               {/* ==========================================================
                   Universal Required Documents control - admin picks the
                   catalog rows that apply to every country, can add custom
@@ -10832,11 +9816,6 @@ const Dashboard = () => {
                   </div>
                   </div>
               </Card>
-              </div>
-
-              {/* -- Manage Visa Types -- */}
-              <div className={isControlSectionVisible("manage-visa-types") ? "" : "hidden"}>
-                <VisaTypesManager activeCountries={activeCountryOptions} />
               </div>
 
               <div className={isControlSectionVisible("visa-details-table") ? "" : "hidden"}>
