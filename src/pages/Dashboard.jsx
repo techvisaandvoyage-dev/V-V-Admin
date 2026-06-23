@@ -2275,13 +2275,12 @@ const Dashboard = () => {
       description: "Visa details, fees and documents",
       sections: [
         { key: "visa-details-table", label: "Visa Details Management" },
-        { key: "base-price", label: "Service Fee" },
-        { key: "government-fee", label: "Government Fee" },
         { key: "fee-update-manager", label: "Fee Update Manager" },
-        { key: "required-docs", label: "Documents Required" },
-        { key: "other-docs", label: "Optional Documents" },
-        { key: "upload-methods", label: "Document Upload Methods" },
-        { key: "destination-pages", label: "Destination Pages" },
+        { key: "why-book-now", label: "Why book now?" },
+        { key: "whats-included", label: "What's included" },
+        { key: "how-it-works", label: "How it works" },
+        { key: "faqs", label: "FAQs" },
+        { key: "visa-requirements", label: "Visa Requirements" },
       ],
     },
     {
@@ -2325,14 +2324,7 @@ const Dashboard = () => {
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
   // State-based group key — clicking a parent menu item updates this, NOT the URL
   const [activeControlGroupKey, setActiveControlGroupKey] = useState(controlGroups[0].key);
-  const destinationPageSectionTabs = [
-    { key: "why-book-now", label: "Why book now?" },
-    { key: "whats-included", label: "What's included" },
-    { key: "how-it-works", label: "How it works" },
-    { key: "faqs", label: "FAQs" },
-    { key: "visa-requirements", label: "Visa Requirements" },
-  ];
-  const [activeDestinationPageSection, setActiveDestinationPageSection] = useState(destinationPageSectionTabs[0].key);
+
   // Derive active group purely from state — no URL dependency
   const activeControlGroup = controlGroups.find((group) => group.key === activeControlGroupKey) || controlGroups[0];
   const activeControlGroupSections = activeControlGroup.sections;
@@ -6912,7 +6904,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </aside>
-                <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
+                <div className="flex-1 w-full min-w-0 max-w-full space-y-6 overflow-hidden">
                   <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-white px-4 py-4">
                     <div className="flex flex-col gap-4">
                       <div className="hidden min-w-0">
@@ -9089,7 +9081,7 @@ const Dashboard = () => {
               </SettingsSectionCard>
             </div>
 
-              <div className={isControlSectionVisible("destination-pages") ? "" : "hidden"}>
+              <div className={(isControlSectionVisible("why-book-now") || isControlSectionVisible("whats-included") || isControlSectionVisible("how-it-works") || isControlSectionVisible("faqs") || isControlSectionVisible("visa-requirements")) ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                   <div className="flex-1 min-w-0">
@@ -9204,27 +9196,9 @@ const Dashboard = () => {
                   </Button>
                 </div>
 
-                <div className="mb-5 max-w-full overflow-x-auto overscroll-x-contain pb-1">
-                  <div className="flex w-max gap-2">
-                    {destinationPageSectionTabs.map((section) => (
-                      <button
-                        key={section.key}
-                        type="button"
-                        onClick={() => setActiveDestinationPageSection(section.key)}
-                        className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                          activeDestinationPageSection === section.key
-                            ? "border-cyan bg-cyan text-white shadow-cyan-glow"
-                            : "border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
-                        }`}
-                      >
-                        {section.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 <div className="min-w-0 w-full space-y-6">
-                  <div className={activeDestinationPageSection === "why-book-now" ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("why-book-now") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-why-book-now")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9323,7 +9297,7 @@ const Dashboard = () => {
                   </ExpandableAdminControlCard>
                   </div>
 
-                  <div className={activeDestinationPageSection === "whats-included" ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("whats-included") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-whats-included")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9486,7 +9460,7 @@ const Dashboard = () => {
                   </ExpandableAdminControlCard>
                   </div>
 
-                  <div className={activeDestinationPageSection === "faqs" ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("faqs") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-faq")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9595,7 +9569,7 @@ const Dashboard = () => {
                   </ExpandableAdminControlCard>
                   </div>
 
-                  <div className={activeDestinationPageSection === "how-it-works" ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("how-it-works") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-how-it-works")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
@@ -9707,7 +9681,7 @@ const Dashboard = () => {
                   </ExpandableAdminControlCard>
                   </div>
 
-                  <div className={activeDestinationPageSection === "visa-requirements" ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("visa-requirements") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-visa-requirements")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between border-b border-border pb-3 mb-4">

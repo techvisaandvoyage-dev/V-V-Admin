@@ -40,13 +40,12 @@ const ADMIN_NAV = [
   { label: "Cards",            icon: CreditCard,        to: "/cards",        id: "nav-admin-cards",
     subItems: [
       { label: "Visa Details Management", sectionKey: "visa-details-table" },
-      { label: "Service Fee", sectionKey: "base-price" },
-      { label: "Government Fee", sectionKey: "government-fee" },
       { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
-      { label: "Documents Required", sectionKey: "required-docs" },
-      { label: "Optional Documents", sectionKey: "other-docs" },
-      { label: "Document Upload Methods", sectionKey: "upload-methods" },
-      { label: "Destination Pages", sectionKey: "destination-pages" },
+      { label: "Why book now?", sectionKey: "why-book-now" },
+      { label: "What's included", sectionKey: "whats-included" },
+      { label: "How it works", sectionKey: "how-it-works" },
+      { label: "FAQs", sectionKey: "faqs" },
+      { label: "Visa Requirements", sectionKey: "visa-requirements" },
     ]
   },
   { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
@@ -132,7 +131,7 @@ const Sidebar = () => {
         className={`
           hidden lg:flex flex-col
           bg-surface border-r border-border
-          h-screen sticky top-0 overflow-visible flex-shrink-0
+          h-screen sticky top-0 overflow-visible flex-shrink-0 z-50
         `}
       >
         {/* Logo / Brand as Back Button & Collapse Toggle */}
