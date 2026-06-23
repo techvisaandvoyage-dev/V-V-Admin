@@ -13,7 +13,7 @@ import {
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle, BookOpen,
   ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays, MessageSquare, RotateCcw,
   Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2, Zap, Lock,
-  Mail, Youtube, Linkedin, Link as LinkIcon, MessageCircle, Trash2, Loader2,
+  Mail, Youtube, Linkedin, Link as LinkIcon, MessageCircle, Trash2, Loader2, ChevronRight,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -2080,7 +2080,7 @@ const Dashboard = () => {
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
   const [searchParams] = useSearchParams();
-  const isControlsTab = ["controls", "landing-page", "cards", "footer", "document-legacy", "authentication", "system-display"].includes(activeTab);
+  const isControlsTab = ["controls", "landing-page", "cards", "footer", "system-display"].includes(activeTab);
   const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
 
   useEffect(() => {
@@ -2264,9 +2264,10 @@ const Dashboard = () => {
       label: "Landing Page",
       description: "Branding, blog and landing highlights",
       sections: [
-        { key: "site-logo", label: "Site Logo" },
-        { key: "blog-manager", label: "Blog Manager" },
-        { key: "landing-highlights", label: "Landing Highlights" },
+        { key: "site-logo", label: "Site Logo", subgroup: "Navbar" },
+        { key: "blog-manager", label: "Blog Manager", subgroup: "Navbar" },
+        { key: "register-page", label: "Register Page", subgroup: "Navbar" },
+        { key: "landing-highlights", label: "Landing Highlights", subgroup: "Hero" },
       ],
     },
     {
@@ -2281,6 +2282,7 @@ const Dashboard = () => {
         { key: "how-it-works", label: "How it works" },
         { key: "faqs", label: "FAQs" },
         { key: "visa-requirements", label: "Visa Requirements" },
+        { key: "upload-methods", label: "Document Upload Methods" },
       ],
     },
     {
@@ -2292,21 +2294,7 @@ const Dashboard = () => {
         { key: "footer-social-icons", label: "Footer Controls" },
       ],
     },
-    {
-      key: "authentication",
-      label: "Authentication & OTP",
-      description: "Login methods, OTP providers, and auth integrations",
-      sections: [
-        { key: "auth-login-methods", label: "Login Methods" },
-        { key: "auth-otp-testing", label: "OTP Settings" },
-        { key: "auth-sms-otp", label: "SMS OTP" },
-        { key: "auth-whatsapp-otp", label: "WhatsApp OTP" },
-        { key: "auth-email-otp", label: "Email OTP" },
-        { key: "auth-otp-priority", label: "OTP Priority" },
-        { key: "auth-firebase", label: "Google Login" },
-        { key: "auth-google-oauth", label: "Google OAuth" },
-      ],
-    },
+
     {
       key: "system-display",
       label: "System / Display",
@@ -6907,23 +6895,17 @@ const Dashboard = () => {
                 <div className="flex-1 w-full min-w-0 max-w-full space-y-6 overflow-hidden">
                   <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-white px-4 py-4">
                     <div className="flex flex-col gap-4">
-                      <div className="hidden min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                      <div className="flex flex-col min-w-0 mb-4 pl-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted font-medium uppercase tracking-wider">
                           {activeControlBreadcrumb.map((item, index) => (
-                            <span key={`${item}-${index}`} className="flex items-center gap-2">
-                              <span className={index === activeControlBreadcrumb.length - 1 ? "font-semibold text-text-primary" : ""}>
+                            <span key={`${item}-${index}`} className="flex items-center gap-1.5">
+                              <span className={index === activeControlBreadcrumb.length - 1 ? "font-bold text-cyan" : ""}>
                                 {item}
                               </span>
-                              {index < activeControlBreadcrumb.length - 1 && <span>/</span>}
+                              {index < activeControlBreadcrumb.length - 1 && <ChevronRight size={13} className="text-text-muted/50" />}
                             </span>
                           ))}
                         </div>
-                        <h2 className="mt-2 text-xl font-semibold text-text-primary">
-                          {activeControlPageTitle}
-                        </h2>
-                        <p className="mt-1 text-sm text-text-muted">
-                          {activeControlGroup.description}
-                        </p>
                       </div>
                       <div className="max-w-full overflow-x-auto overscroll-x-contain pb-1">
                         <div className="flex w-max gap-2">
@@ -6946,7 +6928,7 @@ const Dashboard = () => {
                 </div>
               </div>
 
-                  <div className={isControlSectionVisible("auth-login-methods") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="Authentication Controls"
                       description="Control which login and signup methods are visible on the public client."
@@ -7023,7 +7005,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-otp-testing") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="OTP Testing Only"
                       description="Use local test OTP without SMS, WhatsApp, or email provider setup. Turn this off before using real OTP providers."
@@ -7053,7 +7035,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-sms-otp") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="SMS OTP Settings"
                       description="Enable SMS OTP through MSG91/SMS91."
@@ -7083,7 +7065,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-whatsapp-otp") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="WhatsApp OTP Settings"
                       description="Enable WhatsApp OTP through MSG91 WhatsApp templates."
@@ -7115,7 +7097,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-email-otp") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="Email OTP Settings"
                       description="Enable Email OTP using MSG91 Email, Brevo, AWS SES, or existing SMTP."
@@ -7149,7 +7131,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-otp-priority") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="OTP Priority & Fallback Settings"
                       description="Choose which enabled OTP channel should be attempted first, then fallback order."
@@ -7166,7 +7148,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-firebase") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="Firebase - web app + server verification"
                       description="Paste the Firebase web app fields below for the client. The service account private key is not stored here - set FIREBASE_SERVICE_ACCOUNT_JSON on the server (e.g. server/.env) and restart the API."
@@ -7224,7 +7206,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <div className={isControlSectionVisible("auth-google-oauth") ? "" : "hidden"}>
+                  <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="Google OAuth (optional)"
                       description="If you use Google sign-in flows that need a separate OAuth client, paste those credentials here. Many setups only need Firebase above."
@@ -7606,7 +7588,13 @@ const Dashboard = () => {
               </Card>
               </div>
 
-              <div className={isControlSectionVisible("blog-manager") ? "" : "hidden"}>
+              <div
+                className={
+                  isControlSectionVisible("blog-manager")
+                    ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch"
+                    : "hidden"
+                }
+              >
                 <BlogAdminPanel />
               </div>
 
@@ -8735,7 +8723,11 @@ const Dashboard = () => {
 
               </div>
 
-              <div className={isControlSectionVisible("footer-social-icons") ? "" : "hidden"}>
+              <div className={isControlSectionVisible("static-pages") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <StaticPagesManager />
+              </div>
+
+              <div className={isControlSectionVisible("footer-social-icons") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                   <div className="flex-1 min-w-0">
@@ -9081,9 +9073,9 @@ const Dashboard = () => {
               </SettingsSectionCard>
             </div>
 
-              <div className={(isControlSectionVisible("why-book-now") || isControlSectionVisible("whats-included") || isControlSectionVisible("how-it-works") || isControlSectionVisible("faqs") || isControlSectionVisible("visa-requirements")) ? "" : "hidden"}>
-              <Card>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+              <div className={(isControlSectionVisible("why-book-now") || isControlSectionVisible("whats-included") || isControlSectionVisible("how-it-works") || isControlSectionVisible("faqs") || isControlSectionVisible("visa-requirements")) ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <Card className="w-full max-w-none flex-1 self-stretch">
+                <div className="hidden flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="font-semibold text-text-primary flex items-center gap-2">
@@ -9208,7 +9200,7 @@ const Dashboard = () => {
                     <p className="text-xs text-text-muted mb-4">
                       One reason per line. These appear on every destination page unless a specific country overrides them.
                     </p>
-                    <div className="space-y-3 max-w-2xl">
+                    <div className="space-y-3 w-full max-w-none">
                       {(settingsForm.destinationWhyBookNow || []).map((item, idx) => (
                         <div key={`why-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
                           <div className="flex gap-2 items-start">
@@ -9307,7 +9299,7 @@ const Dashboard = () => {
                     <p className="text-xs text-text-muted mb-4">
                       One bullet per line. Empty rows are ignored when you save.
                     </p>
-                    <div className="space-y-6 max-w-2xl">
+                    <div className="space-y-6 w-full max-w-none">
                       {(settingsForm.destinationIncludedItems || []).map((item, idx) => (
                         <div key={`inc-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-4">
                            <div className="flex justify-between gap-2">
@@ -9470,7 +9462,7 @@ const Dashboard = () => {
                     <p className="text-xs text-text-muted mb-4">
                       Question and answer pairs. Incomplete pairs are skipped when you save.
                     </p>
-                    <div className="space-y-6 max-w-3xl">
+                    <div className="space-y-6 w-full max-w-none">
                       {(settingsForm.destinationFaqs || []).map((faq, idx) => (
                         <div key={`faq-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
                           <div className="flex justify-between gap-2">
@@ -9580,7 +9572,7 @@ const Dashboard = () => {
                       Numbered steps shown above &quot;Document Requirements&quot; on every destination page. Step number is
                       auto-generated from order. Incomplete pairs are skipped when you save.
                     </p>
-                    <div className="space-y-4 max-w-3xl">
+                    <div className="space-y-4 w-full max-w-none">
                       {(settingsForm.destinationHowItWorks || []).map((step, idx) => (
                         <div key={`how-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
                           <div className="flex items-center justify-between gap-2">
@@ -9701,7 +9693,7 @@ const Dashboard = () => {
                       One requirement per line. These show on every destination page (below &quot;How it works&quot;). Per-country
                       extras you add inside Country Manager are appended below - duplicates are skipped.
                     </p>
-                    <div className="space-y-3 max-w-2xl">
+                    <div className="space-y-3 w-full max-w-none">
                       {(settingsForm.destinationVisaRequirements || []).map((item, idx) => (
                         <div key={`visa-${idx}`} className="rounded-xl border border-border bg-background p-4 space-y-3">
                           <div className="flex gap-2 items-start">

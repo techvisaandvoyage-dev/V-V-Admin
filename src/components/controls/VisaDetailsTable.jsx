@@ -553,17 +553,54 @@ const VisaDetailsTable = () => {
   const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
   const [editingDoc, setEditingDoc] = useState(null);
   const [batchActivating, setBatchActivating] = useState(false);
+  const [columnFilters, setColumnFilters] = useState({
+    visaType: "",
+    customVisaTypes: "",
+    validity: "",
+    processingDays: "",
+    lengthOfStay: "",
+    entryType: "",
+    requiredDocuments: "",
+    optionalDocuments: ""
+  });
 
   const activeCountries = useMemo(
     () => (Array.isArray(countries) ? countries : []).filter((c) => c?.isActive !== false),
     [countries]
   );
   const displayCountries = useMemo(() => {
-    const list = showActiveOnly ? activeCountries : (Array.isArray(countries) ? countries : []);
-    if (!searchQuery.trim()) return list;
-    const q = searchQuery.toLowerCase();
-    return list.filter((c) => String(c.name || "").toLowerCase().includes(q) || String(c.slug || "").toLowerCase().includes(q));
-  }, [countries, activeCountries, showActiveOnly, searchQuery]);
+    let list = showActiveOnly ? activeCountries : (Array.isArray(countries) ? countries : []);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((c) => String(c.name || "").toLowerCase().includes(q) || String(c.slug || "").toLowerCase().includes(q));
+    }
+    
+    Object.entries(columnFilters).forEach(([col, filterValue]) => {
+      if (!filterValue) return;
+      const q = filterValue.toLowerCase();
+      list = list.filter((c) => {
+        const id = String(c._id || c.slug || c.id);
+        const draft = dirtyRows[id] || {};
+        
+        if (col === "customVisaTypes") {
+          const names = "customVisaTypes" in draft 
+            ? (draft.customVisaTypes || []) 
+            : (Array.isArray(c.customVisaTypes) ? c.customVisaTypes.filter(vt => vt.active !== false).map(vt => vt.name) : []);
+          return names.some(n => String(n).toLowerCase().includes(q));
+        }
+        
+        if (col === "requiredDocuments" || col === "optionalDocuments") {
+          const docs = col in draft ? draft[col] : (c[col] || []);
+          return docs.some(d => String(d).toLowerCase().includes(q));
+        }
+        
+        const effective = (col in draft) ? draft[col] : resolveEffectiveValue(c, col, globalDefaults);
+        return String(effective || "").toLowerCase().includes(q);
+      });
+    });
+
+    return list;
+  }, [countries, activeCountries, showActiveOnly, searchQuery, columnFilters, dirtyRows, globalDefaults]);
 
   const allIds = useMemo(() => displayCountries.map((c) => String(c._id || c.slug || c.id)), [displayCountries]);
   const allSelected = selectedIds.length === displayCountries.length && displayCountries.length > 0;
@@ -1157,12 +1194,26 @@ const VisaDetailsTable = () => {
               <th className="py-3 px-2 w-16 text-[10px] font-semibold text-text-muted uppercase tracking-wider text-center">Active</th>
               <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Default Visa Type</th>
               <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Available Visa Types</th>
-              <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Length of Stay</th>
-              <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Entry</th>
               <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Validity</th>
               <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Processing Days</th>
+              <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Length of Stay</th>
+              <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Entry</th>
               <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Required Docs</th>
               <th className="py-3 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Optional Docs</th>
+            </tr>
+            <tr className="bg-surface-3 border-b border-border">
+              <th className="py-2 px-3"></th>
+              <th className="py-2 px-2"></th>
+              <th className="py-2 px-3"></th>
+              <th className="py-2 px-2"></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.visaType} onChange={e => setColumnFilters(p => ({...p, visaType: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.customVisaTypes} onChange={e => setColumnFilters(p => ({...p, customVisaTypes: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.validity} onChange={e => setColumnFilters(p => ({...p, validity: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.processingDays} onChange={e => setColumnFilters(p => ({...p, processingDays: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.lengthOfStay} onChange={e => setColumnFilters(p => ({...p, lengthOfStay: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.entryType} onChange={e => setColumnFilters(p => ({...p, entryType: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.requiredDocuments} onChange={e => setColumnFilters(p => ({...p, requiredDocuments: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
+              <th className="py-2 px-3"><input type="text" placeholder="Filter..." value={columnFilters.optionalDocuments} onChange={e => setColumnFilters(p => ({...p, optionalDocuments: e.target.value}))} className="w-full text-xs rounded border border-border bg-white px-2 py-1 focus:outline-none focus:border-cyan/50" /></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -1260,10 +1311,10 @@ const VisaDetailsTable = () => {
                         })()}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3">{renderCell(country, "lengthOfStay", checked)}</td>
-                    <td className="py-2.5 px-3">{renderCell(country, "entryType", checked)}</td>
                     <td className="py-2.5 px-3">{renderCell(country, "validity", checked)}</td>
                     <td className="py-2.5 px-3">{renderCell(country, "processingDays", checked)}</td>
+                    <td className="py-2.5 px-3">{renderCell(country, "lengthOfStay", checked)}</td>
+                    <td className="py-2.5 px-3">{renderCell(country, "entryType", checked)}</td>
                     <td className="py-2.5 px-3">
                       <div className="min-w-[140px]">
                         {(() => {

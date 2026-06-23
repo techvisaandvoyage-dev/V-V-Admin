@@ -32,9 +32,12 @@ const ADMIN_NAV = [
   { label: "Country Manager",  icon: MapPin,            to: "/countries",    id: "nav-admin-countries" },
   { label: "Landing Page",     icon: Home,              to: "/landing-page", id: "nav-admin-landing",
     subItems: [
-      { label: "Site Logo", sectionKey: "site-logo" },
-      { label: "Blog", sectionKey: "blog-manager" },
-      { label: "Landing Highlights", sectionKey: "landing-highlights" }
+      { label: "Navbar", isHeader: true },
+      { label: "Site Logo", sectionKey: "site-logo", indent: true },
+      { label: "Blog", sectionKey: "blog-manager", indent: true },
+      { label: "Register Page", sectionKey: "register-page", indent: true },
+      { label: "Main Page", isHeader: true },
+      { label: "Landing Highlights", sectionKey: "landing-highlights", indent: true }
     ]
   },
   { label: "Cards",            icon: CreditCard,        to: "/cards",        id: "nav-admin-cards",
@@ -46,6 +49,7 @@ const ADMIN_NAV = [
       { label: "How it works", sectionKey: "how-it-works" },
       { label: "FAQs", sectionKey: "faqs" },
       { label: "Visa Requirements", sectionKey: "visa-requirements" },
+      { label: "Document Upload Methods", sectionKey: "upload-methods" },
     ]
   },
   { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
@@ -54,24 +58,8 @@ const ADMIN_NAV = [
       { label: "Footer Controls", sectionKey: "footer-social-icons" }
     ]
   },
-  { label: "Document Legacy",  icon: FileArchive,       to: "/document-legacy", id: "nav-admin-docs",
-    subItems: [
-      { label: "Document Upload Methods", sectionKey: "upload-methods" },
-      { label: "Optional Documents Catalog", sectionKey: "other-docs" }
-    ]
-  },
-  { label: "Authentication",   icon: ShieldCheck,       to: "/authentication", id: "nav-admin-auth",
-    subItems: [
-      { label: "Login Methods", sectionKey: "auth-login-methods" },
-      { label: "OTP Settings", sectionKey: "auth-otp-testing" },
-      { label: "SMS OTP", sectionKey: "auth-sms-otp" },
-      { label: "WhatsApp OTP", sectionKey: "auth-whatsapp-otp" },
-      { label: "Email OTP", sectionKey: "auth-email-otp" },
-      { label: "OTP Priority", sectionKey: "auth-otp-priority" },
-      { label: "Google Login", sectionKey: "auth-firebase" },
-      { label: "Google OAuth", sectionKey: "auth-google-oauth" },
-    ]
-  },
+
+
   { label: "System Display",   icon: MonitorPlay,       to: "/system-display", id: "nav-admin-system",
     subItems: [
       { label: "Site maintenance mode", sectionKey: "maintenance-mode" },
@@ -264,15 +252,21 @@ const Sidebar = () => {
                           <div className="px-4 py-2 text-xs font-bold text-text-muted uppercase tracking-wider border-b border-border mb-2">
                             {label}
                           </div>
-                          {subItems.map((sub) => (
-                            <Link
-                              key={sub.sectionKey}
-                              to={`${to}?section=${sub.sectionKey}`}
-                              onClick={() => setHoveredNavItem(null)}
-                              className="block w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-cyan/10 hover:text-cyan transition"
-                            >
-                              {sub.label}
-                            </Link>
+                          {subItems.map((sub, idx) => (
+                            sub.isHeader ? (
+                              <div key={`header-${idx}`} className="px-4 py-1.5 mt-2 mb-1 text-[10px] font-bold text-text-muted uppercase tracking-wider bg-surface-2/50 border-y border-border">
+                                {sub.label}
+                              </div>
+                            ) : (
+                              <Link
+                                key={sub.sectionKey || `link-${idx}`}
+                                to={`${to}?section=${sub.sectionKey}`}
+                                onClick={() => setHoveredNavItem(null)}
+                                className={`block w-full text-left py-2 text-sm text-text-secondary hover:bg-cyan/10 hover:text-cyan transition ${sub.indent ? 'pl-6 pr-4' : 'px-4'}`}
+                              >
+                                {sub.label}
+                              </Link>
+                            )
                           ))}
                         </div>
                       </motion.div>
