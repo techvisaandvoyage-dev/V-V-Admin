@@ -19,7 +19,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Legend,
 } from "recharts";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -2258,31 +2258,102 @@ const Dashboard = () => {
     showVisaRequirements: true,
     maintenanceModeEnabled: false,
   });
+  const getFirstControlLeaf = (sections = []) => {
+    for (const section of sections) {
+      if (Array.isArray(section.children) && section.children.length > 0) {
+        const childLeaf = getFirstControlLeaf(section.children);
+        if (childLeaf) return childLeaf;
+      } else {
+        return section;
+      }
+    }
+    return null;
+  };
+
+  const flattenControlSections = (sections = [], path = []) =>
+    sections.flatMap((section) => {
+      const nextPath = [...path, section.label];
+      if (Array.isArray(section.children) && section.children.length > 0) {
+        return flattenControlSections(section.children, nextPath);
+      }
+      return [{ ...section, path: nextPath }];
+    });
+
+  const findControlNodePath = (sections = [], key, path = []) => {
+    for (const section of sections) {
+      const nextPath = [...path, section];
+      if (section.key === key) return nextPath;
+      if (Array.isArray(section.children) && section.children.length > 0) {
+        const childPath = findControlNodePath(section.children, key, nextPath);
+        if (childPath) return childPath;
+      }
+    }
+    return null;
+  };
+
+  const hasControlNodeInPath = (sections = [], key) => Boolean(findControlNodePath(sections, key));
+
   const controlGroups = [
     {
       key: "landing-page",
-      label: "Landing Page",
-      description: "Branding, blog and landing highlights",
+      label: "Header",
+      description: "Branding, blog and authentication controls",
       sections: [
-        { key: "site-logo", label: "Site Logo", subgroup: "Navbar" },
-        { key: "blog-manager", label: "Blog Manager", subgroup: "Navbar" },
-        { key: "register-page", label: "Register Page", subgroup: "Navbar" },
-        { key: "landing-highlights", label: "Landing Highlights", subgroup: "Hero" },
+        {
+          key: "navbar",
+          label: "Navbar",
+          children: [
+            { key: "site-logo", label: "Site Logo" },
+            { key: "blog-manager", label: "Blog Manager" },
+            { key: "register-page", label: "Register Page" },
+          ],
+        },
       ],
     },
     {
       key: "cards",
-      label: "Cards",
+      label: "Body",
       description: "Visa details, fees and documents",
       sections: [
-        { key: "visa-details-table", label: "Visa Details Management" },
-        { key: "fee-update-manager", label: "Fee Update Manager" },
-        { key: "how-it-works", label: "How it works" },
-        { key: "why-book-now", label: "Why book now?" },
-        { key: "whats-included", label: "What's included" },
-        { key: "faqs", label: "FAQs" },
-        { key: "visa-requirements", label: "Visa Requirements" },
-        { key: "upload-methods", label: "Document Upload Methods" },
+        {
+          key: "hero",
+          label: "Hero",
+          children: [
+            { key: "landing-highlights", label: "Landing Highlights" },
+          ],
+        },
+        {
+          key: "section-cards",
+          label: "Section Cards",
+          children: [
+            {
+              key: "visa-details-and-fee-manager",
+              label: "Visa Details and Fee Manager",
+              children: [
+                { key: "visa-details-table", label: "Visa Details Management" },
+                { key: "fee-update-manager", label: "Fee Update Manager" },
+              ],
+            },
+            {
+              key: "card-content-details",
+              label: "Card Content Details",
+              children: [
+                { key: "how-it-works", label: "How it works" },
+                { key: "why-book-now", label: "Why book now?" },
+                { key: "whats-included", label: "What's included" },
+                { key: "faqs", label: "FAQs" },
+                { key: "visa-requirements", label: "Visa Requirements" },
+              ],
+            },
+          ],
+        },
+        {
+          key: "travel-details",
+          label: "Travel Details",
+          children: [
+            { key: "upload-methods", label: "Document Upload Methods" },
+          ],
+        },
       ],
     },
     {
@@ -2290,8 +2361,8 @@ const Dashboard = () => {
       label: "Footer",
       description: "Static pages and footer social icons",
       sections: [
-        { key: "static-pages", label: "Static Pages" },
         { key: "footer-social-icons", label: "Footer Controls" },
+        { key: "static-pages", label: "Static Pages" },
       ],
     },
 
@@ -2307,21 +2378,23 @@ const Dashboard = () => {
   ];
 
   const controlSections = controlGroups.flatMap((group) =>
-    group.sections.map((section) => ({ ...section, groupKey: group.key, groupLabel: group.label }))
+    flattenControlSections(group.sections).map((section) => ({ ...section, groupKey: group.key, groupLabel: group.label }))
   );
   const [activeControlSection, setActiveControlSection] = useState(controlSections[0].key);
+  const [activeControlNavKey, setActiveControlNavKey] = useState(null);
+  const [expandedControlTabKeys, setExpandedControlTabKeys] = useState({});
   // State-based group key — clicking a parent menu item updates this, NOT the URL
   const [activeControlGroupKey, setActiveControlGroupKey] = useState(controlGroups[0].key);
 
   // Derive active group purely from state — no URL dependency
   const activeControlGroup = controlGroups.find((group) => group.key === activeControlGroupKey) || controlGroups[0];
   const activeControlGroupSections = activeControlGroup.sections;
-  const activeControlSectionMeta = activeControlGroupSections.find((s) => s.key === activeControlSection) || activeControlGroupSections[0];
+  const activeControlSectionMeta = controlSections.find((s) => s.key === activeControlSection) || controlSections[0];
   const activeControlPageTitle = activeControlSectionMeta.label;
+  const activeControlNavPath = activeControlNavKey ? findControlNodePath(activeControlGroupSections, activeControlNavKey) : null;
   const activeControlBreadcrumb = [
     activeControlGroup.label,
-    activeControlSectionMeta.subgroup,
-    activeControlSectionMeta.label,
+    ...((activeControlNavPath || []).map((item) => item.label)),
   ].filter(Boolean);
   const visibleControlSectionKeys = new Set([activeControlSection]);
   const isControlSectionVisible = (sectionKey) => visibleControlSectionKeys.has(sectionKey);
@@ -2339,7 +2412,9 @@ const Dashboard = () => {
     const group = controlGroups.find((item) => item.key === groupKey);
     if (!group) return;
     setActiveControlGroupKey(groupKey);
-    const firstSectionKey = group.sections?.[0]?.key;
+    setActiveControlNavKey(null);
+    setExpandedControlTabKeys({});
+    const firstSectionKey = getFirstControlLeaf(group.sections)?.key;
     if (firstSectionKey) selectControlSection(firstSectionKey);
   };
   // Sync group + section whenever the URL tab changes
@@ -2350,7 +2425,13 @@ const Dashboard = () => {
       // Sidebar flyout clicked with a ?section= param — set exact group + section
       const section = controlSections.find((s) => s.key === sectionParam);
       if (section) {
+        const group = controlGroups.find((g) => g.key === section.groupKey);
+        const sectionPath = group ? findControlNodePath(group.sections, section.key) : null;
         setActiveControlGroupKey(section.groupKey);
+        setActiveControlNavKey(section.key);
+        setExpandedControlTabKeys(
+          Object.fromEntries((sectionPath || []).slice(0, -1).map((item) => [item.key, true]))
+        );
         selectControlSection(section.key);
         return;
       }
@@ -2359,9 +2440,68 @@ const Dashboard = () => {
     const matchedGroup = controlGroups.find((g) => g.key === activeTab);
     if (matchedGroup) {
       setActiveControlGroupKey(matchedGroup.key);
-      selectControlSection(matchedGroup.sections[0].key);
+      setActiveControlNavKey(null);
+      setExpandedControlTabKeys({});
+      const firstSectionKey = getFirstControlLeaf(matchedGroup.sections)?.key;
+      if (firstSectionKey) selectControlSection(firstSectionKey);
     }
   }, [activeTab, searchParams]);
+  const selectControlNavNode = (section) => {
+    const hasChildren = Array.isArray(section.children) && section.children.length > 0;
+    setActiveControlNavKey(section.key);
+    if (hasChildren) {
+      setExpandedControlTabKeys((prev) => ({ ...prev, [section.key]: !prev[section.key] }));
+      return;
+    }
+    selectControlSection(section.key);
+  };
+
+  const renderControlSectionTabs = (sections = [], depth = 0) => (
+    <div className={depth === 0 ? "flex w-max gap-2" : "mt-2 flex w-max gap-2"}>
+      {sections.map((section) => {
+        const hasChildren = Array.isArray(section.children) && section.children.length > 0;
+        const expanded = Boolean(expandedControlTabKeys[section.key]);
+        const active =
+          activeControlNavKey === section.key ||
+          activeControlSection === section.key ||
+          (hasChildren && hasControlNodeInPath(section.children, activeControlNavKey || activeControlSection));
+
+        return (
+          <div key={section.key} className="flex flex-col">
+            <button
+              type="button"
+              onClick={() => selectControlNavNode(section)}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                active
+                  ? "border-cyan bg-cyan text-white shadow-cyan-glow"
+                  : "border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+              }`}
+            >
+              {hasChildren && (
+                <ChevronDown size={14} className={`transition-transform ${expanded ? "rotate-0" : "-rotate-90"}`} />
+              )}
+              <span>{section.label}</span>
+            </button>
+            {hasChildren && (
+              <AnimatePresence initial={false}>
+                {expanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.16 }}
+                    className="overflow-hidden pl-3"
+                  >
+                    {renderControlSectionTabs(section.children, depth + 1)}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
   const getControlCardExpansionProps = (key) => ({
     expanded: Boolean(expandedControlCards[key]),
     onExpandedChange: (nextValue) =>
@@ -6908,22 +7048,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="max-w-full overflow-x-auto overscroll-x-contain pb-1">
-                        <div className="flex w-max gap-2">
-                          {activeControlGroupSections.map((section) => (
-                            <button
-                              key={section.key}
-                              type="button"
-                              onClick={() => selectControlSection(section.key)}
-                              className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                                activeControlSection === section.key
-                                  ? "border-cyan bg-cyan text-white shadow-cyan-glow"
-                                  : "border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
-                              }`}
-                            >
-                              {section.label}
-                            </button>
-                          ))}
-                        </div>
+                        {renderControlSectionTabs(activeControlGroupSections)}
                   </div>
                 </div>
               </div>

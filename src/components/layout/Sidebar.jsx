@@ -5,7 +5,7 @@
 //  On mobile: slide-in drawer from left.
 // ============================================================
 import { useState, useEffect } from "react";
-import { NavLink, useNavigate, Link } from "react-router-dom";
+import { NavLink, useNavigate, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Home, FileText, PlusCircle, Globe, Settings,
   LogOut, LayoutTemplate, MonitorPlay, FileArchive, ShieldCheck, ChevronDown, ChevronLeft, ChevronRight, Shield, BarChart2,
@@ -30,32 +30,66 @@ const ADMIN_NAV = [
   { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
   { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
   { label: "Country Manager",  icon: MapPin,            to: "/countries",    id: "nav-admin-countries" },
-  { label: "Landing Page",     icon: Home,              to: "/landing-page", id: "nav-admin-landing",
+  { label: "Header",           icon: Home,              to: "/landing-page", id: "nav-admin-landing", inlineTree: true,
     subItems: [
-      { label: "Navbar", isHeader: true },
-      { label: "Site Logo", sectionKey: "site-logo", indent: true },
-      { label: "Blog", sectionKey: "blog-manager", indent: true },
-      { label: "Register Page", sectionKey: "register-page", indent: true },
-      { label: "Main Page", isHeader: true },
-      { label: "Landing Highlights", sectionKey: "landing-highlights", indent: true }
+      {
+        label: "Navbar",
+        isGroup: true,
+        children: [
+          { label: "Site Logo", sectionKey: "site-logo" },
+          { label: "Blog", sectionKey: "blog-manager" },
+          { label: "Login/SignUp page", sectionKey: "register-page" },
+        ],
+      },
     ]
   },
-  { label: "Cards",            icon: CreditCard,        to: "/cards",        id: "nav-admin-cards",
+  { label: "Body",             icon: CreditCard,        to: "/cards",        id: "nav-admin-cards", inlineTree: true,
     subItems: [
-      { label: "Visa Details Management", sectionKey: "visa-details-table" },
-      { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
-      { label: "How it works", sectionKey: "how-it-works" },
-      { label: "Why book now?", sectionKey: "why-book-now" },
-      { label: "What's included", sectionKey: "whats-included" },
-      { label: "FAQs", sectionKey: "faqs" },
-      { label: "Visa Requirements", sectionKey: "visa-requirements" },
-      { label: "Document Upload Methods", sectionKey: "upload-methods" },
+      {
+        label: "Hero",
+        isGroup: true,
+        children: [
+          { label: "Landing Highlights", sectionKey: "landing-highlights" },
+        ],
+      },
+      {
+        label: "Section Cards",
+        isGroup: true,
+        children: [
+          {
+            label: "Visa Details and Fee Manager",
+            isGroup: true,
+            children: [
+              { label: "Visa Details Management", sectionKey: "visa-details-table" },
+              { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
+            ],
+          },
+          {
+            label: "Card Content Details",
+            isGroup: true,
+            children: [
+              { label: "How it works", sectionKey: "how-it-works" },
+              { label: "Why book now?", sectionKey: "why-book-now" },
+              { label: "What's included", sectionKey: "whats-included" },
+              { label: "FAQs", sectionKey: "faqs" },
+              { label: "Visa Requirements", sectionKey: "visa-requirements" },
+            ],
+          },
+        ],
+      },
+      {
+        label: "Travel Details",
+        isGroup: true,
+        children: [
+          { label: "Document Upload Methods", sectionKey: "upload-methods" },
+        ],
+      },
     ]
   },
   { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
     subItems: [
-      { label: "Static Pages", sectionKey: "static-pages" },
-      { label: "Footer Controls", sectionKey: "footer-social-icons" }
+      { label: "Footer Controls", sectionKey: "footer-social-icons" },
+      { label: "Static Pages", sectionKey: "static-pages" }
     ]
   },
 
@@ -75,8 +109,11 @@ const Sidebar = () => {
   const { user, logout } = useAuthStore();
   const { sidebarOpen, toggleSidebar, setSidebarOpen } = useUIStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [hoveredNavItem, setHoveredNavItem] = useState(null);
+  const [expandedNavItems, setExpandedNavItems] = useState({ "nav-admin-landing": true });
+  const [expandedTreeItems, setExpandedTreeItems] = useState({ "nav-admin-landing:Navbar": true });
   const siteLogo = useSiteLogo();
 
   useEffect(() => {
@@ -106,6 +143,108 @@ const Sidebar = () => {
     logout();
     window.location.href = "/";
   };
+
+  const activeSection = new URLSearchParams(location.search).get("section");
+
+  const isSectionActive = (to, sectionKey) =>
+    Boolean(sectionKey) && location.pathname === to && activeSection === sectionKey;
+
+  const hasActiveTreeItem = (items = [], to) =>
+    items.some((item) =>
+      item?.children?.length
+        ? hasActiveTreeItem(item.children, to)
+        : isSectionActive(to, item?.sectionKey)
+    );
+
+  const renderFlyoutSubItems = (items, to, parentKey = "") =>
+    items.map((sub, idx) => {
+      const key = sub.sectionKey || `${parentKey}${sub.label}-${idx}`;
+      if (sub.isHeader || sub.isGroup) {
+        return (
+          <div key={key}>
+            <div className="px-4 py-1.5 mt-2 mb-1 text-[10px] font-bold text-text-muted uppercase tracking-wider bg-surface-2/50 border-y border-border">
+              {sub.label}
+            </div>
+            {Array.isArray(sub.children) && sub.children.length > 0 && (
+              <div className="py-1">
+                {renderFlyoutSubItems(sub.children, to, `${key}:`)}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      const active = isSectionActive(to, sub.sectionKey);
+      return (
+        <Link
+          key={key}
+          to={`${to}?section=${sub.sectionKey}`}
+          onClick={() => setHoveredNavItem(null)}
+          className={`block w-full text-left py-2 text-sm transition ${
+            sub.indent ? "pl-6 pr-4" : "pl-8 pr-4"
+          } ${
+            active
+              ? "bg-cyan/10 text-cyan font-semibold"
+              : "text-text-secondary hover:bg-cyan/10 hover:text-cyan"
+          }`}
+        >
+          {sub.label}
+        </Link>
+      );
+    });
+
+  const renderInlineTreeItems = (items, to, navId, depth = 0) =>
+    items.map((sub, idx) => {
+      const key = sub.sectionKey || `${navId}:${sub.label}-${idx}`;
+      const hasChildren = Array.isArray(sub.children) && sub.children.length > 0;
+      const expanded = expandedTreeItems[key] ?? depth === 0;
+
+      if (hasChildren) {
+        return (
+          <li key={key}>
+            <button
+              type="button"
+              onClick={() => setExpandedTreeItems((prev) => ({ ...prev, [key]: !expanded }))}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-text-muted transition hover:bg-surface-3 hover:text-text-primary"
+              style={{ paddingLeft: `${20 + depth * 14}px` }}
+            >
+              <ChevronDown size={13} className={`transition-transform ${expanded ? "rotate-0" : "-rotate-90"}`} />
+              <span className="truncate">{sub.label}</span>
+            </button>
+            <AnimatePresence initial={false}>
+              {expanded && (
+                <motion.ul
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.16 }}
+                  className="overflow-hidden"
+                >
+                  {renderInlineTreeItems(sub.children, to, navId, depth + 1)}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </li>
+        );
+      }
+
+      const active = isSectionActive(to, sub.sectionKey);
+      return (
+        <li key={key}>
+          <Link
+            to={`${to}?section=${sub.sectionKey}`}
+            className={`block rounded-lg py-2 pr-3 text-sm transition ${
+              active
+                ? "bg-cyan/10 text-cyan font-semibold"
+                : "text-text-secondary hover:bg-surface-3 hover:text-text-primary"
+            }`}
+            style={{ paddingLeft: `${34 + depth * 14}px` }}
+          >
+            {sub.label}
+          </Link>
+        </li>
+      );
+    });
 
   // ── Sidebar width based on open/closed state ──────────────
   const sidebarWidth = sidebarOpen ? "w-60" : "w-16";
@@ -171,12 +310,14 @@ const Sidebar = () => {
         )}
 
         {/* Navigation items */}
-        <nav className="flex-1 py-4 overflow-visible" aria-label="Sidebar navigation">
+        <nav className={`flex-1 py-4 ${sidebarOpen ? "overflow-y-auto overflow-x-hidden custom-scrollbar" : "overflow-visible"}`} aria-label="Sidebar navigation">
           <ul className="space-y-1 px-2">
-            {navItems.map(({ label, icon: Icon, to, id, subItems }) => {
+            {navItems.map(({ label, icon: Icon, to, id, subItems, inlineTree }) => {
               const badge = id === "nav-admin-support-chat" && unreadCount > 0 ? unreadCount : null;
               const hasSubItems = Boolean(subItems && subItems.length > 0);
               const isHovered = hoveredNavItem === id;
+              const parentActive = location.pathname === to || hasActiveTreeItem(subItems, to);
+              const inlineExpanded = expandedNavItems[id] !== false;
               
               return (
                 <li key={id} 
@@ -187,10 +328,17 @@ const Sidebar = () => {
                     id={id}
                     to={to}
                     end={to === "/dashboard" || to === "/admin" || to === "/"}
+                    onClick={(event) => {
+                      if (hasSubItems && inlineTree && sidebarOpen) {
+                        event.preventDefault();
+                        navigate(to);
+                        setExpandedNavItems((prev) => ({ ...prev, [id]: !inlineExpanded }));
+                      }
+                    }}
                     className={({ isActive }) => `
                       flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
                       transition-all duration-200 group relative w-full text-left
-                      ${isActive || isHovered
+                      ${isActive || parentActive || isHovered
                         ? "bg-cyan/10 text-cyan border border-cyan/20"
                         : "text-text-secondary hover:text-text-primary hover:bg-surface-3 border border-transparent"
                       }
@@ -215,7 +363,18 @@ const Sidebar = () => {
                             {label}
                           </motion.span>
                           {hasSubItems && (
-                            <ChevronDown size={14} className={`transition-transform ${isHovered ? "-rotate-90" : ""}`} />
+                            <ChevronDown
+                              size={14}
+                              className={`transition-transform ${
+                                inlineTree && sidebarOpen
+                                  ? inlineExpanded
+                                    ? "rotate-0"
+                                    : "-rotate-90"
+                                  : isHovered
+                                    ? "-rotate-90"
+                                    : ""
+                              }`}
+                            />
                           )}
                           {badge && (
                             <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm flex-shrink-0 animate-pulse">
@@ -238,9 +397,25 @@ const Sidebar = () => {
                   )}
                   </NavLink>
 
+                  {hasSubItems && inlineTree && sidebarOpen && (
+                    <AnimatePresence initial={false}>
+                      {inlineExpanded && (
+                        <motion.ul
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="mt-1 space-y-1 overflow-hidden"
+                        >
+                          {renderInlineTreeItems(subItems, to, id)}
+                        </motion.ul>
+                      )}
+                    </AnimatePresence>
+                  )}
+
                   {/* Flyout Submenu */}
                   <AnimatePresence>
-                    {hasSubItems && isHovered && (
+                    {hasSubItems && isHovered && !(inlineTree && sidebarOpen) && (
                       <motion.div
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -252,22 +427,7 @@ const Sidebar = () => {
                           <div className="px-4 py-2 text-xs font-bold text-text-muted uppercase tracking-wider border-b border-border mb-2">
                             {label}
                           </div>
-                          {subItems.map((sub, idx) => (
-                            sub.isHeader ? (
-                              <div key={`header-${idx}`} className="px-4 py-1.5 mt-2 mb-1 text-[10px] font-bold text-text-muted uppercase tracking-wider bg-surface-2/50 border-y border-border">
-                                {sub.label}
-                              </div>
-                            ) : (
-                              <Link
-                                key={sub.sectionKey || `link-${idx}`}
-                                to={`${to}?section=${sub.sectionKey}`}
-                                onClick={() => setHoveredNavItem(null)}
-                                className={`block w-full text-left py-2 text-sm text-text-secondary hover:bg-cyan/10 hover:text-cyan transition ${sub.indent ? 'pl-6 pr-4' : 'px-4'}`}
-                              >
-                                {sub.label}
-                              </Link>
-                            )
-                          ))}
+                          {renderFlyoutSubItems(subItems, to, id)}
                         </div>
                       </motion.div>
                     )}
