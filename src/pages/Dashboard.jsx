@@ -924,7 +924,7 @@ const createVisaInformationState = (source = {}) => {
       : {};
   const getResolvedVisaInfoValue = (itemId) => {
     if (itemId === "lengthOfStay") {
-      return String(source?.lengthOfStay ?? source?.validity ?? "").trim();
+      return String(source?.lengthOfStay ?? "").trim();
     }
     if (itemId === "validity") {
       return String(source?.validity ?? "").trim();

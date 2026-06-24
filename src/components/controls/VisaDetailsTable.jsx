@@ -33,18 +33,23 @@ const FIELD_LABELS = {
   optionalDocuments: "Optional Documents",
 };
 
-const resolveEffectiveValue = (country, field, globalDefaults) => {
+const resolveEffectiveValue = (country, field, overrides, defConfig) => {
+  const id = String(country._id || country.slug || country.id);
+  const overrideDoc = overrides && overrides[id];
   const useGlobalKey = `useGlobal${field.charAt(0).toUpperCase() + field.slice(1)}`;
-  if (country[useGlobalKey] !== false) {
-    const globalKey = `global${field.charAt(0).toUpperCase() + field.slice(1)}`;
-    return globalDefaults[globalKey] || country[field] || "";
+  
+  if (overrideDoc && overrideDoc[useGlobalKey] === false) {
+    return overrideDoc[field] || "";
   }
-  return country[field] || "";
+  return defConfig ? defConfig[field] || "" : "";
 };
 
-const isUsingGlobal = (country, field) => {
+const isUsingGlobal = (country, field, overrides) => {
+  const id = String(country._id || country.slug || country.id);
+  const overrideDoc = overrides && overrides[id];
+  if (!overrideDoc) return true;
   const useGlobalKey = `useGlobal${field.charAt(0).toUpperCase() + field.slice(1)}`;
-  return country[useGlobalKey] !== false;
+  return overrideDoc[useGlobalKey] !== false;
 };
 
 const findCountry = (allCountries, id) =>
@@ -327,7 +332,7 @@ const modalSuggestions = (field, existing) => {
   return [...new Set([...base, ...fromData])];
 };
 
-const CountryEditModal = ({ country, catalog, globalDefaults, visaTypes = [], allCountryValues = {}, onClose, onSave, onAddVisaType }) => {
+const CountryEditModal = ({ country, catalog, globalDefaults, visaConfigDefault, visaTypes = [], allCountryValues = {}, onClose, onSave, onAddVisaType }) => {
   const [form, setForm] = useState({ ...country });
 
   const selectedVisaTypeNames = useMemo(() => {
@@ -340,7 +345,7 @@ const CountryEditModal = ({ country, catalog, globalDefaults, visaTypes = [], al
   const setField = (field, value) => {
     const useGlobalKey = `useGlobal${field.charAt(0).toUpperCase() + field.slice(1)}`;
     const globalKey = `global${field.charAt(0).toUpperCase() + field.slice(1)}`;
-    const globalVal = globalDefaults[globalKey];
+    const globalVal = visaConfigDefault[field];
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -396,7 +401,7 @@ const CountryEditModal = ({ country, catalog, globalDefaults, visaTypes = [], al
               </div>
               {form[`useGlobal${f.charAt(0).toUpperCase() + f.slice(1)}`] !== false && (
                 <p className="text-[10px] text-text-muted mt-1">
-                  Currently using global default: <span className="text-cyan">{globalDefaults[`global${f.charAt(0).toUpperCase() + f.slice(1)}`] || "Not set"}</span>
+                  Currently using global default: <span className="text-cyan">{visaConfigDefault[f] || "Not set"}</span>
                 </p>
               )}
             </div>
@@ -406,9 +411,8 @@ const CountryEditModal = ({ country, catalog, globalDefaults, visaTypes = [], al
         <div>
           <label className="block text-xs font-semibold text-text-primary mb-1">Available Visa Types</label>
           <VisaTypeMultiSelect
-            country={form}
+            selectedNames={selectedVisaTypeNames}
             visaTypes={visaTypes}
-            dirtyRows={{}}
             onSelect={setSelectedVisaTypes}
             onAddVisaType={onAddVisaType}
           />
@@ -426,6 +430,16 @@ const CountryEditModal = ({ country, catalog, globalDefaults, visaTypes = [], al
             placeholder="Select required documents"
           />
         </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-text-primary mb-1">Optional Documents</label>
+          <DocMultiSelect
+            selectedKeys={form.optionalDocuments || []}
+            catalog={catalog}
+            onChange={(keys) => setForm((prev) => ({ ...prev, optionalDocuments: keys, useGlobalOptionalDocuments: false }))}
+            placeholder="Select optional documents"
+          />
+        </div>
       </div>
 
       <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-border">
@@ -436,21 +450,10 @@ const CountryEditModal = ({ country, catalog, globalDefaults, visaTypes = [], al
   );
 };
 
-const VisaTypeMultiSelect = ({ country, visaTypes = [], dirtyRows = {}, onSelect, onAddVisaType, disabled = false }) => {
+const VisaTypeMultiSelect = ({ selectedNames = [], visaTypes = [], onSelect, onAddVisaType, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
-  const id = String(country._id || country.slug || country.id);
-
-  const selectedNames = useMemo(() => {
-    if (id in dirtyRows && "customVisaTypes" in dirtyRows[id]) {
-      return dirtyRows[id].customVisaTypes || [];
-    }
-    if (Array.isArray(country.customVisaTypes)) {
-      return country.customVisaTypes.filter((vt) => vt.active !== false).map((vt) => vt.name);
-    }
-    return [];
-  }, [country, dirtyRows, id]);
 
   const toggle = (name) => {
     if (disabled) return;
@@ -543,6 +546,8 @@ const VisaDetailsTable = () => {
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
   const [globalDefaults, setGlobalDefaults] = useState({});
+  const [visaConfigDefault, setVisaConfigDefault] = useState({});
+  const [visaConfigOverrides, setVisaConfigOverrides] = useState({});
   const [visaTypes, setVisaTypes] = useState([]);
   const [documentCatalog, setDocumentCatalog] = useState([]);
   const [dirtyRows, setDirtyRows] = useState({});
@@ -594,13 +599,13 @@ const VisaDetailsTable = () => {
           return docs.some(d => String(d).toLowerCase().includes(q));
         }
         
-        const effective = (col in draft) ? draft[col] : resolveEffectiveValue(c, col, globalDefaults);
+        const effective = (col in draft) ? draft[col] : resolveEffectiveValue(c, col, visaConfigOverrides, visaConfigDefault);
         return String(effective || "").toLowerCase().includes(q);
       });
     });
 
     return list;
-  }, [countries, activeCountries, showActiveOnly, searchQuery, columnFilters, dirtyRows, globalDefaults]);
+  }, [countries, activeCountries, showActiveOnly, searchQuery, columnFilters, dirtyRows, visaConfigOverrides, visaConfigDefault]);
 
   const allIds = useMemo(() => displayCountries.map((c) => String(c._id || c.slug || c.id)), [displayCountries]);
   const allSelected = selectedIds.length === displayCountries.length && displayCountries.length > 0;
@@ -610,10 +615,17 @@ const VisaDetailsTable = () => {
     setLoading(true);
     try {
       await fetchCountries();
-      const [defaultsRes, visaTypesRes] = await Promise.all([
+      const [visaRes, defaultsRes, visaTypesRes] = await Promise.all([
+        api.get("/admin/visa"),
         api.get("/admin/control/country-defaults"),
         api.get("/visa-types"),
       ]);
+      if (visaRes.data?.success) {
+        setVisaConfigDefault(visaRes.data.default || {});
+        const map = {};
+        (visaRes.data.overrides || []).forEach(o => { map[o.countryId] = o; });
+        setVisaConfigOverrides(map);
+      }
       if (defaultsRes.data?.success) {
         setGlobalDefaults(defaultsRes.data.defaults || {});
         if (defaultsRes.data.documentCatalog) {
@@ -646,19 +658,12 @@ const VisaDetailsTable = () => {
   const setCellValue = useCallback((country, field, value) => {
     const id = String(country._id || country.slug || country.id);
     const useGlobalKey = `useGlobal${field.charAt(0).toUpperCase() + field.slice(1)}`;
-    const globalKey = `global${field.charAt(0).toUpperCase() + field.slice(1)}`;
-    const globalVal = globalDefaults[globalKey];
+    const globalVal = visaConfigDefault[field];
     const useGlobal = value === globalVal;
-
     setDirtyRows((prev) => {
       const row = { ...(prev[id] || {}) };
       row[field] = value;
       row[useGlobalKey] = useGlobal;
-      if (useGlobal) {
-        row[`_original_${field}`] = undefined;
-      } else {
-        row[`_original_${field}`] = country[field];
-      }
       return { ...prev, [id]: row };
     });
 
@@ -666,44 +671,37 @@ const VisaDetailsTable = () => {
       if (!prev.includes(id)) return [...prev, id];
       return prev;
     });
-  }, [globalDefaults]);
+  }, [visaConfigDefault]);
 
-  const handleBulkApply = useCallback(() => {
+  const handleBulkApply = useCallback(async () => {
     const fieldsWithValues = Object.entries(bulkValues).filter(([, v]) => v !== "" && v !== undefined && v !== null);
     if (fieldsWithValues.length === 0) {
       showToast("Set at least one field value before applying.", "error");
       return;
     }
-    setDirtyRows((prev) => {
-      const next = { ...prev };
-      selectedIds.forEach((id) => {
-        const country = findCountry(displayCountries, id);
-        if (!country) return;
-        const row = { ...(next[id] || {}) };
-        fieldsWithValues.forEach(([field, value]) => {
-          if (field === "customVisaTypes") {
-            row.customVisaTypes = value;
-            row.useCustomVisaTypes = Array.isArray(value) && value.length > 0;
-            row._original_customVisaTypes = country.customVisaTypes;
-          } else if (field === "optionalDocuments") {
-            row.optionalDocuments = value;
-            row._original_optionalDocuments = country.optionalDocuments;
-          } else {
-            const useGlobalKey = `useGlobal${field.charAt(0).toUpperCase() + field.slice(1)}`;
-            const globalKey = `global${field.charAt(0).toUpperCase() + field.slice(1)}`;
-            const globalVal = globalDefaults[globalKey];
-            row[field] = value;
-            row[useGlobalKey] = value === globalVal;
-            row[`_original_${field}`] = country[field];
-          }
-        });
-        next[id] = row;
+    setSaving(true);
+    try {
+      const payload = { selectedCountries: selectedIds };
+      fieldsWithValues.forEach(([field, value]) => {
+        if (field === "customVisaTypes") {
+          payload.customVisaTypes = (value || []).map(name => ({ id: name, name, active: true }));
+        } else {
+          payload[field] = value;
+        }
       });
-      return next;
-    });
-    setBulkValues({});
-    showToast(`Applied to ${selectedIds.length} countries`, "success");
-  }, [bulkValues, selectedIds, displayCountries, globalDefaults, showToast]);
+      const { data } = await api.post("/admin/visa/default", payload);
+      if (data?.success) {
+        showToast("Default visa configuration updated successfully", "success");
+        setBulkValues({});
+        setSelectedIds([]);
+        await loadData();
+      }
+    } catch (err) {
+      showToast("Failed to apply bulk update", "error");
+    } finally {
+      setSaving(false);
+    }
+  }, [bulkValues, selectedIds, loadData, showToast]);
 
   const handleSave = useCallback(async () => {
     const dirtyIds = Object.keys(dirtyRows);
@@ -714,7 +712,6 @@ const VisaDetailsTable = () => {
     setSaving(true);
     let successCount = 0;
     let failCount = 0;
-    const knownVisaTypeNames = new Set((visaTypes || []).map((vt) => vt.name.toLowerCase().trim()));
 
     for (const id of dirtyIds) {
       const country = findCountry(countries, id);
@@ -726,25 +723,13 @@ const VisaDetailsTable = () => {
         if (key.startsWith("_original_")) continue;
         if (key === "customVisaTypes") {
           payload.customVisaTypes = (value || []).map((name) => ({ id: name, name, active: true }));
-          payload.useCustomVisaTypes = value.length > 0;
           continue;
         }
         payload[key] = value;
       }
 
-      if (payload.visaType && !knownVisaTypeNames.has(payload.visaType.toLowerCase().trim())) {
-        try {
-          await api.post("/visa-types", {
-            name: payload.visaType,
-            active: true,
-            applyToAllActiveCountries: true,
-            selectedCountries: [],
-          });
-        } catch { /* visa type may already exist */ }
-      }
-
       try {
-        const { data } = await api.put(`/admin/countries/${id}`, payload);
+        const { data } = await api.put(`/admin/visa/${id}`, payload);
         if (data?.success) successCount++;
         else failCount++;
       } catch {
@@ -761,7 +746,7 @@ const VisaDetailsTable = () => {
       showToast("Failed to save changes.", "error");
     }
     setSaving(false);
-  }, [dirtyRows, countries, fetchCountries, loadData, showToast, visaTypes]);
+  }, [dirtyRows, countries, fetchCountries, loadData, showToast]);
 
   const handleAddVisaType = useCallback(async (name, onAdded) => {
     try {
@@ -865,36 +850,42 @@ const VisaDetailsTable = () => {
     const id = String(updated._id || updated.slug || updated.id);
     const country = findCountry(countries, id);
     if (!country) return;
-    const changes = {};
-    for (const key of Object.keys(updated)) {
-      if (updated[key] !== country[key]) {
-        changes[key] = updated[key];
-      }
+    
+    // Instead of doing a diff of changes locally, just PUT all updated fields
+    // to the API, because this creates an OVERRIDE containing the explicit state.
+    const payload = {};
+    const fields = ["visaType", "entryType", "validity", "processingDays", "lengthOfStay", "requiredDocuments", "optionalDocuments"];
+    for (const key of fields) {
+      if (updated[key] !== undefined) payload[key] = updated[key];
+      const useGlobalKey = `useGlobal${key.charAt(0).toUpperCase() + key.slice(1)}`;
+      if (updated[useGlobalKey] !== undefined) payload[useGlobalKey] = updated[useGlobalKey];
     }
-    if (Object.keys(changes).length === 0) {
-      showToast("No changes made.", "info");
-      return;
+    if (updated.customVisaTypes) {
+      payload.customVisaTypes = updated.customVisaTypes;
+      payload.useCustomVisaTypes = updated.useCustomVisaTypes;
+      if (updated.useGlobalCustomVisaTypes !== undefined) payload.useGlobalCustomVisaTypes = updated.useGlobalCustomVisaTypes;
     }
+
     try {
-      if (changes.visaType) {
+      if (payload.visaType) {
         const knownVisaTypeNames = new Set((visaTypes || []).map((vt) => vt.name.toLowerCase().trim()));
-        if (!knownVisaTypeNames.has(changes.visaType.toLowerCase().trim())) {
+        if (!knownVisaTypeNames.has(payload.visaType.toLowerCase().trim())) {
           await api.post("/visa-types", {
-            name: changes.visaType,
+            name: payload.visaType,
             active: true,
             applyToAllActiveCountries: true,
             selectedCountries: [],
           });
         }
       }
-      const { data } = await api.put(`/admin/countries/${id}`, changes);
+      const { data } = await api.put(`/admin/visa/${id}`, payload);
       if (data?.success) {
         await fetchCountries();
         await loadData();
-        showToast(`${country.name || id} updated.`, "success");
+        showToast(`${country.name || id} override updated.`, "success");
       }
     } catch (err) {
-      showToast(err?.response?.data?.message || "Failed to update country.", "error");
+      showToast(err?.response?.data?.message || "Failed to update country override.", "error");
     }
     setEditingCountry(null);
   }, [countries, fetchCountries, loadData, showToast, visaTypes]);
@@ -941,8 +932,8 @@ const VisaDetailsTable = () => {
     const draft = dirtyRows[id] || {};
     const draftVal = draft[field];
     const hasDraftVal = field in draft;
-    const effective = hasDraftVal ? draftVal : resolveEffectiveValue(country, field, globalDefaults);
-    const usingGlobal = hasDraftVal ? (draft[`useGlobal${field.charAt(0).toUpperCase() + field.slice(1)}`] !== false) : isUsingGlobal(country, field);
+    const effective = hasDraftVal ? draftVal : resolveEffectiveValue(country, field, visaConfigOverrides, visaConfigDefault);
+    const usingGlobal = hasDraftVal ? false : isUsingGlobal(country, field, visaConfigOverrides);
     const suggestions = getFieldSuggestions(field);
 
     return (
@@ -959,7 +950,7 @@ const VisaDetailsTable = () => {
         {usingGlobal && (
           <div className="flex items-center gap-1 mt-0.5">
             <Globe size={8} className="text-text-muted" />
-            <span className="text-[9px] text-text-muted truncate">global</span>
+            <span className="text-[9px] text-text-muted truncate">default</span>
           </div>
         )}
       </div>
@@ -991,22 +982,24 @@ const VisaDetailsTable = () => {
               />
               Active only
             </label>
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => handleBatchActivate(true)}
+              loading={batchActivating}
               disabled={batchActivating}
-              className="text-[10px] font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2 py-1 rounded-md transition-colors disabled:opacity-50 shrink-0"
             >
-              {batchActivating ? "..." : "Activate All"}
-            </button>
-            <button
-              type="button"
+              Activate All
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
               onClick={() => handleBatchActivate(false)}
+              loading={batchActivating}
               disabled={batchActivating}
-              className="text-[10px] font-medium text-red-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition-colors disabled:opacity-50 shrink-0"
             >
-              {batchActivating ? "..." : "Deactivate All"}
-            </button>
+              Deactivate All
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={handleSelectAll}>
@@ -1042,7 +1035,38 @@ const VisaDetailsTable = () => {
               </button>
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              {["visaType", "entryType", "validity", "processingDays", "lengthOfStay"].map((field) => {
+              {/* Render Field Helper */}
+              {[
+                "visaType",
+                "customVisaTypes", // We handle this separately below but keep it conceptually in order
+                "validity",
+                "processingDays",
+                "lengthOfStay",
+                "entryType"
+              ].map((field) => {
+                if (field === "customVisaTypes") {
+                  return (
+                    <div key="customVisaTypes" className="flex flex-col gap-1 min-w-[180px]">
+                      <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Available Visa Types</span>
+                      <VisaTypeMultiSelect
+                        selectedNames={bulkValues.customVisaTypes || []}
+                        visaTypes={visaTypes}
+                        onSelect={(names) => setBulkValues((prev) => ({ ...prev, customVisaTypes: names }))}
+                        onAddVisaType={handleAddVisaType}
+                      />
+                      {Array.isArray(bulkValues.customVisaTypes) && bulkValues.customVisaTypes.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {bulkValues.customVisaTypes.map((name) => (
+                            <span key={name} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple/10 text-[9px] font-medium text-purple truncate max-w-full">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 const isCustomSelected = bulkCustomInputs[field];
                 const suggestions = getFieldSuggestions(field);
                 return (
@@ -1100,26 +1124,7 @@ const VisaDetailsTable = () => {
                   </div>
                 );
               })}
-              {/* Available Visa Types */}
-              <div className="flex flex-col gap-1 min-w-[180px]">
-                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Available Visa Types</span>
-                <VisaTypeMultiSelect
-                  country={{}}
-                  visaTypes={visaTypes}
-                  dirtyRows={{}}
-                  onSelect={(names) => setBulkValues((prev) => ({ ...prev, customVisaTypes: names }))}
-                  onAddVisaType={handleAddVisaType}
-                />
-                {Array.isArray(bulkValues.customVisaTypes) && bulkValues.customVisaTypes.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {bulkValues.customVisaTypes.map((name) => (
-                      <span key={name} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple/10 text-[9px] font-medium text-purple truncate max-w-full">
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+
               {/* Required Documents */}
               <div className="flex flex-col gap-1 min-w-[180px]">
                 <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Required Documents</span>
@@ -1281,33 +1286,35 @@ const VisaDetailsTable = () => {
                     <td className="py-2.5 px-3">{renderCell(country, "visaType", checked)}</td>
                     <td className="py-2.5 px-3">
                       <div className="min-w-[180px]">
-                        <VisaTypeMultiSelect
-                          country={country}
-                          visaTypes={visaTypes}
-                          dirtyRows={dirtyRows}
-                          onSelect={(selectedNames) => setCellValue(country, "customVisaTypes", selectedNames)}
-                          onAddVisaType={handleAddVisaType}
-                          disabled={!checked}
-                        />
                         {(() => {
                           const draft = dirtyRows[id] || {};
                           let selectedVisaNames;
                           if ("customVisaTypes" in draft) {
                             selectedVisaNames = draft.customVisaTypes || [];
-                          } else if (Array.isArray(country.customVisaTypes)) {
-                            selectedVisaNames = country.customVisaTypes.filter((vt) => vt.active !== false).map((vt) => vt.name);
                           } else {
-                            selectedVisaNames = [];
+                            const effectiveCVT = resolveEffectiveValue(country, "customVisaTypes", visaConfigOverrides, visaConfigDefault);
+                            selectedVisaNames = (Array.isArray(effectiveCVT) ? effectiveCVT : []).filter(vt => vt && vt.active !== false).map(vt => vt.name || vt);
                           }
-                          return selectedVisaNames.length > 0 ? (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {selectedVisaNames.map((name) => (
-                                <span key={name} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple/10 text-[9px] font-medium text-purple truncate max-w-full">
-                                  {name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null;
+                          return (
+                            <>
+                              <VisaTypeMultiSelect
+                                selectedNames={selectedVisaNames}
+                                visaTypes={visaTypes}
+                                onSelect={(names) => setCellValue(country, "customVisaTypes", names)}
+                                onAddVisaType={handleAddVisaType}
+                                disabled={!checked}
+                              />
+                              {selectedVisaNames.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {selectedVisaNames.map((name) => (
+                                    <span key={name} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-purple/10 text-[9px] font-medium text-purple truncate max-w-full">
+                                      {name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </>
+                          );
                         })()}
                       </div>
                     </td>
@@ -1319,7 +1326,13 @@ const VisaDetailsTable = () => {
                       <div className="min-w-[140px]">
                         {(() => {
                           const draft = dirtyRows[id] || {};
-                          const reqDocs = "requiredDocuments" in draft ? draft.requiredDocuments : (country.requiredDocuments || []);
+                          let reqDocs = [];
+                          if ("requiredDocuments" in draft) {
+                            reqDocs = draft.requiredDocuments;
+                          } else {
+                            const effective = resolveEffectiveValue(country, "requiredDocuments", visaConfigOverrides, visaConfigDefault);
+                            reqDocs = Array.isArray(effective) ? effective : [];
+                          }
                           return (
                             <>
                               <DocMultiSelect
@@ -1343,10 +1356,10 @@ const VisaDetailsTable = () => {
                                   })}
                                 </div>
                               )}
-                              {isUsingGlobal(country, "requiredDocuments") && !("requiredDocuments" in draft) && (
+                              {isUsingGlobal(country, "requiredDocuments", visaConfigOverrides) && !("requiredDocuments" in draft) && (
                                 <div className="flex items-center gap-1 mt-0.5">
                                   <Globe size={8} className="text-text-muted" />
-                                  <span className="text-[9px] text-text-muted">global</span>
+                                  <span className="text-[9px] text-text-muted">default</span>
                                 </div>
                               )}
                             </>
@@ -1358,7 +1371,13 @@ const VisaDetailsTable = () => {
                       <div className="min-w-[140px]">
                         {(() => {
                           const draft = dirtyRows[id] || {};
-                          const optDocs = "optionalDocuments" in draft ? draft.optionalDocuments : (country.optionalDocuments || []);
+                          let optDocs = [];
+                          if ("optionalDocuments" in draft) {
+                            optDocs = draft.optionalDocuments;
+                          } else {
+                            const effective = resolveEffectiveValue(country, "optionalDocuments", visaConfigOverrides, visaConfigDefault);
+                            optDocs = Array.isArray(effective) ? effective : [];
+                          }
                           return (
                             <>
                               <DocMultiSelect
@@ -1406,6 +1425,7 @@ const VisaDetailsTable = () => {
           country={editingCountry}
           catalog={catalogOptions}
           globalDefaults={globalDefaults}
+          visaConfigDefault={visaConfigDefault}
           visaTypes={visaTypes}
           allCountryValues={allCountryValues}
           onClose={() => setEditingCountry(null)}
