@@ -2277,9 +2277,9 @@ const Dashboard = () => {
       sections: [
         { key: "visa-details-table", label: "Visa Details Management" },
         { key: "fee-update-manager", label: "Fee Update Manager" },
+        { key: "how-it-works", label: "How it works" },
         { key: "why-book-now", label: "Why book now?" },
         { key: "whats-included", label: "What's included" },
-        { key: "how-it-works", label: "How it works" },
         { key: "faqs", label: "FAQs" },
         { key: "visa-requirements", label: "Visa Requirements" },
         { key: "upload-methods", label: "Document Upload Methods" },

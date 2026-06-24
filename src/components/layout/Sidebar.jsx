@@ -44,9 +44,9 @@ const ADMIN_NAV = [
     subItems: [
       { label: "Visa Details Management", sectionKey: "visa-details-table" },
       { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
+      { label: "How it works", sectionKey: "how-it-works" },
       { label: "Why book now?", sectionKey: "why-book-now" },
       { label: "What's included", sectionKey: "whats-included" },
-      { label: "How it works", sectionKey: "how-it-works" },
       { label: "FAQs", sectionKey: "faqs" },
       { label: "Visa Requirements", sectionKey: "visa-requirements" },
       { label: "Document Upload Methods", sectionKey: "upload-methods" },
