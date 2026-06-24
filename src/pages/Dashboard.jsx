@@ -1370,6 +1370,7 @@ const DEFAULT_OTP_SETTINGS = {
     googleEnabled: true,
     facebookEnabled: false,
     phoneOtpEnabled: true,
+    smsOtpEnabled: false,
     emailOtpEnabled: true,
   },
 };
@@ -7066,6 +7067,7 @@ const Dashboard = () => {
                           googleEnabled: otpSettingsForm.authControls.googleEnabled,
                           facebookEnabled: otpSettingsForm.authControls.facebookEnabled,
                           phoneOtpEnabled: otpSettingsForm.authControls.phoneOtpEnabled,
+                          smsOtpEnabled: otpSettingsForm.authControls.smsOtpEnabled,
                           emailOtpEnabled: otpSettingsForm.authControls.emailOtpEnabled,
                         }, "Authentication controls saved.")
                       }
@@ -7105,13 +7107,24 @@ const Dashboard = () => {
                           }
                         />
                         <AuthControlToggle
-                          title="Phone OTP"
-                          description="Allow users to login/signup using mobile OTP"
+                          title="WhatsApp OTP"
+                          description="Allow users to login/signup using WhatsApp OTP"
                           checked={otpSettingsForm.authControls.phoneOtpEnabled}
                           onChange={(checked) =>
                             setOtpSettingsForm((p) => ({
                               ...p,
                               authControls: { ...p.authControls, phoneOtpEnabled: checked },
+                            }))
+                          }
+                        />
+                        <AuthControlToggle
+                          title="SMS OTP"
+                          description="Allow users to login/signup using SMS OTP"
+                          checked={otpSettingsForm.authControls.smsOtpEnabled}
+                          onChange={(checked) =>
+                            setOtpSettingsForm((p) => ({
+                              ...p,
+                              authControls: { ...p.authControls, smsOtpEnabled: checked },
                             }))
                           }
                         />
