@@ -2316,9 +2316,10 @@ const Dashboard = () => {
           key: "navbar",
           label: "Navbar",
           children: [
-            { key: "site-logo", label: "Site Logo" },
-            { key: "blog-manager", label: "Blog Manager" },
-            { key: "register-page", label: "Register Page" },
+            { key: "site-logo", label: "Logo" },
+            { key: "blog-manager", label: "Blogs" },
+            { key: "register-page", label: "Login/Signup" },
+            { key: "user-notification-setting", label: "User Notification setting" },
           ],
         },
       ],
@@ -2334,12 +2335,13 @@ const Dashboard = () => {
           label: "Hero",
           icon: LayoutTemplate,
           children: [
+            { key: "searchbar", label: "Searchbar" },
             { key: "landing-highlights", label: "Landing Highlights" },
           ],
         },
         {
           key: "section-cards",
-          label: "Section Cards",
+          label: "Cards",
           icon: FileText,
           children: [
             {
@@ -2352,7 +2354,7 @@ const Dashboard = () => {
             },
             {
               key: "card-content-details",
-              label: "Card Content Details",
+              label: "Visa Information Page",
               children: [
                 { key: "how-it-works", label: "How it works" },
                 { key: "why-book-now", label: "Why book now?" },
@@ -7688,6 +7690,38 @@ const Dashboard = () => {
               ) : null}
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              <div
+                className={
+                  isControlSectionVisible("searchbar")
+                    ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch flex flex-col gap-6"
+                    : "hidden"
+                }
+              >
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Searchbar Settings</h2>
+                      <p className="text-xs text-text-muted">Manage searchbar configuration.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Searchbar settings coming soon!
+                  </div>
+                </Card>
+
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Filter Settings</h2>
+                      <p className="text-xs text-text-muted">Manage search filter options.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Filter settings coming soon!
+                  </div>
+                </Card>
+              </div>
+
               <div
                 className={
                   isControlSectionVisible("landing-highlights")

@@ -40,9 +40,10 @@ const ADMIN_NAV = [
         label: "Navbar",
         isGroup: true,
         children: [
-          { label: "Site Logo", sectionKey: "site-logo" },
-          { label: "Blog", sectionKey: "blog-manager" },
-          { label: "Login/SignUp page", sectionKey: "register-page" },
+          { label: "Logo", sectionKey: "site-logo" },
+          { label: "Blogs", sectionKey: "blog-manager" },
+          { label: "Login/Signup", sectionKey: "register-page" },
+          { label: "User Notification setting", sectionKey: "user-notification-setting" },
         ],
       },
     ]
@@ -53,11 +54,12 @@ const ADMIN_NAV = [
         label: "Hero",
         isGroup: true,
         children: [
+          { label: "Searchbar", sectionKey: "searchbar" },
           { label: "Landing Highlights", sectionKey: "landing-highlights" },
         ],
       },
       {
-        label: "Section Cards",
+        label: "Cards",
         isGroup: true,
         children: [
           {
