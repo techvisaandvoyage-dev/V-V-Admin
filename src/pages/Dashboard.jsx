@@ -2257,6 +2257,11 @@ const Dashboard = () => {
     showProcessingDays: true,
     showRequiredDocuments: true,
     showVisaRequirements: true,
+    showHowItWorks: true,
+    showWhyBookNow: true,
+    showDestinationDocuments: true,
+    showWhatsIncluded: true,
+    showFaqs: true,
     maintenanceModeEnabled: false,
   });
   const getFirstControlLeaf = (sections = []) => {
@@ -2353,7 +2358,7 @@ const Dashboard = () => {
           children: [
             {
               key: "visa-details-and-fee-manager",
-              label: "Visa Details and Fee Manager",
+              label: "Visa Details and Fee Update",
               children: [
                 { key: "visa-details-table", label: "Visa details" },
                 { key: "fee-update-manager", label: "Fee update" },
@@ -6154,6 +6159,11 @@ const Dashboard = () => {
           showProcessingDays: live.showProcessingDays !== false,
           showRequiredDocuments: live.showRequiredDocuments !== false,
           showVisaRequirements: live.showVisaRequirements !== false,
+          showHowItWorks: live.showHowItWorks !== false,
+          showWhyBookNow: live.showWhyBookNow !== false,
+          showDestinationDocuments: live.showDestinationDocuments !== false,
+          showWhatsIncluded: live.showWhatsIncluded !== false,
+          showFaqs: live.showFaqs !== false,
           maintenanceModeEnabled: live.maintenanceModeEnabled === true,
         });
         const labels = {
@@ -6164,6 +6174,11 @@ const Dashboard = () => {
           showProcessingDays: "Processing Days",
           showRequiredDocuments: "Required Documents",
           showVisaRequirements: "Visa Requirements",
+          showHowItWorks: "How it works",
+          showWhyBookNow: "Why book now",
+          showDestinationDocuments: "Documents Required",
+          showWhatsIncluded: "What's included",
+          showFaqs: "FAQs",
           maintenanceModeEnabled: "Maintenance Mode",
         };
         showToast(`${labels[key]} ${next ? "shown" : "hidden"} on the public site.`, "success");
@@ -8021,9 +8036,16 @@ const Dashboard = () => {
                 <Card>
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h2 className="font-semibold text-text-primary">Documents</h2>
+                      <h2 className="font-semibold text-text-primary">Documents Required</h2>
                       <p className="text-xs text-text-muted">Manage global document types.</p>
                     </div>
+                    <DisplayToggle
+                      active={displayToggles.showDestinationDocuments}
+                      busy={togglingDisplayKey === "showDestinationDocuments"}
+                      onClick={() => runToggleDisplay("showDestinationDocuments")}
+                      labelOn="Visible"
+                      labelOff="Hidden"
+                    />
                   </div>
                   <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
                     Documents management coming soon!
@@ -9844,10 +9866,19 @@ const Dashboard = () => {
                   <div className={isControlSectionVisible("why-book-now") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-why-book-now")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
-                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
-                      <BadgeCheck size={18} className="text-cyan" />
-                      Why book now?
-                    </h3>
+                    <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                      <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                        <Zap size={18} className="text-cyan" />
+                        Why book now?
+                      </h3>
+                      <DisplayToggle
+                        active={displayToggles.showWhyBookNow}
+                        busy={togglingDisplayKey === "showWhyBookNow"}
+                        onClick={() => runToggleDisplay("showWhyBookNow")}
+                        labelOn="Visible"
+                        labelOff="Hidden"
+                      />
+                    </div>
                     <p className="text-xs text-text-muted mb-4">
                       One reason per line. These appear on every destination page unless a specific country overrides them.
                     </p>
@@ -9943,10 +9974,19 @@ const Dashboard = () => {
                   <div className={isControlSectionVisible("whats-included") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-whats-included")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
-                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
-                      <CheckCircle size={18} className="text-cyan" />
-                      What&apos;s included
-                    </h3>
+                    <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                      <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                        <CheckCircle2 size={18} className="text-cyan" />
+                        What's included
+                      </h3>
+                      <DisplayToggle
+                        active={displayToggles.showWhatsIncluded}
+                        busy={togglingDisplayKey === "showWhatsIncluded"}
+                        onClick={() => runToggleDisplay("showWhatsIncluded")}
+                        labelOn="Visible"
+                        labelOff="Hidden"
+                      />
+                    </div>
                     <p className="text-xs text-text-muted mb-4">
                       One bullet per line. Empty rows are ignored when you save.
                     </p>
@@ -10106,10 +10146,19 @@ const Dashboard = () => {
                   <div className={isControlSectionVisible("faqs") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-faq")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
-                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
-                      <HelpCircle size={18} className="text-cyan" />
-                      FAQs
-                    </h3>
+                    <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                      <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                        <HelpCircle size={18} className="text-cyan" />
+                        FAQs
+                      </h3>
+                      <DisplayToggle
+                        active={displayToggles.showFaqs}
+                        busy={togglingDisplayKey === "showFaqs"}
+                        onClick={() => runToggleDisplay("showFaqs")}
+                        labelOn="Visible"
+                        labelOff="Hidden"
+                      />
+                    </div>
                     <p className="text-xs text-text-muted mb-4">
                       Question and answer pairs. Incomplete pairs are skipped when you save.
                     </p>
@@ -10215,10 +10264,19 @@ const Dashboard = () => {
                   <div className={isControlSectionVisible("how-it-works") ? "" : "hidden"}>
                   <ExpandableAdminControlCard previewHeight={360} {...getControlCardExpansionProps("destination-how-it-works")}>
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
-                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
-                      <ListChecks size={18} className="text-cyan" />
-                      How it works
-                    </h3>
+                    <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
+                      <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                        <ListChecks size={18} className="text-cyan" />
+                        How it works
+                      </h3>
+                      <DisplayToggle
+                        active={displayToggles.showHowItWorks}
+                        busy={togglingDisplayKey === "showHowItWorks"}
+                        onClick={() => runToggleDisplay("showHowItWorks")}
+                        labelOn="Visible"
+                        labelOff="Hidden"
+                      />
+                    </div>
                     <p className="text-xs text-text-muted mb-4">
                       Numbered steps shown above &quot;Document Requirements&quot; on every destination page. Step number is
                       auto-generated from order. Incomplete pairs are skipped when you save.
