@@ -66,36 +66,56 @@ const ADMIN_NAV = [
             label: "Visa Details and Fee Manager",
             isGroup: true,
             children: [
-              { label: "Visa Details Management", sectionKey: "visa-details-table" },
-              { label: "Fee Update Manager", sectionKey: "fee-update-manager" },
+              { label: "Visa details", sectionKey: "visa-details-table" },
+              { label: "Fee update", sectionKey: "fee-update-manager" },
+              {
+                label: "Country thumbnails/ Razor Pay",
+                isGroup: true,
+                children: [
+                  { label: "Country images - Unsplash", sectionKey: "country-images" },
+                  { label: "Payments - Razorpay", sectionKey: "payments-razorpay" },
+                ],
+              },
             ],
           },
           {
-            label: "Card Content Details",
+            label: "Visa Information Page",
             isGroup: true,
             children: [
               { label: "How it works", sectionKey: "how-it-works" },
               { label: "Why book now?", sectionKey: "why-book-now" },
+              { label: "Documents", sectionKey: "documents" },
               { label: "What's included", sectionKey: "whats-included" },
               { label: "FAQs", sectionKey: "faqs" },
               { label: "Visa Requirements", sectionKey: "visa-requirements" },
             ],
           },
+          {
+            label: "Start Application Page",
+            isGroup: true,
+            children: [
+              { label: "Calender manager", sectionKey: "calendar-manager" },
+              { label: "Traveler Form manager", sectionKey: "traveler-form-manager" },
+              { label: "Document Upload Methods", sectionKey: "upload-methods" },
+              { label: "Documents", sectionKey: "documents" },
+            ],
+          },
         ],
       },
-      {
-        label: "Travel Details",
-        isGroup: true,
-        children: [
-          { label: "Document Upload Methods", sectionKey: "upload-methods" },
-        ],
-      },
+      { label: "Testimonials", sectionKey: "testimonials" },
     ]
   },
   { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
     subItems: [
-      { label: "Footer Controls", sectionKey: "footer-social-icons" },
-      { label: "Static Pages", sectionKey: "static-pages" }
+      {
+        label: "left side",
+        isGroup: true,
+        children: [
+          { label: "Footer Controls", sectionKey: "footer-social-icons" },
+        ]
+      },
+      { label: "Static Pages", sectionKey: "static-pages" },
+      { label: "Dynamic Page", sectionKey: "dynamic-page" }
     ]
   },
 
@@ -103,10 +123,15 @@ const ADMIN_NAV = [
   { label: "System Display",   icon: MonitorPlay,       to: "/system-display", id: "nav-admin-system",
     subItems: [
       { label: "Site maintenance mode", sectionKey: "maintenance-mode" },
-      { label: "Customer Support Widget", sectionKey: "customer-support" },
     ]
   },
-  { label: "Support Chat",     icon: MessageSquare,     to: "/support-chat", id: "nav-admin-support-chat" },
+  { label: "Chat",             icon: MessageSquare,     to: "/chat", id: "nav-admin-chat", inlineTree: true,
+    subItems: [
+      { label: "Customer Support Widget(FE)", sectionKey: "customer-support" },
+      { label: "Chat support", sectionKey: "chat-support" }
+    ]
+  },
+
   { label: "SEO Manager",      icon: Search,            to: "/seo",         id: "nav-admin-seo" },
   { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
 ];

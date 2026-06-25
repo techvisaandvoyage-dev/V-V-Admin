@@ -2348,8 +2348,16 @@ const Dashboard = () => {
               key: "visa-details-and-fee-manager",
               label: "Visa Details and Fee Manager",
               children: [
-                { key: "visa-details-table", label: "Visa Details Management" },
-                { key: "fee-update-manager", label: "Fee Update Manager" },
+                { key: "visa-details-table", label: "Visa details" },
+                { key: "fee-update-manager", label: "Fee update" },
+                {
+                  key: "country-thumbnails-razorpay",
+                  label: "Country thumbnails/ Razor Pay",
+                  children: [
+                    { key: "country-images", label: "Country images - Unsplash" },
+                    { key: "payments-razorpay", label: "Payments - Razorpay" },
+                  ],
+                },
               ],
             },
             {
@@ -2358,20 +2366,29 @@ const Dashboard = () => {
               children: [
                 { key: "how-it-works", label: "How it works" },
                 { key: "why-book-now", label: "Why book now?" },
+                { key: "documents", label: "Documents Required" },
                 { key: "whats-included", label: "What's included" },
                 { key: "faqs", label: "FAQs" },
                 { key: "visa-requirements", label: "Visa Requirements" },
               ],
             },
+            {
+              key: "travel-details",
+              label: "Start Application Page",
+              icon: MapPin,
+              children: [
+                { key: "calendar-manager", label: "Calender manager" },
+                { key: "traveler-form-manager", label: "Traveler Form manager" },
+                { key: "upload-methods", label: "Document Upload Methods" },
+                { key: "documents", label: "Documents" },
+              ],
+            },
           ],
         },
         {
-          key: "travel-details",
-          label: "Travel Details",
-          icon: MapPin,
-          children: [
-            { key: "upload-methods", label: "Document Upload Methods" },
-          ],
+          key: "testimonials",
+          label: "Testimonials",
+          icon: MessageSquare,
         },
       ],
     },
@@ -2381,18 +2398,34 @@ const Dashboard = () => {
       icon: PanelBottom,
       description: "Static pages and footer social icons",
       sections: [
-        { key: "footer-social-icons", label: "Footer Controls" },
+        {
+          key: "footer-left-side-group",
+          label: "left side",
+          children: [
+            { key: "footer-social-icons", label: "Footer Controls" },
+          ],
+        },
         { key: "static-pages", label: "Static Pages" },
+        { key: "dynamic-page", label: "Dynamic Page" },
       ],
     },
     {
       key: "system-display",
       label: "System / Display",
       icon: Settings,
-      description: "Maintenance and support widget settings",
+      description: "Maintenance settings",
       sections: [
         { key: "maintenance-mode", label: "Site maintenance mode" },
-        { key: "customer-support", label: "Customer Support Widget" },
+      ],
+    },
+    {
+      key: "chat",
+      label: "Chat",
+      icon: MessageSquare,
+      description: "Manage customer support widget and live chat",
+      sections: [
+        { key: "customer-support", label: "Customer Support Widget(FE)" },
+        { key: "chat-support", label: "Chat support" },
       ],
     },
   ];
@@ -6741,6 +6774,33 @@ const Dashboard = () => {
                                     >
                                       <div className="flex flex-wrap gap-2 pt-2 border-t border-border mt-1">
                                         {branch.children.map((subChild) => {
+                                          if (subChild.children && subChild.children.length > 0) {
+                                            return (
+                                              <div key={subChild.key} className="w-full flex flex-col gap-2 mt-2 pt-2 border-t border-border">
+                                                <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider pl-1">
+                                                  {subChild.label}
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                  {subChild.children.map(nestedChild => {
+                                                    const active = activeControlSection === nestedChild.key;
+                                                    return (
+                                                      <button
+                                                        key={nestedChild.key}
+                                                        onClick={() => selectControlNavNode(nestedChild)}
+                                                        className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
+                                                          active
+                                                            ? "bg-cyan text-white shadow-cyan-glow"
+                                                            : "border border-border bg-white text-text-secondary hover:border-cyan/40 hover:text-text-primary shadow-sm"
+                                                        }`}
+                                                      >
+                                                        {nestedChild.label}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            );
+                                          }
                                           const active = activeControlSection === subChild.key;
                                           return (
                                             <button
@@ -7689,6 +7749,34 @@ const Dashboard = () => {
                 </div>
               ) : null}
 
+              <div className={isControlSectionVisible("country-images") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Country images - Unsplash</h2>
+                      <p className="text-xs text-text-muted">Manage background and thumbnail images for countries.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Unsplash image integration coming soon!
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("payments-razorpay") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Payments - Razorpay</h2>
+                      <p className="text-xs text-text-muted">Manage Razorpay API keys and payment configurations.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Razorpay configuration coming soon!
+                  </div>
+                </Card>
+              </div>
+
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
               <div
                 className={
@@ -7718,6 +7806,76 @@ const Dashboard = () => {
                   </div>
                   <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
                     Filter settings coming soon!
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("calendar-manager") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Calendar Manager</h2>
+                      <p className="text-xs text-text-muted">Manage available dates and slots.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Calendar Manager coming soon!
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("traveler-form-manager") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Traveler Form Manager</h2>
+                      <p className="text-xs text-text-muted">Manage traveler form fields and requirements.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Traveler Form Manager coming soon!
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("upload-methods") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Document Upload Methods</h2>
+                      <p className="text-xs text-text-muted">Manage methods for document uploading.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Document Upload Methods coming soon!
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Documents</h2>
+                      <p className="text-xs text-text-muted">Manage global document types.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Documents management coming soon!
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("testimonials") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Testimonials</h2>
+                      <p className="text-xs text-text-muted">Manage customer testimonials and reviews.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Testimonials management coming soon!
                   </div>
                 </Card>
               </div>
@@ -8984,6 +9142,20 @@ const Dashboard = () => {
                 <StaticPagesManager />
               </div>
 
+              <div className={isControlSectionVisible("dynamic-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Dynamic Page</h2>
+                      <p className="text-xs text-text-muted">Manage dynamic pages for the footer.</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                    Dynamic Page management coming soon!
+                  </div>
+                </Card>
+              </div>
+
               <div className={isControlSectionVisible("footer-social-icons") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
@@ -9328,6 +9500,20 @@ const Dashboard = () => {
                   Connecting your active WhatsApp link enables instantaneous customer service with real-time feedback. You can customize the widget labels above at any time.
                 </div>
               </SettingsSectionCard>
+            </div>
+
+            <div className={isControlSectionVisible("chat-support") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <Card>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-text-primary">Chat support</h2>
+                    <p className="text-xs text-text-muted">Manage active chats and history.</p>
+                  </div>
+                </div>
+                <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
+                  Chat support dashboard coming soon!
+                </div>
+              </Card>
             </div>
 
               <div className={(isControlSectionVisible("why-book-now") || isControlSectionVisible("whats-included") || isControlSectionVisible("how-it-works") || isControlSectionVisible("faqs") || isControlSectionVisible("visa-requirements")) ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
