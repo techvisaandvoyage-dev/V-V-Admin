@@ -2081,7 +2081,7 @@ const Dashboard = () => {
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
   const [searchParams] = useSearchParams();
-  const isControlsTab = ["controls", "landing-page", "cards", "footer", "settings", "activity", "chat", "countries"].includes(activeTab);
+  const isControlsTab = ["controls", "landing-page", "cards", "footer", "settings", "activity", "chat"].includes(activeTab);
   const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
 
   useEffect(() => {
@@ -2311,13 +2311,7 @@ const Dashboard = () => {
         { key: "transactions", label: "Transactions" },
       ],
     },
-    {
-      key: "countries",
-      label: "Country Manager",
-      icon: MapPin,
-      description: "Edit pricing, visa type, documents, requirements, and display details for all countries",
-      sections: [],
-    },
+
     {
       key: "landing-page",
       label: "Header",
@@ -9868,7 +9862,7 @@ const Dashboard = () => {
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
                       <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                        <Zap size={18} className="text-cyan" />
+                        <BadgeCheck size={18} className="text-cyan" />
                         Why book now?
                       </h3>
                       <DisplayToggle
@@ -9976,8 +9970,8 @@ const Dashboard = () => {
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
                       <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                        <CheckCircle2 size={18} className="text-cyan" />
-                        What's included
+                        <CheckCircle size={18} className="text-cyan" />
+                        What&apos;s included
                       </h3>
                       <DisplayToggle
                         active={displayToggles.showWhatsIncluded}

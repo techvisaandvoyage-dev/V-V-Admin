@@ -33,7 +33,6 @@ const ADMIN_NAV = [
       { label: "Transactions", sectionKey: "transactions" },
     ]
   },
-  { label: "Country Manager",  icon: MapPin,            to: "/countries",    id: "nav-admin-countries" },
   { label: "Header",           icon: Home,              to: "/landing-page", id: "nav-admin-landing", inlineTree: true,
     subItems: [
       {
@@ -63,7 +62,7 @@ const ADMIN_NAV = [
         isGroup: true,
         children: [
           {
-            label: "Visa Details and Fee Manager",
+            label: "Visa Details and Fee Update",
             isGroup: true,
             children: [
               { label: "Visa details", sectionKey: "visa-details-table" },
