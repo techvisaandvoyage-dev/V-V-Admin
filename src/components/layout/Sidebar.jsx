@@ -94,8 +94,8 @@ const ADMIN_NAV = [
             label: "Start Application Page",
             isGroup: true,
             children: [
-              { label: "Calender manager", sectionKey: "calendar-manager" },
-              { label: "Traveler Form manager", sectionKey: "traveler-form-manager" },
+              { label: "Calender ", sectionKey: "calendar-manager" },
+              { label: "Traveler Form ", sectionKey: "traveler-form-manager" },
               { label: "Document Upload Methods", sectionKey: "upload-methods" },
               { label: "Documents", sectionKey: "documents" },
             ],
@@ -118,13 +118,6 @@ const ADMIN_NAV = [
       { label: "Dynamic Page", sectionKey: "dynamic-page" }
     ]
   },
-
-
-  { label: "System Display",   icon: MonitorPlay,       to: "/system-display", id: "nav-admin-system",
-    subItems: [
-      { label: "Site maintenance mode", sectionKey: "maintenance-mode" },
-    ]
-  },
   { label: "Chat",             icon: MessageSquare,     to: "/chat", id: "nav-admin-chat", inlineTree: true,
     subItems: [
       { label: "Customer Support Widget(FE)", sectionKey: "customer-support" },
@@ -132,8 +125,19 @@ const ADMIN_NAV = [
     ]
   },
 
-  { label: "SEO Manager",      icon: Search,            to: "/seo",         id: "nav-admin-seo" },
-  { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings" },
+  { label: "Settings",         icon: Settings,          to: "/settings",    id: "nav-admin-settings", inlineTree: true,
+    subItems: [
+      { label: "Password Update", sectionKey: "password-update" },
+      {
+        label: "System Display",
+        isGroup: true,
+        children: [
+          { label: "Site maintenance mode", sectionKey: "maintenance-mode" },
+        ]
+      },
+      { label: "SEO manager", sectionKey: "seo-manager" }
+    ]
+  },
 ];
 
 const Sidebar = () => {

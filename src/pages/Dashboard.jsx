@@ -2081,7 +2081,7 @@ const Dashboard = () => {
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
   const [searchParams] = useSearchParams();
-  const isControlsTab = ["controls", "landing-page", "cards", "footer", "system-display", "activity"].includes(activeTab);
+  const isControlsTab = ["controls", "landing-page", "cards", "footer", "settings", "activity", "chat", "countries"].includes(activeTab);
   const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
 
   useEffect(() => {
@@ -2307,6 +2307,13 @@ const Dashboard = () => {
       ],
     },
     {
+      key: "countries",
+      label: "Country Manager",
+      icon: MapPin,
+      description: "Edit pricing, visa type, documents, requirements, and display details for all countries",
+      sections: [],
+    },
+    {
       key: "landing-page",
       label: "Header",
       icon: Home,
@@ -2410,15 +2417,6 @@ const Dashboard = () => {
       ],
     },
     {
-      key: "system-display",
-      label: "System / Display",
-      icon: Settings,
-      description: "Maintenance settings",
-      sections: [
-        { key: "maintenance-mode", label: "Site maintenance mode" },
-      ],
-    },
-    {
       key: "chat",
       label: "Chat",
       icon: MessageSquare,
@@ -2426,6 +2424,23 @@ const Dashboard = () => {
       sections: [
         { key: "customer-support", label: "Customer Support Widget(FE)" },
         { key: "chat-support", label: "Chat support" },
+      ],
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      icon: Settings,
+      description: "Maintenance and configuration",
+      sections: [
+        { key: "password-update", label: "Password Update" },
+        {
+          key: "system-display",
+          label: "System Display",
+          children: [
+            { key: "maintenance-mode", label: "Site maintenance mode" },
+          ],
+        },
+        { key: "seo-manager", label: "SEO manager" },
       ],
     },
   ];
@@ -2460,15 +2475,9 @@ const Dashboard = () => {
       return nextKey;
     });
   };
-  // Selecting a parent group: update group key state + default to first section (no routing)
+  // Selecting a parent group: update URL to trigger useEffect sync
   const selectControlGroup = (groupKey) => {
-    const group = controlGroups.find((item) => item.key === groupKey);
-    if (!group) return;
-    setActiveControlGroupKey(groupKey);
-    setActiveControlNavKey(null);
-    setExpandedControlTabKeys({});
-    const firstSectionKey = getFirstControlLeaf(group.sections)?.key;
-    if (firstSectionKey) selectControlSection(firstSectionKey);
+    navigate(groupKey === "controls" ? "/controls" : `/${groupKey}`);
   };
   // Sync group + section whenever the URL tab changes
   useEffect(() => {
@@ -6365,7 +6374,7 @@ const Dashboard = () => {
     <AdminLayout
       title="Admin Dashboard"
       description="Manage all applications, countries, and analytics."
-      tabs={ADMIN_DASHBOARD_TABS}
+      tabs={ADMIN_DASHBOARD_TABS.filter(t => !t.hidden)}
       activeTab={activeTab}
       onTabChange={(id) => {
         if (id === "analytics") {
@@ -7750,31 +7759,187 @@ const Dashboard = () => {
               ) : null}
 
               <div className={isControlSectionVisible("country-images") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
-                <Card>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="font-semibold text-text-primary">Country images - Unsplash</h2>
-                      <p className="text-xs text-text-muted">Manage background and thumbnail images for countries.</p>
-                    </div>
+              <SettingsSectionCard
+                title="Country images - Unsplash"
+                description="Store your Unsplash app keys, then fetch photo URLs into MongoDB the same way as searching the country name on Unsplash (name first, then landmark hints). Optional: set UNSPLASH_ORIENTATION on the server to restrict orientation."
+                whereToFind={
+                  <>
+                    <a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener noreferrer" className="text-cyan hover:underline">
+                      unsplash.com/oauth/applications
+                    </a>{" "}
+                    → your app → copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
+                    <strong className="text-text-primary">Access Key</strong> (required for image fetch), and{" "}
+                    <strong className="text-text-primary">Secret Key</strong> (optional; for OAuth only).
+                  </>
+                }
+                statusSlot={
+                  <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isUnsplashConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
+                    {isUnsplashConfigured
+                      ? "Access Key is on file - you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
+                      : "Paste an Access Key below to fetch, or save this card to store keys for the CLI (node fetchCountryImages.js)."}
                   </div>
-                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
-                    Unsplash image integration coming soon!
+                }
+                saveLabel="Save Unsplash"
+                saveButtonId="save-settings-unsplash"
+                isSaving={savingSettingsKey === "unsplash"}
+                onSave={() =>
+                  saveSettingsPartial(
+                    "unsplash",
+                    {
+                      unsplashApplicationId: settingsForm.unsplashApplicationId,
+                      unsplashAccessKey: settingsForm.unsplashAccessKey,
+                      unsplashSecretKey: settingsForm.unsplashSecretKey,
+                    },
+                    "Unsplash keys saved.",
+                  )
+                }
+              >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Application ID (optional)"
+                    value={settingsForm.unsplashApplicationId}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashApplicationId: e.target.value }))}
+                    id="setting-unsplash-app-id"
+                    placeholder="From Unsplash app page"
+                  />
+                  <Input
+                    label="Access Key - paste here"
+                    type="password"
+                    value={settingsForm.unsplashAccessKey}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashAccessKey: e.target.value }))}
+                    id="setting-unsplash-access-key"
+                    placeholder="Required - used by Fetch buttons and fetchCountryImages.js"
+                  />
+                  <Input
+                    label="Secret Key (optional)"
+                    type="password"
+                    value={settingsForm.unsplashSecretKey}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashSecretKey: e.target.value }))}
+                    id="setting-unsplash-secret-key"
+                    placeholder="OAuth only - not used by image script"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-border bg-surface-2/60 p-4 mt-5 space-y-3">
+                  <p className="text-xs text-text-muted leading-relaxed">
+                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> ("France", "France travel", ...), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
+                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits - keep this tab open until the success toast.
+                    Watch the status line below while it runs. In DevTools → Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
+                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked "Show as trending" in Country Manager - same list as the landing page) can be refreshed alone with landmark searches. "Fetch all" processes those first, then every other country.
+                    You can use the Access Key above without saving first; saving stores it for CLI scripts.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<ImageIcon size={15} />}
+                      loading={unsplashFetchRunning}
+                      disabled={unsplashFetchRunning}
+                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false, onlyActive: true })}
+                      id="btn-unsplash-fetch-active"
+                    >
+                      Fetch images for active countries
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={<ImageIcon size={15} />}
+                      loading={unsplashFetchRunning}
+                      disabled={unsplashFetchRunning}
+                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false, onlyActive: false })}
+                      id="btn-unsplash-fetch-all"
+                    >
+                      Fetch images for all countries
+                    </Button>
                   </div>
-                </Card>
+                  {unsplashFetchRunning && unsplashFetchProgress ? (
+                    <p
+                      className="text-xs text-black leading-relaxed font-mono border border-cyan-500/25 rounded-lg px-3 py-2 bg-cyan-950/20"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {unsplashFetchProgress}
+                    </p>
+                  ) : null}
+                </div>
+              </SettingsSectionCard>
               </div>
 
               <div className={isControlSectionVisible("payments-razorpay") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
-                <Card>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="font-semibold text-text-primary">Payments - Razorpay</h2>
-                      <p className="text-xs text-text-muted">Manage Razorpay API keys and payment configurations.</p>
-                    </div>
+              <SettingsSectionCard
+                title="Payments - Razorpay"
+                description="Used when customers pay on the site. Paste both keys from the same Razorpay account."
+                whereToFind={
+                  <>
+                    Razorpay Dashboard → <span className="text-text-secondary">Account &amp; Settings</span> →{" "}
+                    <span className="text-text-secondary">API Keys</span>: copy <strong className="text-text-primary">Key ID</strong> and{" "}
+                    <strong className="text-text-primary">Key Secret</strong> into the fields below.
+                  </>
+                }
+                statusSlot={
+                  <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isRazorpayConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
+                    {isRazorpayConfigured ? "Razorpay looks complete (Key ID + Secret on file)." : "Add Key ID and Key Secret, then save this card."}
                   </div>
-                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
-                    Razorpay configuration coming soon!
-                  </div>
-                </Card>
+                }
+                saveLabel="Save Razorpay"
+                saveButtonId="save-settings-razorpay"
+                isSaving={savingSettingsKey === "razorpay"}
+                onSave={() =>
+                  saveSettingsPartial(
+                    "razorpay",
+                    {
+                      razorpayKeyId: settingsForm.razorpayKeyId,
+                      razorpayKeySecret: settingsForm.razorpayKeySecret,
+                      gstEnabled: settingsForm.gstEnabled,
+                      gstRate: Number.isFinite(Number(settingsForm.gstRate))
+                        ? Number(settingsForm.gstRate)
+                        : 0,
+                    },
+                    "Razorpay and GST settings saved.",
+                  )
+                }
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Paste Key ID here"
+                    type="text"
+                    value={settingsForm.razorpayKeyId}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeyId: e.target.value }))}
+                    id="setting-razorpay-key"
+                    placeholder="rzp_live_... or rzp_test_..."
+                  />
+                  <Input
+                    label="Paste Key Secret here"
+                    type="password"
+                    value={settingsForm.razorpayKeySecret}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeySecret: e.target.value }))}
+                    id="setting-razorpay-secret"
+                  />
+                </div>
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={settingsForm.gstEnabled}
+                      onChange={(e) => setSettingsForm((p) => ({ ...p, gstEnabled: e.target.checked }))}
+                      className="h-4 w-4 rounded border-slate-300 text-cyan focus:ring-cyan/40"
+                    />
+                    <span>Apply GST globally</span>
+                  </label>
+                  <Input
+                    label="GST rate (%)"
+                    type="number"
+                    value={settingsForm.gstRate}
+                    min={0}
+                    max={100}
+                    onChange={(e) => setSettingsForm((p) => ({ ...p, gstRate: e.target.value }))}
+                    id="setting-gst-rate"
+                    helper="Set the percentage applied to the service fee for all applications."
+                  />
+                </div>
+              </SettingsSectionCard>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
@@ -9343,6 +9508,59 @@ const Dashboard = () => {
               </Card>
               </div>
 
+              <div className={isControlSectionVisible("password-update") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex justify-between items-center mb-2">
+                    <h2 className="font-semibold text-text-primary">Security</h2>
+                  </div>
+                  <p className="text-sm text-text-muted mb-6 leading-relaxed">
+                    Change your admin login password. This is separate from API keys above - use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-2">Change Password</h3>
+                      <Input 
+                        label="Current Password" 
+                        type="password" 
+                        value={passwordForm.currentPassword} 
+                        onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
+                        id="admin-current-password" 
+                        placeholder="Enter current password"
+                      />
+                      <Input 
+                        label="New Password" 
+                        type="password" 
+                        value={passwordForm.newPassword} 
+                        onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
+                        id="admin-new-password" 
+                        placeholder="Enter new password"
+                      />
+                      <div className="flex justify-start mt-4">
+                        <Button 
+                          variant="primary" 
+                          onClick={handleChangePassword}
+                          disabled={isChangingPassword}
+                        >
+                          {isChangingPassword ? 'Updating...' : 'Change Password'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("seo-manager") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <SeoManagerPanel
+                    settings={settingsForm}
+                    setSettings={setSettingsForm}
+                    saveSettingsPartial={saveSettingsPartial}
+                    savingSettingsKey={savingSettingsKey}
+                    showToast={showToast}
+                  />
+                </Card>
+              </div>
+
               <div className={isControlSectionVisible("maintenance-mode") ? "" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -9502,19 +9720,9 @@ const Dashboard = () => {
               </SettingsSectionCard>
             </div>
 
-            <div className={isControlSectionVisible("chat-support") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
-              <Card>
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="font-semibold text-text-primary">Chat support</h2>
-                    <p className="text-xs text-text-muted">Manage active chats and history.</p>
-                  </div>
-                </div>
-                <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
-                  Chat support dashboard coming soon!
-                </div>
-              </Card>
-            </div>
+            <div className={isControlSectionVisible("chat-support") ? "w-full max-w-none flex-1 self-stretch flex overflow-hidden" : "hidden"}>
+                <SupportChatWorkspace />
+              </div>
 
               <div className={(isControlSectionVisible("why-book-now") || isControlSectionVisible("whats-included") || isControlSectionVisible("how-it-works") || isControlSectionVisible("faqs") || isControlSectionVisible("visa-requirements")) ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
               <Card className="w-full max-w-none flex-1 self-stretch">
@@ -10233,259 +10441,6 @@ const Dashboard = () => {
             </motion.div>
           )}
 
-          {/* ======================================
-              TAB 5: SETTINGS
-              ====================================== */}
-          {activeTab === "seo" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <SeoManagerPanel
-                settings={settingsForm}
-                setSettings={setSettingsForm}
-                saveSettingsPartial={saveSettingsPartial}
-                savingSettingsKey={savingSettingsKey}
-                showToast={showToast}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === "settings" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <Card bordered>
-                <h2 className="font-semibold text-text-primary text-lg">Settings</h2>
-                <p className="text-sm text-text-muted mt-2 leading-relaxed">
-                  Each card below is <span className="text-text-primary font-medium">saved separately</span>. Paste or update values in that card, then click{" "}
-                  <span className="text-text-primary font-medium">Save</span> at the bottom of the same card. You do not need to fill everything at once.
-                </p>
-              </Card>
-
-              <Card>
-                <h2 className="font-semibold text-text-primary text-base">Appearance</h2>
-                <p className="text-sm text-text-muted mt-1.5 leading-relaxed">
-                  Dashboard look is fixed for now. There is no server setting to change here - skip this block if you are only configuring payments or auth.
-                </p>
-              </Card>
-
-              <SettingsSectionCard
-                title="Payments - Razorpay"
-                description="Used when customers pay on the site. Paste both keys from the same Razorpay account."
-                whereToFind={
-                  <>
-                    Razorpay Dashboard → <span className="text-text-secondary">Account &amp; Settings</span> →{" "}
-                    <span className="text-text-secondary">API Keys</span>: copy <strong className="text-text-primary">Key ID</strong> and{" "}
-                    <strong className="text-text-primary">Key Secret</strong> into the fields below.
-                  </>
-                }
-                statusSlot={
-                  <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isRazorpayConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
-                    {isRazorpayConfigured ? "Razorpay looks complete (Key ID + Secret on file)." : "Add Key ID and Key Secret, then save this card."}
-                  </div>
-                }
-                saveLabel="Save Razorpay"
-                saveButtonId="save-settings-razorpay"
-                isSaving={savingSettingsKey === "razorpay"}
-                onSave={() =>
-                  saveSettingsPartial(
-                    "razorpay",
-                    {
-                      razorpayKeyId: settingsForm.razorpayKeyId,
-                      razorpayKeySecret: settingsForm.razorpayKeySecret,
-                      gstEnabled: settingsForm.gstEnabled,
-                      gstRate: Number.isFinite(Number(settingsForm.gstRate))
-                        ? Number(settingsForm.gstRate)
-                        : 0,
-                    },
-                    "Razorpay and GST settings saved.",
-                  )
-                }
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Paste Key ID here"
-                    type="text"
-                    value={settingsForm.razorpayKeyId}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeyId: e.target.value }))}
-                    id="setting-razorpay-key"
-                    placeholder="rzp_live_... or rzp_test_..."
-                  />
-                  <Input
-                    label="Paste Key Secret here"
-                    type="password"
-                    value={settingsForm.razorpayKeySecret}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, razorpayKeySecret: e.target.value }))}
-                    id="setting-razorpay-secret"
-                  />
-                </div>
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={settingsForm.gstEnabled}
-                      onChange={(e) => setSettingsForm((p) => ({ ...p, gstEnabled: e.target.checked }))}
-                      className="h-4 w-4 rounded border-slate-300 text-cyan focus:ring-cyan/40"
-                    />
-                    <span>Apply GST globally</span>
-                  </label>
-                  <Input
-                    label="GST rate (%)"
-                    type="number"
-                    value={settingsForm.gstRate}
-                    min={0}
-                    max={100}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, gstRate: e.target.value }))}
-                    id="setting-gst-rate"
-                    helper="Set the percentage applied to the service fee for all applications."
-                  />
-                </div>
-              </SettingsSectionCard>
-
-              <SettingsSectionCard
-                title="Country images - Unsplash"
-                description="Store your Unsplash app keys, then fetch photo URLs into MongoDB the same way as searching the country name on Unsplash (name first, then landmark hints). Optional: set UNSPLASH_ORIENTATION on the server to restrict orientation."
-                whereToFind={
-                  <>
-                    <a href="https://unsplash.com/oauth/applications" target="_blank" rel="noopener noreferrer" className="text-cyan hover:underline">
-                      unsplash.com/oauth/applications
-                    </a>{" "}
-                    → your app → copy <strong className="text-text-primary">Application ID</strong> (optional),{" "}
-                    <strong className="text-text-primary">Access Key</strong> (required for image fetch), and{" "}
-                    <strong className="text-text-primary">Secret Key</strong> (optional; for OAuth only).
-                  </>
-                }
-                statusSlot={
-                  <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${isUnsplashConfigured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}>
-                    {isUnsplashConfigured
-                      ? "Access Key is on file - you can fetch images into MongoDB below or run node fetchCountryImages.js on the server."
-                      : "Paste an Access Key below to fetch, or save this card to store keys for the CLI (node fetchCountryImages.js)."}
-                  </div>
-                }
-                saveLabel="Save Unsplash"
-                saveButtonId="save-settings-unsplash"
-                isSaving={savingSettingsKey === "unsplash"}
-                onSave={() =>
-                  saveSettingsPartial(
-                    "unsplash",
-                    {
-                      unsplashApplicationId: settingsForm.unsplashApplicationId,
-                      unsplashAccessKey: settingsForm.unsplashAccessKey,
-                      unsplashSecretKey: settingsForm.unsplashSecretKey,
-                    },
-                    "Unsplash keys saved.",
-                  )
-                }
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Input
-                    label="Application ID (optional)"
-                    value={settingsForm.unsplashApplicationId}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashApplicationId: e.target.value }))}
-                    id="setting-unsplash-app-id"
-                    placeholder="From Unsplash app page"
-                  />
-                  <Input
-                    label="Access Key - paste here"
-                    type="password"
-                    value={settingsForm.unsplashAccessKey}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashAccessKey: e.target.value }))}
-                    id="setting-unsplash-access-key"
-                    placeholder="Required - used by Fetch buttons and fetchCountryImages.js"
-                  />
-                  <Input
-                    label="Secret Key (optional)"
-                    type="password"
-                    value={settingsForm.unsplashSecretKey}
-                    onChange={(e) => setSettingsForm((p) => ({ ...p, unsplashSecretKey: e.target.value }))}
-                    id="setting-unsplash-secret-key"
-                    placeholder="OAuth only - not used by image script"
-                  />
-                </div>
-
-                <div className="rounded-xl border border-border bg-surface-2/60 p-4 mt-5 space-y-3">
-                  <p className="text-xs text-text-muted leading-relaxed">
-                    Calls the Unsplash Search API the way the site does: <span className="text-text-primary font-medium">country name first</span> ("France", "France travel", ...), then famous-place phrases for that slug, then a few landmark fallbacks. No forced orientation unless you set <code className="text-text-secondary">UNSPLASH_ORIENTATION</code> in <code className="text-text-secondary">server/.env</code>. Results save to <span className="text-text-primary font-medium">Country.imageUrl</span>.
-                    Work runs in batches (10 countries per request, repeated until done) with delays to respect rate limits - keep this tab open until the success toast.
-                    Watch the status line below while it runs. In DevTools → Network, each <code className="text-text-secondary">refresh-unsplash-images</code> request completes one batch.
-                    <span className="text-text-primary font-medium">Featured / trending</span> countries (the ones marked "Show as trending" in Country Manager - same list as the landing page) can be refreshed alone with landmark searches. "Fetch all" processes those first, then every other country.
-                    You can use the Access Key above without saving first; saving stores it for CLI scripts.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      leftIcon={<ImageIcon size={15} />}
-                      loading={unsplashFetchRunning}
-                      disabled={unsplashFetchRunning}
-                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false, onlyActive: true })}
-                      id="btn-unsplash-fetch-active"
-                    >
-                      Fetch images for active countries
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      leftIcon={<ImageIcon size={15} />}
-                      loading={unsplashFetchRunning}
-                      disabled={unsplashFetchRunning}
-                      onClick={() => runUnsplashImageFetch({ onlyMissing: false, onlyTrending: false, onlyActive: false })}
-                      id="btn-unsplash-fetch-all"
-                    >
-                      Fetch images for all countries
-                    </Button>
-                  </div>
-                  {unsplashFetchRunning && unsplashFetchProgress ? (
-                    <p
-                      className="text-xs text-black leading-relaxed font-mono border border-cyan-500/25 rounded-lg px-3 py-2 bg-cyan-950/20"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      {unsplashFetchProgress}
-                    </p>
-                  ) : null}
-                </div>
-              </SettingsSectionCard>
-
-              {/* Security Card */}
-              <Card>
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="font-semibold text-text-primary">Security</h2>
-                </div>
-                <p className="text-sm text-text-muted mb-6 leading-relaxed">
-                  Change your admin login password. This is separate from API keys above - use <span className="text-text-primary font-medium">Change Password</span> only when updating credentials for this dashboard.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-2">Change Password</h3>
-                    <Input 
-                      label="Current Password" 
-                      type="password" 
-                      value={passwordForm.currentPassword} 
-                      onChange={(e) => setPasswordForm(p => ({ ...p, currentPassword: e.target.value }))}
-                      id="admin-current-password" 
-                      placeholder="Enter current password"
-                    />
-                    <Input 
-                      label="New Password" 
-                      type="password" 
-                      value={passwordForm.newPassword} 
-                      onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
-                      id="admin-new-password" 
-                      placeholder="Enter new password"
-                    />
-                    <div className="flex justify-start mt-4">
-                      <Button 
-                        variant="primary" 
-                        onClick={handleChangePassword}
-                        disabled={isChangingPassword}
-                      >
-                        {isChangingPassword ? 'Updating...' : 'Change Password'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          )}
       {/* ======================================
           COUNTRIES WITH BANNER (UNSPLASH / UPLOADS)
           ====================================== */}

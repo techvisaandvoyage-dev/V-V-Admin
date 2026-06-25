@@ -17,8 +17,7 @@ export const ADMIN_DASHBOARD_TABS = [
   { id: "landing-page", label: "Header", icon: Globe },
   { id: "cards", label: "Body", icon: CreditCard },
   { id: "footer", label: "Footer", icon: Globe },
-  { id: "system-display", label: "System Display", icon: Settings },
-  { id: "support-chat", label: "Support Chat", icon: MessageSquare },
-  { id: "seo", label: "SEO Manager", icon: Search },
+  { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "settings", label: "Settings", icon: Settings },
+  { id: "seo", label: "SEO Manager", icon: Search, hidden: true },
 ];
