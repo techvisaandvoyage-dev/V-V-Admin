@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Edit3, RefreshCw, Check, X, Search } from "lucide-react";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
+import Card from "../ui/Card";
 import { api } from "../../store/authStore";
 
 const FALLBACK_CURRENCIES = [
@@ -47,7 +48,7 @@ const toDraft = (row) => ({
   forexFeePercent: String(row.forexFeePercent ?? ""),
   exchangeRate: Number(row.exchangeRate || 1),
   finalGovernmentFeeInINR: Number(row.finalGovernmentFeeInINR || 0),
-  serviceFeeBeforeGST: Number(row.serviceFeeBeforeGST || 0),
+  serviceFeeBeforeGST: String(row.serviceFeeBeforeGST ?? ""),
   serviceFeeAfterGST: Number(row.serviceFeeAfterGST || 0),
   totalFeeInINR: Number(row.totalFeeInINR || 0),
 });
@@ -65,6 +66,10 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
   const [currencyMenuRowId, setCurrencyMenuRowId] = useState("");
   const [currencySearch, setCurrencySearch] = useState("");
   const convertSeqRef = useRef(0);
+
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkValues, setBulkValues] = useState({});
+  const [bulkEst, setBulkEst] = useState(null);
 
   const loadRows = async () => {
     setLoading(true);
@@ -106,12 +111,91 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
     return filteredRows.slice(start, start + PAGE_SIZE);
   }, [filteredRows, page]);
 
+  const allIds = useMemo(() => filteredRows.map((r) => r.countryId), [filteredRows]);
+  const allSelected = selectedIds.length === allIds.length && allIds.length > 0;
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => allIds.includes(id)));
+  }, [allIds]);
+
+  const handleBulkApply = async () => {
+    if (selectedIds.length === 0) return;
+    setLoading(true);
+    try {
+      const { data } = await api.put("/admin/fee-manager/bulk", {
+        selectedCountries: selectedIds,
+        bulkValues,
+      });
+      if (data?.success && data?.rows) {
+        showToast(data.message || "Bulk update applied successfully", "success");
+        setRows((prev) => {
+          const map = new Map(data.rows.map((r) => [r.countryId, r]));
+          return prev.map((r) => map.get(r.countryId) || r);
+        });
+        setSelectedIds([]);
+        setBulkValues({});
+        setBulkEst(null);
+        await onFeesUpdated?.();
+      } else {
+        showToast(data?.message || "Failed to apply bulk update", "error");
+      }
+    } catch (error) {
+      console.error("Bulk update error:", error);
+      showToast("Failed to apply bulk update", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedIds.length === 0) {
+      setBulkEst(null);
+      return;
+    }
+    const sampleId = selectedIds[0];
+    const sampleRow = rows.find(r => r.countryId === sampleId);
+    if (!sampleRow) return;
+
+    const amount = Number(bulkValues.amount !== undefined && bulkValues.amount !== "" ? bulkValues.amount : sampleRow.amount);
+    const forexFeePercent = Number(bulkValues.forexFeePercent !== undefined && bulkValues.forexFeePercent !== "" ? bulkValues.forexFeePercent : sampleRow.forexFeePercent);
+    const serviceFeeBeforeGST = Number(bulkValues.serviceFeeBeforeGST !== undefined && bulkValues.serviceFeeBeforeGST !== "" ? bulkValues.serviceFeeBeforeGST : sampleRow.serviceFeeBeforeGST);
+    const currency = bulkValues.currency !== undefined && bulkValues.currency !== "" ? bulkValues.currency : sampleRow.currency;
+
+    if (!currency || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(forexFeePercent) || forexFeePercent < 0 || !Number.isFinite(serviceFeeBeforeGST) || serviceFeeBeforeGST < 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data } = await api.post("/admin/fee-manager/convert", {
+          countryId: sampleId,
+          currency,
+          amount,
+          forexFeePercent,
+          serviceFeeBeforeGST,
+        });
+        if (data?.success) {
+          setBulkEst({
+            countryName: sampleRow.countryName,
+            serviceFeeAfterGST: data.serviceFeeAfterGST,
+            totalFeeInINR: data.totalFeeInINR
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [bulkValues.currency, bulkValues.amount, bulkValues.forexFeePercent, bulkValues.serviceFeeBeforeGST, selectedIds, rows]);
+
   useEffect(() => {
     if (!editingRowId || !draft) return undefined;
 
     const amount = Number(draft.amount);
     const forexFeePercent = Number(draft.forexFeePercent);
-    if (!draft.currency || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(forexFeePercent) || forexFeePercent < 0) {
+    const serviceFeeBeforeGST = Number(draft.serviceFeeBeforeGST);
+
+    if (!draft.currency || !Number.isFinite(amount) || amount < 0 || !Number.isFinite(forexFeePercent) || forexFeePercent < 0 || !Number.isFinite(serviceFeeBeforeGST) || serviceFeeBeforeGST < 0) {
       return undefined;
     }
 
@@ -124,6 +208,7 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
           currency: draft.currency,
           amount,
           forexFeePercent,
+          serviceFeeBeforeGST,
         });
         if (seq !== convertSeqRef.current || !data?.success) return;
         setDraft((prev) => {
@@ -132,7 +217,8 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
             ...prev,
             exchangeRate: Number(data.exchangeRate || 1),
             finalGovernmentFeeInINR: Number(data.finalGovernmentFeeInINR || 0),
-            serviceFeeBeforeGST: Number(data.serviceFeeBeforeGST || 0),
+            // We do not overwrite prev.serviceFeeBeforeGST here to avoid disrupting user input,
+            // but we update the other calculated values based on it.
             serviceFeeAfterGST: Number(data.serviceFeeAfterGST || 0),
             totalFeeInINR: Number(data.totalFeeInINR || 0),
           };
@@ -182,7 +268,9 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
     if (!draft || !editingRowId) return;
     const amount = Number(draft.amount);
     const forexFeePercent = Number(draft.forexFeePercent);
-    if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(forexFeePercent) || forexFeePercent < 0) {
+    const serviceFeeBeforeGST = Number(draft.serviceFeeBeforeGST);
+
+    if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(forexFeePercent) || forexFeePercent < 0 || !Number.isFinite(serviceFeeBeforeGST) || serviceFeeBeforeGST < 0) {
       showToast("Failed to update fee", "error");
       return;
     }
@@ -193,6 +281,7 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
         currency: draft.currency,
         amount,
         forexFeePercent,
+        serviceFeeBeforeGST,
       });
       if (!data?.success || !data?.row) {
         showToast("Failed to update fee", "error");
@@ -235,14 +324,104 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
         </div>
       </div>
 
+      {selectedIds.length > 0 && (
+        <Card>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-text-primary">
+                Selected Countries: <span className="text-cyan">{selectedIds.length}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="text-xs text-text-muted hover:text-red-400 transition-colors"
+              >
+                Clear selection
+              </button>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Currency</span>
+                <select
+                  value={bulkValues.currency || ""}
+                  onChange={(e) => setBulkValues((prev) => ({ ...prev, currency: e.target.value }))}
+                  className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                >
+                  <option value="">No change</option>
+                  {currencies.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="No change"
+                  value={bulkValues.amount || ""}
+                  onChange={(e) => setBulkValues((prev) => ({ ...prev, amount: e.target.value }))}
+                  className="w-24 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-cyan/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Forex Fee %</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="No change"
+                  value={bulkValues.forexFeePercent || ""}
+                  onChange={(e) => setBulkValues((prev) => ({ ...prev, forexFeePercent: e.target.value }))}
+                  className="w-24 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-cyan/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Service Fee Before GST</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="No change"
+                  value={bulkValues.serviceFeeBeforeGST || ""}
+                  onChange={(e) => setBulkValues((prev) => ({ ...prev, serviceFeeBeforeGST: e.target.value }))}
+                  className="w-24 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-cyan/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              {bulkEst && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Svc Fee After GST</span>
+                    <div className="w-28 rounded-lg border border-transparent px-2.5 py-1.5 text-xs font-medium text-cyan bg-cyan/5 truncate">
+                      {formatInr(bulkEst.serviceFeeAfterGST)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium text-text-muted uppercase tracking-wider">Est. Total ({bulkEst.countryName})</span>
+                    <div className="w-32 rounded-lg border border-transparent px-2.5 py-1.5 text-xs font-semibold text-text-primary bg-surface-2 truncate">
+                      {formatInr(bulkEst.totalFeeInINR)}
+                    </div>
+                  </div>
+                </>
+              )}
+              <Button variant="primary" size="sm" onClick={handleBulkApply} loading={loading}>
+                Apply to Selected
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="w-full overflow-hidden rounded-2xl border border-border bg-surface">
         <div className="hidden md:block w-full overflow-x-auto">
           <div className="min-w-full">
             <table className="w-full min-w-[1100px] table-fixed text-sm">
               <colgroup>
-                <col className="w-[10%]" />
-                <col className="w-[16%]" />
-                <col className="w-[10%]" />
+                <col className="w-[5%]" />
+                <col className="w-[8%]" />
+                <col className="w-[15%]" />
+                <col className="w-[8%]" />
                 <col className="w-[10%]" />
                 <col className="w-[10%]" />
                 <col className="w-[12%]" />
@@ -252,6 +431,15 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
               </colgroup>
             <thead className="sticky top-0 z-10 bg-surface-2/95 backdrop-blur">
               <tr className="border-b border-border text-left text-xs uppercase tracking-[0.16em] text-text-muted">
+                <th className="px-4 py-3 font-semibold text-center">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => setSelectedIds(allSelected ? [] : [...allIds])}
+                    className="h-4 w-4 rounded border-border bg-background text-cyan focus:ring-cyan"
+                    title={allSelected ? "Deselect All" : "Select All"}
+                  />
+                </th>
                 <th className="px-4 py-3 font-semibold">Action</th>
                 <th className="px-4 py-3 font-semibold">Country Name</th>
                 <th className="px-4 py-3 font-semibold">Currency</th>
@@ -266,11 +454,11 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
             <tbody style={{ paddingBottom: currencyMenuRowId ? "12rem" : "0" }}>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-text-muted">Loading fee manager...</td>
+                  <td colSpan={10} className="px-4 py-8 text-center text-text-muted">Loading fee manager...</td>
                 </tr>
               ) : pagedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-text-muted">No countries found.</td>
+                  <td colSpan={10} className="px-4 py-8 text-center text-text-muted">No countries found.</td>
                 </tr>
               ) : (
                 pagedRows.map((row) => {
@@ -279,7 +467,15 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                   const isBusy = savingRowId === row.countryId || convertingRowId === row.countryId;
 
                   return (
-                    <tr key={row.countryId} className="border-b border-border/70 align-top">
+                    <tr key={row.countryId} className={`border-b border-border/70 align-top ${selectedIds.includes(row.countryId) ? "bg-cyan/5" : "hover:bg-surface-2/50"}`}>
+                      <td className="px-4 py-3 align-top text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.countryId)}
+                          onChange={() => setSelectedIds((prev) => prev.includes(row.countryId) ? prev.filter((i) => i !== row.countryId) : [...prev, row.countryId])}
+                          className="h-4 w-4 rounded border-border bg-background text-cyan focus:ring-cyan mt-1"
+                        />
+                      </td>
                       <td className="px-4 py-3 align-top">
                         {isEditing ? (
                           <div className="flex gap-2">
@@ -412,7 +608,20 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                         <div className="font-semibold text-text-primary">{formatInr(current.finalGovernmentFeeInINR)}</div>
                         {isBusy && <p className="mt-1 text-[11px] text-cyan">Recalculating...</p>}
                       </td>
-                      <td className="px-4 py-3 align-top text-text-primary">{formatInr(current.serviceFeeBeforeGST)}</td>
+                      <td className="px-4 py-3 align-top">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={current.serviceFeeBeforeGST}
+                            onChange={(e) => setDraft((prev) => ({ ...prev, serviceFeeBeforeGST: e.target.value }))}
+                            className="w-full rounded-xl border border-border bg-surface-2 px-2 py-2 text-sm text-text-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+                          />
+                        ) : (
+                          <span className="text-text-primary">{formatInr(current.serviceFeeBeforeGST)}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 align-top text-text-primary">{formatInr(current.serviceFeeAfterGST)}</td>
                       <td className="px-4 py-3 align-top">
                         <span className="font-semibold text-cyan">{formatInr(current.totalFeeInINR)}</span>
@@ -442,11 +651,19 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
               const isBusy = savingRowId === row.countryId || convertingRowId === row.countryId;
 
               return (
-                <div key={row.countryId} className="rounded-2xl border border-border bg-surface-2 p-4">
+                <div key={row.countryId} className={`rounded-2xl border ${selectedIds.includes(row.countryId) ? "border-cyan bg-cyan/5" : "border-border bg-surface-2"} p-4`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-text-primary">{row.countryName}</p>
-                      <p className="mt-1 text-xs text-text-muted">Currency: {current.currency}</p>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(row.countryId)}
+                        onChange={() => setSelectedIds((prev) => prev.includes(row.countryId) ? prev.filter((i) => i !== row.countryId) : [...prev, row.countryId])}
+                        className="h-4 w-4 rounded border-border bg-background text-cyan focus:ring-cyan mt-1 shrink-0"
+                      />
+                      <div>
+                        <p className="font-semibold text-text-primary">{row.countryName}</p>
+                        <p className="mt-1 text-xs text-text-muted">Currency: {current.currency}</p>
+                      </div>
                     </div>
                     {isEditing ? (
                       <div className="flex gap-2">
@@ -583,7 +800,18 @@ const FeeUpdateManager = ({ isActive, showToast, onFeesUpdated }) => {
                     </div>
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="text-text-muted">Service Fee Before GST</span>
-                      <span className="text-text-primary">{formatInr(current.serviceFeeBeforeGST)}</span>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={current.serviceFeeBeforeGST}
+                          onChange={(e) => setDraft((prev) => ({ ...prev, serviceFeeBeforeGST: e.target.value }))}
+                          className="w-[120px] rounded-xl border border-border bg-background px-3 py-1.5 text-sm text-right text-text-primary focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      ) : (
+                        <span className="text-text-primary">{formatInr(current.serviceFeeBeforeGST)}</span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="text-text-muted">Service Fee After GST</span>

@@ -13,7 +13,7 @@ import {
   MapPin, Globe, Users, FileText, X, Save, AlertCircle, UploadCloud, Image as ImageIcon, Settings, CreditCard, IndianRupee, Sliders, HelpCircle, BookOpen,
   ExternalLink, GalleryVertical, BadgeCheck, ShieldCheck, ListChecks, ScrollText, CalendarDays, MessageSquare, RotateCcw,
   Briefcase, Banknote, GraduationCap, Stethoscope, Stamp, Receipt, Home, Car, HeartHandshake, Plane, Building2, Zap, Lock,
-  Mail, Youtube, Linkedin, Link as LinkIcon, MessageCircle, Trash2, Loader2, ChevronRight,
+  Mail, Youtube, Linkedin, Link as LinkIcon, MessageCircle, Trash2, Loader2, ChevronRight, PanelBottom, LayoutTemplate,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -2298,6 +2298,7 @@ const Dashboard = () => {
     {
       key: "landing-page",
       label: "Header",
+      icon: Home,
       description: "Branding, blog and authentication controls",
       sections: [
         {
@@ -2314,11 +2315,13 @@ const Dashboard = () => {
     {
       key: "cards",
       label: "Body",
+      icon: CreditCard,
       description: "Visa details, fees and documents",
       sections: [
         {
           key: "hero",
           label: "Hero",
+          icon: LayoutTemplate,
           children: [
             { key: "landing-highlights", label: "Landing Highlights" },
           ],
@@ -2326,6 +2329,7 @@ const Dashboard = () => {
         {
           key: "section-cards",
           label: "Section Cards",
+          icon: FileText,
           children: [
             {
               key: "visa-details-and-fee-manager",
@@ -2351,6 +2355,7 @@ const Dashboard = () => {
         {
           key: "travel-details",
           label: "Travel Details",
+          icon: MapPin,
           children: [
             { key: "upload-methods", label: "Document Upload Methods" },
           ],
@@ -2360,16 +2365,17 @@ const Dashboard = () => {
     {
       key: "footer",
       label: "Footer",
+      icon: PanelBottom,
       description: "Static pages and footer social icons",
       sections: [
         { key: "footer-social-icons", label: "Footer Controls" },
         { key: "static-pages", label: "Static Pages" },
       ],
     },
-
     {
       key: "system-display",
       label: "System / Display",
+      icon: Settings,
       description: "Maintenance and support widget settings",
       sections: [
         { key: "maintenance-mode", label: "Site maintenance mode" },
@@ -2451,9 +2457,12 @@ const Dashboard = () => {
     const hasChildren = Array.isArray(section.children) && section.children.length > 0;
     setActiveControlNavKey(section.key);
     if (hasChildren) {
-      setExpandedControlTabKeys((prev) => ({ ...prev, [section.key]: !prev[section.key] }));
+      setExpandedControlTabKeys((prev) => (
+        prev[section.key] ? {} : { [section.key]: true }
+      ));
       return;
     }
+    setExpandedControlTabKeys({});
     selectControlSection(section.key);
   };
 
@@ -6980,77 +6989,149 @@ const Dashboard = () => {
               ====================================== */}
           {isControlsTab && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <div className="min-w-0">
-                <aside className="hidden min-w-0 lg:sticky lg:top-24">
-                  <div className="hidden lg:block rounded-2xl border border-border bg-white p-4">
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold text-text-primary">Controls</h3>
-                      <p className="mt-1 text-xs text-text-muted">Choose a category, then open a related control.</p>
-                    </div>
-                    <div className="space-y-2">
-                      {controlGroups.map((group) => {
-                        const active = group.key === activeControlGroup.key;
-                        return (
-                          <button
-                            key={group.key}
-                            type="button"
-                            onClick={() => selectControlGroup(group.key)}
-                            className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                              active
-                                ? "border-cyan bg-cyan/10"
-                                : "border-border bg-background hover:border-cyan/40 hover:bg-surface-2"
-                            }`}
-                          >
-                            <span className={`block text-sm font-semibold ${active ? "text-cyan" : "text-text-primary"}`}>
-                              {group.label}
-                            </span>
-                            <span className="mt-1 block text-xs leading-relaxed text-text-muted">
-                              {group.description}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="lg:hidden space-y-3">
-                    <div className="overflow-x-auto pb-1">
-                      <div className="flex gap-2 min-w-max px-1">
-                        {controlGroups.map((group) => (
-                          <button
-                            key={group.key}
-                            type="button"
-                            onClick={() => selectControlGroup(group.key)}
-                            className={`whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                              group.key === activeControlGroup.key
-                                ? "border-cyan bg-cyan/10 text-cyan"
-                                : "border-border bg-white text-text-secondary hover:border-cyan/40"
-                            }`}
-                          >
-                            {group.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </aside>
-                <div className="flex-1 w-full min-w-0 max-w-full space-y-6 overflow-hidden">
-                  <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-white px-4 py-4">
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col min-w-0 mb-4 pl-1">
-                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted font-medium uppercase tracking-wider">
-                          {activeControlBreadcrumb.map((item, index) => (
-                            <span key={`${item}-${index}`} className="flex items-center gap-1.5">
-                              <span className={index === activeControlBreadcrumb.length - 1 ? "font-bold text-cyan" : ""}>
-                                {item}
-                              </span>
-                              {index < activeControlBreadcrumb.length - 1 && <ChevronRight size={13} className="text-text-muted/50" />}
-                            </span>
-                          ))}
+              <div className="min-w-0 flex flex-col w-full">
+                {/* Top Navigation Row */}
+                <div className="mb-6 flex gap-4 border-b border-border pb-2">
+                  {controlGroups.map((group) => {
+                    const active = group.key === activeControlGroup.key;
+                    const Icon = group.icon;
+                    return (
+                      <button
+                        key={group.key}
+                        onClick={() => selectControlGroup(group.key)}
+                        className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition ${
+                          active ? "border-cyan text-cyan" : "border-transparent text-text-secondary hover:border-border hover:text-text-primary"
+                        }`}
+                      >
+                        {Icon && <Icon size={18} />}
+                        {group.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Breadcrumb */}
+                <div className="mb-6 flex flex-wrap items-center gap-1.5 pl-1 text-[11px] font-medium uppercase tracking-wider text-text-muted">
+                  {["Controls", ...activeControlBreadcrumb].map((item, index, arr) => (
+                    <span key={`${item}-${index}`} className="flex items-center gap-1.5">
+                      <span className={index === arr.length - 1 ? "font-bold text-cyan" : ""}>
+                        {item}
+                      </span>
+                      {index < arr.length - 1 && <ChevronRight size={13} className="text-text-muted/50" />}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Groups rendering */}
+                <div className="mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                  {activeControlGroup.sections.map((section) => {
+                    const SectionIcon = section.icon || FileText;
+                    
+                    // Partition children into "leaf" nodes (pill buttons) and "branch" nodes (nested sub-headers)
+                    // If a section child has NO children of its own, it's a leaf.
+                    const leafs = section.children ? section.children.filter((child) => !child.children || child.children.length === 0) : [];
+                    const branches = section.children ? section.children.filter((child) => child.children && child.children.length > 0) : [];
+
+                    // If a section itself has no children (e.g. original Footer Controls), treat it as a standalone leaf action
+                    const isDirectControl = !section.children || section.children.length === 0;
+
+                    return (
+                      <div key={section.key} className="flex flex-col rounded-2xl border border-border bg-white p-4 shadow-sm">
+                        <div className="mb-4 flex items-center gap-2 text-sm font-bold text-text-primary">
+                          <SectionIcon size={18} className="text-cyan" />
+                          {section.label}
+                        </div>
+
+                        <div className="flex flex-col gap-5">
+                          {isDirectControl && (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => selectControlNavNode(section)}
+                                className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
+                                  activeControlSection === section.key
+                                    ? "bg-cyan text-white shadow-cyan-glow"
+                                    : "border border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+                                }`}
+                              >
+                                {section.label}
+                              </button>
+                            </div>
+                          )}
+
+                          {leafs.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {leafs.map((child) => {
+                                const active = activeControlSection === child.key;
+                                return (
+                                  <button
+                                    key={child.key}
+                                    onClick={() => selectControlNavNode(child)}
+                                    className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
+                                      active
+                                        ? "bg-cyan text-white shadow-cyan-glow"
+                                        : "border border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+                                    }`}
+                                  >
+                                    {child.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {branches.map((branch) => {
+                            const isExpanded = expandedControlTabKeys[branch.key];
+                            return (
+                              <div key={branch.key} className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2/30 p-3">
+                                <button
+                                  onClick={() => selectControlNavNode(branch)}
+                                  className="flex w-full items-center justify-between text-left text-[11px] font-bold uppercase tracking-wider text-text-muted hover:text-cyan transition-colors"
+                                >
+                                  {branch.label}
+                                  <ChevronDown
+                                    size={14}
+                                    className={`transition-transform duration-200 ${
+                                      isExpanded ? "rotate-180 text-cyan" : ""
+                                    }`}
+                                  />
+                                </button>
+                                <AnimatePresence initial={false}>
+                                  {isExpanded && (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: "auto", opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      transition={{ duration: 0.2 }}
+                                      className="overflow-hidden"
+                                    >
+                                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border mt-1">
+                                        {branch.children.map((subChild) => {
+                                          const active = activeControlSection === subChild.key;
+                                          return (
+                                            <button
+                                              key={subChild.key}
+                                              onClick={() => selectControlNavNode(subChild)}
+                                              className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
+                                                active
+                                                  ? "bg-cyan text-white shadow-cyan-glow"
+                                                  : "border border-border bg-white text-text-secondary hover:border-cyan/40 hover:text-text-primary shadow-sm"
+                                              }`}
+                                            >
+                                              {subChild.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                      <div className="max-w-full overflow-x-auto overscroll-x-contain pb-1">
-                        {renderControlSectionTabs(activeControlGroupSections)}
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -9925,9 +10006,6 @@ const Dashboard = () => {
               <div className={isControlSectionVisible("visa-details-table") ? "" : "hidden"}>
                 <VisaDetailsTable />
               </div>
-
-            </div>
-          </div>
             </motion.div>
           )}
 
