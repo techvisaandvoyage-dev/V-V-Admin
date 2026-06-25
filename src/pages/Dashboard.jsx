@@ -2081,7 +2081,7 @@ const Dashboard = () => {
   const { activeTab: tabParam } = useParams();
   const activeTab      = tabParam || "analytics";
   const [searchParams] = useSearchParams();
-  const isControlsTab = ["controls", "landing-page", "cards", "footer", "system-display"].includes(activeTab);
+  const isControlsTab = ["controls", "landing-page", "cards", "footer", "system-display", "activity"].includes(activeTab);
   const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
 
   useEffect(() => {
@@ -2295,6 +2295,17 @@ const Dashboard = () => {
   const hasControlNodeInPath = (sections = [], key) => Boolean(findControlNodePath(sections, key));
 
   const controlGroups = [
+    {
+      key: "activity",
+      label: "Activity Center",
+      icon: BarChart2,
+      description: "Analytics, applications, and transactions",
+      sections: [
+        { key: "analytics", label: "Analytics" },
+        { key: "applications", label: "Applications" },
+        { key: "transactions", label: "Transactions" },
+      ],
+    },
     {
       key: "landing-page",
       label: "Header",
@@ -3077,7 +3088,7 @@ const Dashboard = () => {
   // Fetch Data when tabs change
   useEffect(() => {
     const fetchData = async () => {
-      if (activeTab === "analytics" || activeTab === "applications" || activeTab === "transactions") {
+      if (activeTab === "activity" || activeTab === "analytics" || activeTab === "applications" || activeTab === "transactions") {
         try {
           await fetchAllApplications();
         } catch (error) {
@@ -3097,7 +3108,7 @@ const Dashboard = () => {
           await Promise.all([fetchCountries(), loadGlobalCountryDefaults()]);
         } else if (activeTab === "pages") {
           await fetchPages({ page: 1, limit: 8 });
-        } else if (activeTab === "transactions") {
+        } else if (activeTab === "transactions" || activeTab === "activity") {
           const { data } = await api.get("/admin/transactions");
           if (data.success) setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
         } else if (activeTab === "settings" || activeTab === "seo") {
@@ -6331,384 +6342,6 @@ const Dashboard = () => {
     >
 
           {/* ======================================
-              TAB: TRANSACTIONS
-              ====================================== */}
-          {activeTab === "transactions" && <PaymentsPage transactions={transactions} />}
-          {false && activeTab === "transactions" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              <Card>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="font-semibold text-text-primary">Payment Transactions</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-border/50 text-sm text-text-muted">
-                        <th className="py-3 px-4 font-medium">Date</th>
-                        <th className="py-3 px-4 font-medium">User</th>
-                        <th className="py-3 px-4 font-medium">Payment ID</th>
-                        <th className="py-3 px-4 font-medium">Amount</th>
-                        <th className="py-3 px-4 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                      {transactions.length === 0 ? (
-                        <tr>
-                          <td colSpan="5" className="py-8 text-center text-text-muted">No transactions found.</td>
-                        </tr>
-                      ) : (
-                        transactions.map((tx) => (
-                          <tr key={tx._id} className="border-b border-border/30 hover:bg-surface-2 transition-colors">
-                            <td className="py-3 px-4 text-text-secondary">
-                              {fmtDate(tx.createdAt)}
-                            </td>
-                            <td className="py-3 px-4 text-text-primary font-medium">
-                              {tx.user?.name || 'Unknown'}
-                              <div className="text-xs text-text-muted font-normal">{tx.user?.email || ''}</div>
-                            </td>
-                            <td className="py-3 px-4 font-mono text-xs text-text-secondary">
-                              {tx.razorpayPaymentId || tx.paymentId || tx.razorpayOrderId || "N/A"}
-                            </td>
-                            <td className="py-3 px-4 font-medium text-text-primary">
-                              ₹{Number(tx.amount || 0).toLocaleString("en-IN")}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/10 text-red-400' : tx.status === 'cancelled' ? 'bg-slate-500/10 text-slate-300' : 'bg-amber-500/10 text-amber-400'}`}>
-                                {String(tx.status || "pending").charAt(0).toUpperCase() + String(tx.status || "pending").slice(1)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </motion.div>
-          )}
-
-          {activeTab === "pages" && <StaticPagesManager />}
-
-          {activeTab === "blogs" && <BlogAdminPanel />}
-
-          {/* ======================================
-              TAB 1: ANALYTICS
-              ====================================== */}
-          {activeTab === "analytics" && (
-            <AnalyticsPage
-              bookings={bookings}
-              activeChart={activeChart}
-              setActiveChart={setActiveChart}
-              liveAnalytics={liveAnalytics}
-            />
-          )}
-          {false && activeTab === "analytics" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-              {/* Stat cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
-                  { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
-                  { label: "Pending Review", value: liveAnalytics.pendingReview,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
-                  { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
-                ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
-                  <motion.div
-                    key={label}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                  >
-                    <Card className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
-                        <Icon size={22} className={color} />
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-text-primary">
-                          {value}{suffix}
-                        </div>
-                        <div className="text-xs text-text-muted">{label}</div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Revenue + Bookings chart */}
-              <Card>
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                  <h2 className="font-semibold text-text-primary">Monthly Overview</h2>
-                  <div className="flex p-1 bg-surface-2 rounded-xl">
-                    {[
-                      { id: "revenue",  label: "Revenue" },
-                      { id: "bookings", label: "Bookings" },
-                    ].map(({ id, label }) => (
-                      <button
-                        key={id}
-                        id={`chart-toggle-${id}`}
-                        onClick={() => setActiveChart(id)}
-                        className={`relative px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeChart === id ? "text-background" : "text-text-muted hover:text-text-primary"}`}
-                      >
-                        {activeChart === id && (
-                          <motion.div
-                            layoutId="chartTogglePill"
-                            className="absolute inset-0 bg-cyan rounded-lg"
-                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                          />
-                        )}
-                        <span className="relative z-10">{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recharts */}
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    {activeChart === "revenue" ? (
-                      <LineChart data={MONTHLY_REVENUE}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                        <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
-                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#0284c7', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                        <Line
-                          type="monotone"
-                          dataKey="revenue"
-                          name="Revenue"
-                          stroke="#0284c7"
-                          strokeWidth={3}
-                          dot={{ fill: "#ffffff", stroke: "#0284c7", strokeWidth: 2, r: 4 }}
-                          activeDot={{ r: 6, fill: "#0284c7", stroke: "#ffffff", strokeWidth: 2 }}
-                          isAnimationActive={true}
-                          animationDuration={1500}
-                          animationEasing="ease-in-out"
-                        />
-                      </LineChart>
-                    ) : (
-                      <BarChart data={MONTHLY_REVENUE}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                        <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#e5e7eb', opacity: 0.6 }} />
-                        <Bar 
-                          dataKey="bookings" 
-                          name="Bookings" 
-                          fill="#0284c7" 
-                          radius={[4, 4, 0, 0]} 
-                          isAnimationActive={true}
-                          animationDuration={1500}
-                          animationEasing="ease-in-out"
-                        />
-                      </BarChart>
-                    )}
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              {/* Status breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                {[
-                  { label: "Approved",    count: bookings.filter(b=>b.status==="approved").length,  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-                  { label: "Under Review",count: bookings.filter(b=>{
-                      const progress = getApplicationProgress(b, settingsForm);
-                      return resolveApplicationStatus(b, progress) === "review";
-                    }).length, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-                  { label: "Pending Review", count: bookings.filter(b=>{
-                      const progress = getApplicationProgress(b, settingsForm);
-                      return resolveApplicationStatus(b, progress) === "doc_pending";
-                    }).length, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-                  { label: "Pending", count: bookings.filter(b=>{
-                      const progress = getApplicationProgress(b, settingsForm);
-                      const status = resolveApplicationStatus(b, progress);
-                      return status === "dash" || status === "pending";
-                    }).length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
-                  { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
-                ].map(({ label, count, color, bg, border }) => (
-                  <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
-                    <div className={`text-3xl font-bold ${color}`}>{count}</div>
-                    <div className="text-xs text-text-muted mt-1">{label}</div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* ======================================
-              TAB 2: APPLICATIONS TABLE
-              ====================================== */}
-          {activeTab === "applications" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card>
-                {/* Toolbar */}
-                <div className="flex flex-wrap items-center gap-3 mb-6">
-                  <h2 className="font-semibold text-text-primary flex-1">All Applications</h2>
-
-                  {/* Search */}
-                  <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-xl px-3 py-2">
-                    <Search size={14} className="text-text-muted" />
-                    <input
-                      type="text"
-                      placeholder="Search by name, country, ID..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="bg-transparent text-sm text-text-primary placeholder-text-muted focus:outline-none w-48"
-                      id="admin-search"
-                      aria-label="Search applications"
-                    />
-                  </div>
-
-                  {/* Status filter */}
-                  <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-xl px-3 py-2">
-                    <Filter size={14} className="text-text-muted" />
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="bg-transparent text-sm text-text-secondary focus:outline-none cursor-pointer"
-                      id="admin-status-filter"
-                    >
-                      <option value="all">All Status</option>
-                      <option value="dash">Not Paid</option>
-                      <option value="doc_pending">Pending Review</option>
-                      <option value="review">Under Review</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Table - horizontally scrollable on mobile */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        {["Application ID","Applicant","Destination","Travel Date","Fee","Payment","Documents","Status","Details"].map((h) => (
-                          <th key={h} className="text-left text-xs font-semibold text-text-muted pb-3 pr-6 whitespace-nowrap">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {filteredBookings.map((b) => {
-                        const progress = getApplicationProgress(b, settingsForm);
-                        const transactionId =
-                          b.transactionId && b.transactionId !== "pending" ? b.transactionId : "";
-                        return (
-                          <tr key={b._id || b.id} className="hover:bg-surface-3/50 transition-colors group">
-                          <td className="py-3 pr-6 font-mono text-xs text-text-muted whitespace-nowrap">
-                            {b.applicationId || b._id || b.id}
-                          </td>
-                          <td className="py-3 pr-6 whitespace-nowrap">
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                {b.firstName ? `${b.firstName} ${b.lastName}` : (b.userName || 'Unknown')}
-                              </p>
-                              <p className="text-xs text-text-muted">{b.email || b.userEmail}</p>
-                              {b.user?.phone && (
-                                <p className="text-xs text-text-muted mt-0.5">
-                                  {String(b.user.phone).replace(/\D/g, "").length === 10
-                                    ? `+91 ${String(b.user.phone).replace(/\D/g, "").slice(0, 5)} ${String(b.user.phone).replace(/\D/g, "").slice(5)}`
-                                    : b.user.phone}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 pr-6 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl">{b.flagEmoji}</span>
-                              <span className="font-medium text-text-primary">{b.countryName}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-6 text-text-secondary whitespace-nowrap">
-                            {fmtDate(b.travelDate)}
-                          </td>
-                          <td className="py-3 pr-6 font-medium text-text-primary whitespace-nowrap">
-                            ₹{b.fee}
-                          </td>
-                          <td className="py-3 pr-6">
-                            <div className="space-y-1">
-                              <p className={`text-xs font-medium ${
-                                b.paymentStatus === "completed"
-                                  ? "text-emerald-400"
-                                  : b.paymentStatus === "failed"
-                                    ? "text-red-400"
-                                    : b.paymentStatus === "cancelled"
-                                      ? "text-zinc-300"
-                                      : "text-amber-400"
-                              }`}>
-                                {b.paymentStatus === "completed"
-                                  ? "Paid"
-                                  : b.paymentStatus === "failed"
-                                    ? "Failed"
-                                    : b.paymentStatus === "cancelled"
-                                      ? "Cancelled"
-                                      : "Pending payment"}
-                              </p>
-                              <p className="font-mono text-[11px] text-text-secondary max-w-[140px] truncate" title={b.transactionId || ""}>
-                                {transactionId || "No transaction yet"}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-6">
-                            {(() => {
-                              const nextPendingTraveler = progress.missingByTraveler.find((item) => item.missingLabels.length);
-                              return (
-                                <div className="space-y-1">
-                                  <p className={`text-xs font-medium ${progress.allDocumentsUploaded ? "text-emerald-400" : "text-amber-400"}`}>
-                                    {progress.allDocumentsUploaded ? "Complete" : `${progress.totalMissingDocuments} missing`}
-                                  </p>
-                                  {!progress.allDocumentsUploaded && nextPendingTraveler && (
-                                    <p className="text-[11px] text-text-muted">
-                                      {nextPendingTraveler.travelerName} pending
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </td>
-                          <td className="py-3 pr-6">
-                            <StatusBadge status={resolveApplicationStatus(b, progress)} />
-                          </td>
-                          <td className="py-3 pr-2">
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/application/${b.id || b._id}`)}
-                              className="px-3 py-1.5 bg-cyan/10 text-cyan hover:bg-cyan/20 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
-                              title="View Application Details"
-                            >
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    </tbody>
-                  </table>
-
-                  {filteredBookings.length === 0 && (
-                    <div className="text-center py-12 text-text-muted">
-                      <AlertCircle size={32} className="mx-auto mb-3 opacity-50" />
-                      <p>No applications match your search.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Pagination stub */}
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-                  <p className="text-xs text-text-muted">
-                    Showing {filteredBookings.length} of {bookings.length} applications
-                  </p>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">Prev</button>
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-cyan text-background font-medium" id="admin-page-1">1</button>
-                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next</button>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* ======================================
               TAB 3: COUNTRY MANAGER
               ====================================== */}
           {activeTab === "countries" && (
@@ -7455,7 +7088,378 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
-                  <Card className={isControlSectionVisible("site-logo") ? "" : "hidden"}>
+                  {/* ======================================
+              TAB: TRANSACTIONS
+              ====================================== */}
+          <div className={isControlSectionVisible("transactions") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>{true && <PaymentsPage transactions={transactions} />}</div>
+          {false && activeTab === "transactions" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <Card>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="font-semibold text-text-primary">Payment Transactions</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-border/50 text-sm text-text-muted">
+                        <th className="py-3 px-4 font-medium">Date</th>
+                        <th className="py-3 px-4 font-medium">User</th>
+                        <th className="py-3 px-4 font-medium">Payment ID</th>
+                        <th className="py-3 px-4 font-medium">Amount</th>
+                        <th className="py-3 px-4 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {transactions.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" className="py-8 text-center text-text-muted">No transactions found.</td>
+                        </tr>
+                      ) : (
+                        transactions.map((tx) => (
+                          <tr key={tx._id} className="border-b border-border/30 hover:bg-surface-2 transition-colors">
+                            <td className="py-3 px-4 text-text-secondary">
+                              {fmtDate(tx.createdAt)}
+                            </td>
+                            <td className="py-3 px-4 text-text-primary font-medium">
+                              {tx.user?.name || 'Unknown'}
+                              <div className="text-xs text-text-muted font-normal">{tx.user?.email || ''}</div>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-xs text-text-secondary">
+                              {tx.razorpayPaymentId || tx.paymentId || tx.razorpayOrderId || "N/A"}
+                            </td>
+                            <td className="py-3 px-4 font-medium text-text-primary">
+                              ₹{Number(tx.amount || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/10 text-red-400' : tx.status === 'cancelled' ? 'bg-slate-500/10 text-slate-300' : 'bg-amber-500/10 text-amber-400'}`}>
+                                {String(tx.status || "pending").charAt(0).toUpperCase() + String(tx.status || "pending").slice(1)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {activeTab === "pages" && <StaticPagesManager />}
+
+          {activeTab === "blogs" && <BlogAdminPanel />}
+
+          {/* ======================================
+              TAB 1: ANALYTICS
+              ====================================== */}
+          <div className={isControlSectionVisible("analytics") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>{true && <AnalyticsPage bookings={bookings} activeChart={activeChart} setActiveChart={setActiveChart} liveAnalytics={liveAnalytics} />}</div>
+          {false && activeTab === "analytics" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              {/* Stat cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Bookings",  value: liveAnalytics.total,           icon: FileText,   color: "text-cyan",        bg: "bg-cyan/10",          suffix: "" },
+                  { label: "Total Revenue",   value: `₹${liveAnalytics.revenue}`,   icon: IndianRupee, color: "text-gold",        bg: "bg-gold/10",          suffix: "" },
+                  { label: "Pending Review", value: liveAnalytics.pendingReview,          icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10",     suffix: "" },
+                  { label: "Approval Rate",   value: liveAnalytics.approvalRate,    icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10",   suffix: "%" },
+                ].map(({ label, value, icon: Icon, color, bg, suffix }, i) => (
+                  <motion.div
+                    key={label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.08 }}
+                  >
+                    <Card className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+                        <Icon size={22} className={color} />
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-text-primary">
+                          {value}{suffix}
+                        </div>
+                        <div className="text-xs text-text-muted">{label}</div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Revenue + Bookings chart */}
+              <Card>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                  <h2 className="font-semibold text-text-primary">Monthly Overview</h2>
+                  <div className="flex p-1 bg-surface-2 rounded-xl">
+                    {[
+                      { id: "revenue",  label: "Revenue" },
+                      { id: "bookings", label: "Bookings" },
+                    ].map(({ id, label }) => (
+                      <button
+                        key={id}
+                        id={`chart-toggle-${id}`}
+                        onClick={() => setActiveChart(id)}
+                        className={`relative px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeChart === id ? "text-background" : "text-text-muted hover:text-text-primary"}`}
+                      >
+                        {activeChart === id && (
+                          <motion.div
+                            layoutId="chartTogglePill"
+                            className="absolute inset-0 bg-cyan rounded-lg"
+                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                          />
+                        )}
+                        <span className="relative z-10">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recharts */}
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    {activeChart === "revenue" ? (
+                      <LineChart data={MONTHLY_REVENUE}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#0284c7', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="revenue"
+                          name="Revenue"
+                          stroke="#0284c7"
+                          strokeWidth={3}
+                          dot={{ fill: "#ffffff", stroke: "#0284c7", strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, fill: "#0284c7", stroke: "#ffffff", strokeWidth: 2 }}
+                          isAnimationActive={true}
+                          animationDuration={1500}
+                          animationEasing="ease-in-out"
+                        />
+                      </LineChart>
+                    ) : (
+                      <BarChart data={MONTHLY_REVENUE}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: '#e5e7eb', opacity: 0.6 }} />
+                        <Bar 
+                          dataKey="bookings" 
+                          name="Bookings" 
+                          fill="#0284c7" 
+                          radius={[4, 4, 0, 0]} 
+                          isAnimationActive={true}
+                          animationDuration={1500}
+                          animationEasing="ease-in-out"
+                        />
+                      </BarChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Status breakdown */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[
+                  { label: "Approved",    count: bookings.filter(b=>b.status==="approved").length,  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+                  { label: "Under Review",count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      return resolveApplicationStatus(b, progress) === "review";
+                    }).length, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+                  { label: "Pending Review", count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      return resolveApplicationStatus(b, progress) === "doc_pending";
+                    }).length, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+                  { label: "Pending", count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      const status = resolveApplicationStatus(b, progress);
+                      return status === "dash" || status === "pending";
+                    }).length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
+                  { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
+                ].map(({ label, count, color, bg, border }) => (
+                  <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
+                    <div className={`text-3xl font-bold ${color}`}>{count}</div>
+                    <div className="text-xs text-text-muted mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ======================================
+              TAB 2: APPLICATIONS TABLE
+              ====================================== */}
+          <div className={isControlSectionVisible("applications") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>{true && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <Card>
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                  <h2 className="font-semibold text-text-primary flex-1">All Applications</h2>
+
+                  {/* Search */}
+                  <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-xl px-3 py-2">
+                    <Search size={14} className="text-text-muted" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, country, ID..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-transparent text-sm text-text-primary placeholder-text-muted focus:outline-none w-48"
+                      id="admin-search"
+                      aria-label="Search applications"
+                    />
+                  </div>
+
+                  {/* Status filter */}
+                  <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-xl px-3 py-2">
+                    <Filter size={14} className="text-text-muted" />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="bg-transparent text-sm text-text-secondary focus:outline-none cursor-pointer"
+                      id="admin-status-filter"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="dash">Not Paid</option>
+                      <option value="doc_pending">Pending Review</option>
+                      <option value="review">Under Review</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Table - horizontally scrollable on mobile */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        {["Application ID","Applicant","Destination","Travel Date","Fee","Payment","Documents","Status","Details"].map((h) => (
+                          <th key={h} className="text-left text-xs font-semibold text-text-muted pb-3 pr-6 whitespace-nowrap">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {filteredBookings.map((b) => {
+                        const progress = getApplicationProgress(b, settingsForm);
+                        const transactionId =
+                          b.transactionId && b.transactionId !== "pending" ? b.transactionId : "";
+                        return (
+                          <tr key={b._id || b.id} className="hover:bg-surface-3/50 transition-colors group">
+                          <td className="py-3 pr-6 font-mono text-xs text-text-muted whitespace-nowrap">
+                            {b.applicationId || b._id || b.id}
+                          </td>
+                          <td className="py-3 pr-6 whitespace-nowrap">
+                            <div>
+                              <p className="font-medium text-text-primary">
+                                {b.firstName ? `${b.firstName} ${b.lastName}` : (b.userName || 'Unknown')}
+                              </p>
+                              <p className="text-xs text-text-muted">{b.email || b.userEmail}</p>
+                              {b.user?.phone && (
+                                <p className="text-xs text-text-muted mt-0.5">
+                                  {String(b.user.phone).replace(/\D/g, "").length === 10
+                                    ? `+91 ${String(b.user.phone).replace(/\D/g, "").slice(0, 5)} ${String(b.user.phone).replace(/\D/g, "").slice(5)}`
+                                    : b.user.phone}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 pr-6 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{b.flagEmoji}</span>
+                              <span className="font-medium text-text-primary">{b.countryName}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-6 text-text-secondary whitespace-nowrap">
+                            {fmtDate(b.travelDate)}
+                          </td>
+                          <td className="py-3 pr-6 font-medium text-text-primary whitespace-nowrap">
+                            ₹{b.fee}
+                          </td>
+                          <td className="py-3 pr-6">
+                            <div className="space-y-1">
+                              <p className={`text-xs font-medium ${
+                                b.paymentStatus === "completed"
+                                  ? "text-emerald-400"
+                                  : b.paymentStatus === "failed"
+                                    ? "text-red-400"
+                                    : b.paymentStatus === "cancelled"
+                                      ? "text-zinc-300"
+                                      : "text-amber-400"
+                              }`}>
+                                {b.paymentStatus === "completed"
+                                  ? "Paid"
+                                  : b.paymentStatus === "failed"
+                                    ? "Failed"
+                                    : b.paymentStatus === "cancelled"
+                                      ? "Cancelled"
+                                      : "Pending payment"}
+                              </p>
+                              <p className="font-mono text-[11px] text-text-secondary max-w-[140px] truncate" title={b.transactionId || ""}>
+                                {transactionId || "No transaction yet"}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-6">
+                            {(() => {
+                              const nextPendingTraveler = progress.missingByTraveler.find((item) => item.missingLabels.length);
+                              return (
+                                <div className="space-y-1">
+                                  <p className={`text-xs font-medium ${progress.allDocumentsUploaded ? "text-emerald-400" : "text-amber-400"}`}>
+                                    {progress.allDocumentsUploaded ? "Complete" : `${progress.totalMissingDocuments} missing`}
+                                  </p>
+                                  {!progress.allDocumentsUploaded && nextPendingTraveler && (
+                                    <p className="text-[11px] text-text-muted">
+                                      {nextPendingTraveler.travelerName} pending
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-3 pr-6">
+                            <StatusBadge status={resolveApplicationStatus(b, progress)} />
+                          </td>
+                          <td className="py-3 pr-2">
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/application/${b.id || b._id}`)}
+                              className="px-3 py-1.5 bg-cyan/10 text-cyan hover:bg-cyan/20 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                              title="View Application Details"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    </tbody>
+                  </table>
+
+                  {filteredBookings.length === 0 && (
+                    <div className="text-center py-12 text-text-muted">
+                      <AlertCircle size={32} className="mx-auto mb-3 opacity-50" />
+                      <p>No applications match your search.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pagination stub */}
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                  <p className="text-xs text-text-muted">
+                    Showing {filteredBookings.length} of {bookings.length} applications
+                  </p>
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-prev-page">Prev</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-cyan text-background font-medium" id="admin-page-1">1</button>
+                    <button className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 text-text-muted hover:text-text-primary transition-colors" id="admin-next-page">Next</button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          )}</div>
+
+<Card className={isControlSectionVisible("site-logo") ? "" : "hidden"}>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-3">

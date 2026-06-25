@@ -26,9 +26,13 @@ const USER_NAV = [
 ];
 
 const ADMIN_NAV = [
-  { label: "Analytics",        icon: BarChart2,         to: "/",             id: "nav-admin-analytics" },
-  { label: "Applications",     icon: FileText,          to: "/applications", id: "nav-admin-apps" },
-  { label: "Transactions",     icon: CreditCard,        to: "/transactions", id: "nav-admin-tx" },
+  { label: "Activity Center",  icon: BarChart2,         to: "/activity",     id: "nav-admin-activity", inlineTree: true,
+    subItems: [
+      { label: "Analytics", sectionKey: "analytics" },
+      { label: "Applications", sectionKey: "applications" },
+      { label: "Transactions", sectionKey: "transactions" },
+    ]
+  },
   { label: "Country Manager",  icon: MapPin,            to: "/countries",    id: "nav-admin-countries" },
   { label: "Header",           icon: Home,              to: "/landing-page", id: "nav-admin-landing", inlineTree: true,
     subItems: [
@@ -153,7 +157,7 @@ const Sidebar = () => {
     items.some((item) =>
       item?.children?.length
         ? hasActiveTreeItem(item.children, to)
-        : isSectionActive(to, item?.sectionKey)
+        : item.to ? location.pathname === item.to : isSectionActive(to, item?.sectionKey)
     );
 
   const renderFlyoutSubItems = (items, to, parentKey = "") =>
@@ -174,11 +178,13 @@ const Sidebar = () => {
         );
       }
 
-      const active = isSectionActive(to, sub.sectionKey);
+      const active = sub.to ? location.pathname === sub.to : isSectionActive(to, sub.sectionKey);
+      const itemTo = sub.to || `${to}?section=${sub.sectionKey}`;
+
       return (
         <Link
           key={key}
-          to={`${to}?section=${sub.sectionKey}`}
+          to={itemTo}
           onClick={() => setHoveredNavItem(null)}
           className={`block w-full text-left py-2 text-sm transition ${
             sub.indent ? "pl-6 pr-4" : "pl-8 pr-4"
@@ -228,11 +234,13 @@ const Sidebar = () => {
         );
       }
 
-      const active = isSectionActive(to, sub.sectionKey);
+      const active = sub.to ? location.pathname === sub.to : isSectionActive(to, sub.sectionKey);
+      const itemTo = sub.to || `${to}?section=${sub.sectionKey}`;
+
       return (
         <li key={key}>
           <Link
-            to={`${to}?section=${sub.sectionKey}`}
+            to={itemTo}
             className={`block rounded-lg py-2 pr-3 text-sm transition ${
               active
                 ? "bg-cyan/10 text-cyan font-semibold"

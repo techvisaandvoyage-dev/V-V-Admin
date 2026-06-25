@@ -12,9 +12,7 @@ import {
 } from "lucide-react";
 
 export const ADMIN_DASHBOARD_TABS = [
-  { id: "analytics", label: "Analytics", icon: BarChart2 },
-  { id: "applications", label: "Applications", icon: FileText },
-  { id: "transactions", label: "Transactions", icon: CreditCard },
+  { id: "activity", label: "Activity Center", icon: BarChart2 },
   { id: "countries", label: "Country Manager", icon: MapPin },
   { id: "landing-page", label: "Header", icon: Globe },
   { id: "cards", label: "Body", icon: CreditCard },
