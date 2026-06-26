@@ -8046,8 +8046,20 @@ const Dashboard = () => {
                       labelOff="Hidden"
                     />
                   </div>
-                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
-                    Documents management coming soon!
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center">
+                    <p className="text-text-muted mb-6"></p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveControlGroupKey("cards");
+                        setActiveControlNavKey("visa-details-table");
+                        setExpandedControlTabKeys({ "section-cards": true, "visa-details-and-fee-manager": true });
+                        selectControlSection("visa-details-table");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-cyan px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cyan/90"
+                    >
+                      Edit Documents
+                    </button>
                   </div>
                 </Card>
               </div>
