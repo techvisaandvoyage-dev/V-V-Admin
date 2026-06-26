@@ -2256,7 +2256,7 @@ const Dashboard = () => {
     showEntryType: true,
     showProcessingDays: true,
     showRequiredDocuments: true,
-    showVisaRequirements: true,
+    showVisaRequirements: false,
     showHowItWorks: true,
     showWhyBookNow: true,
     showDestinationDocuments: true,
@@ -4237,6 +4237,11 @@ const Dashboard = () => {
             showProcessingDays: data.display.showProcessingDays !== false,
             showRequiredDocuments: data.display.showRequiredDocuments !== false,
             showVisaRequirements: data.display.showVisaRequirements !== false,
+            showHowItWorks: data.display.showHowItWorks !== false,
+            showWhyBookNow: data.display.showWhyBookNow !== false,
+            showDestinationDocuments: data.display.showDestinationDocuments !== false,
+            showWhatsIncluded: data.display.showWhatsIncluded !== false,
+            showFaqs: data.display.showFaqs !== false,
             maintenanceModeEnabled: data.display.maintenanceModeEnabled === true,
           });
         }
