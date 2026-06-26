@@ -2260,6 +2260,8 @@ const Dashboard = () => {
     showHowItWorks: true,
     showWhyBookNow: true,
     showDestinationDocuments: true,
+    showDestinationRequiredDocs: true,
+    showDestinationOptionalDocs: true,
     showWhatsIncluded: true,
     showFaqs: true,
     maintenanceModeEnabled: false,
@@ -2383,10 +2385,13 @@ const Dashboard = () => {
               label: "Start Application Page",
               icon: MapPin,
               children: [
-                { key: "calendar-manager", label: "Calender manager" },
-                { key: "traveler-form-manager", label: "Traveler Form manager" },
+                { key: "calendar-manager", label: "Calender" },
+                { key: "traveler-form-manager", label: "Traveler Form" },
                 { key: "upload-methods", label: "Document Upload Methods" },
-                { key: "documents", label: "Documents" },
+                { key: "documents", label: "Documents", children: [
+                  { key: "required-documents", label: "Documents Required" },
+                  { key: "optional-documents", label: "Optional Document" },
+                ] },
               ],
             },
           ],
@@ -2467,12 +2472,7 @@ const Dashboard = () => {
   const isControlSectionVisible = (sectionKey) => visibleControlSectionKeys.has(sectionKey);
   const [expandedControlCards, setExpandedControlCards] = useState({});
   const selectControlSection = (nextKey) => {
-    setActiveControlSection((prevKey) => {
-      if (prevKey !== nextKey) {
-        setExpandedControlCards({});
-      }
-      return nextKey;
-    });
+    setActiveControlSection(nextKey);
   };
   // Selecting a parent group: update URL to trigger useEffect sync
   const selectControlGroup = (groupKey) => {
@@ -2502,7 +2502,6 @@ const Dashboard = () => {
     if (matchedGroup) {
       setActiveControlGroupKey(matchedGroup.key);
       setActiveControlNavKey(null);
-      setExpandedControlTabKeys({});
       const firstSectionKey = getFirstControlLeaf(matchedGroup.sections)?.key;
       if (firstSectionKey) selectControlSection(firstSectionKey);
     }
@@ -2511,12 +2510,18 @@ const Dashboard = () => {
     const hasChildren = Array.isArray(section.children) && section.children.length > 0;
     setActiveControlNavKey(section.key);
     if (hasChildren) {
-      setExpandedControlTabKeys((prev) => (
-        prev[section.key] ? {} : { [section.key]: true }
-      ));
+      setExpandedControlTabKeys((prev) => {
+        if (prev[section.key]) {
+          const next = { ...prev };
+          delete next[section.key];
+          return next;
+        }
+        return { [section.key]: true };
+      });
+      const firstLeaf = getFirstControlLeaf(section.children);
+      if (firstLeaf) selectControlSection(firstLeaf.key);
       return;
     }
-    setExpandedControlTabKeys({});
     selectControlSection(section.key);
   };
 
@@ -4240,6 +4245,8 @@ const Dashboard = () => {
             showHowItWorks: data.display.showHowItWorks !== false,
             showWhyBookNow: data.display.showWhyBookNow !== false,
             showDestinationDocuments: data.display.showDestinationDocuments !== false,
+            showDestinationRequiredDocs: data.display.showDestinationRequiredDocs !== false,
+            showDestinationOptionalDocs: data.display.showDestinationOptionalDocs !== false,
             showWhatsIncluded: data.display.showWhatsIncluded !== false,
             showFaqs: data.display.showFaqs !== false,
             maintenanceModeEnabled: data.display.maintenanceModeEnabled === true,
@@ -6161,6 +6168,8 @@ const Dashboard = () => {
           showHowItWorks: live.showHowItWorks !== false,
           showWhyBookNow: live.showWhyBookNow !== false,
           showDestinationDocuments: live.showDestinationDocuments !== false,
+          showDestinationRequiredDocs: live.showDestinationRequiredDocs !== false,
+          showDestinationOptionalDocs: live.showDestinationOptionalDocs !== false,
           showWhatsIncluded: live.showWhatsIncluded !== false,
           showFaqs: live.showFaqs !== false,
           maintenanceModeEnabled: live.maintenanceModeEnabled === true,
@@ -6176,6 +6185,8 @@ const Dashboard = () => {
           showHowItWorks: "How it works",
           showWhyBookNow: "Why book now",
           showDestinationDocuments: "Documents Required",
+          showDestinationRequiredDocs: "Documents Required",
+          showDestinationOptionalDocs: "Optional Document",
           showWhatsIncluded: "What's included",
           showFaqs: "FAQs",
           maintenanceModeEnabled: "Maintenance Mode",
@@ -8031,6 +8042,70 @@ const Dashboard = () => {
                 </Card>
               </div>
 
+              <div className={isControlSectionVisible("required-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Documents Required</h2>
+                      <p className="text-xs text-text-muted">Manage required document types.</p>
+                    </div>
+                    <DisplayToggle
+                      active={displayToggles.showDestinationRequiredDocs}
+                      busy={togglingDisplayKey === "showDestinationRequiredDocs"}
+                      onClick={() => runToggleDisplay("showDestinationRequiredDocs")}
+                      labelOn="Visible"
+                      labelOff="Hidden"
+                    />
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveControlGroupKey("cards");
+                        setActiveControlNavKey("visa-details-table");
+                        setExpandedControlTabKeys({ "section-cards": true, "visa-details-and-fee-manager": true });
+                        selectControlSection("visa-details-table");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-cyan px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cyan/90"
+                    >
+                      Edit Documents
+                    </button>
+                  </div>
+                </Card>
+              </div>
+
+              <div className={isControlSectionVisible("optional-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+                <Card>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-semibold text-text-primary">Optional Document</h2>
+                      <p className="text-xs text-text-muted">Manage optional document types.</p>
+                    </div>
+                    <DisplayToggle
+                      active={displayToggles.showDestinationOptionalDocs}
+                      busy={togglingDisplayKey === "showDestinationOptionalDocs"}
+                      onClick={() => runToggleDisplay("showDestinationOptionalDocs")}
+                      labelOn="Visible"
+                      labelOff="Hidden"
+                    />
+                  </div>
+                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveControlGroupKey("cards");
+                        setActiveControlNavKey("visa-details-table");
+                        setExpandedControlTabKeys({ "section-cards": true, "visa-details-and-fee-manager": true });
+                        selectControlSection("visa-details-table");
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-cyan px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-cyan/90"
+                    >
+                      Edit Documents
+                    </button>
+                  </div>
+                </Card>
+              </div>
+
               <div className={isControlSectionVisible("documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                 <Card>
                   <div className="flex items-center justify-between mb-6">
@@ -8047,7 +8122,6 @@ const Dashboard = () => {
                     />
                   </div>
                   <div className="bg-surface-2 border border-border rounded-xl p-8 text-center">
-                    <p className="text-text-muted mb-6"></p>
                     <button
                       type="button"
                       onClick={() => {
