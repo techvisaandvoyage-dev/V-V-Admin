@@ -2413,7 +2413,8 @@ const Dashboard = () => {
           key: "footer-left-side-group",
           label: "left side",
           children: [
-            { key: "footer-social-icons", label: "Footer Controls" },
+            { key: "footer-description", label: "Description" },
+            { key: "footer-social-icons", label: "Social" },
           ],
         },
         { key: "static-pages", label: "Static Pages" },
@@ -9429,40 +9430,28 @@ const Dashboard = () => {
                 </Card>
               </div>
 
-              <div className={isControlSectionVisible("footer-social-icons") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <div className={isControlSectionVisible("footer-description") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
               <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                        <Globe size={18} className="text-cyan" />
-                        Footer Manager
-                      </h2>
-                    </div>
-                    <p className="text-xs text-text-muted mt-1.5 max-w-2xl leading-relaxed">
-                      Manage the footer description and social icons from one place. The shared logo now lives in the Site Logo control at the top of this panel.
-                    </p>
+                    <h2 className="font-semibold text-text-primary">Footer Description</h2>
+                    <p className="text-xs text-text-muted mt-1.5">Edit the description text shown in the website footer.</p>
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-surface-2/20 p-4 mb-6">
+                <div className="rounded-2xl border border-border bg-surface-2/20 p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">
-                        Footer Content
-                      </p>
-                      <div className="mt-4">
-                        <Textarea
-                          label="Footer Description"
-                          rows={3}
-                          value={settingsForm.footerDescription}
-                          onChange={(e) =>
-                            setSettingsForm((prev) => ({ ...prev, footerDescription: e.target.value }))
-                          }
-                          placeholder="Your trusted partner for seamless visa applications worldwide. Fast, secure, and professionally managed."
-                          helper="Leave blank to keep the current footer description."
-                        />
-                      </div>
+                      <Textarea
+                        label="Footer Description"
+                        rows={3}
+                        value={settingsForm.footerDescription}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, footerDescription: e.target.value }))
+                        }
+                        placeholder="Your trusted partner for seamless visa applications worldwide. Fast, secure, and professionally managed."
+                        helper="Leave blank to keep the current footer description."
+                      />
                     </div>
 
                     <div className="w-full lg:w-[280px] rounded-2xl border border-border bg-background p-4">
@@ -9501,12 +9490,14 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
+              </Card>
+              </div>
 
+              <div className={isControlSectionVisible("footer-social-icons") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <Card>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                      Footer Social Icons
-                    </p>
+                    <h2 className="font-semibold text-text-primary">Footer Social Icons</h2>
                     <p className="text-xs text-text-muted mt-1">
                       Add, edit, delete, and enable or disable social icons without touching code.
                     </p>

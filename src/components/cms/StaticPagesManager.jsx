@@ -31,7 +31,12 @@ const PAGE_TYPE_OPTIONS = [
   { value: "visa-info", label: "Visa Information" },
 ];
 
-const DEFAULT_FOOTER_SECTIONS = [];
+const DEFAULT_FOOTER_SECTIONS = [
+  { value: 'Company', label: 'Company' },
+  { value: 'Services', label: 'Services' },
+  { value: 'Support', label: 'Support' },
+  { value: 'Legal', label: 'Legal' },
+];
 
 const getOptionLabel = (options, value, fallback = "N/A") =>
   options.find((option) => option.value === value)?.label || fallback;
@@ -42,7 +47,7 @@ const createEmptyPage = () => ({
   summary: "",
   content: "<h2>Page title</h2><p>Start writing your page content here.</p>",
   template: "general",
-  footerSection: "company",
+  footerSection: "Company",
   status: "draft",
   featuredImage: "",
   seo: {
@@ -318,6 +323,7 @@ const StaticPagesManager = () => {
   const [showAddSection, setShowAddSection] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [adding, setAdding] = useState(false);
+  const [editingSectionValue, setEditingSectionValue] = useState(null);
 
   const addFooterSection = async () => {
     const label = newLabel.trim();
@@ -326,17 +332,28 @@ const StaticPagesManager = () => {
     setAdding(true);
     try {
       const current = footerSections.map((s) => ({ key: s.value, label: s.label }));
-      const { data } = await api.put("/admin/footer-sections", { sections: [...current, { key, label }] });
-      if (data.success) {
-        showToast("Section added.", "success");
-        setShowAddSection(false);
-        setNewLabel("");
-        const { data: refreshed } = await api.get("/admin/footer-sections");
-        if (refreshed?.success && Array.isArray(refreshed.data)) {
-          setFooterSections(refreshed.data.map((s) => ({ value: s.key, label: s.label })));
-        }
-        handleFieldChange("footerSection", key);
-      } else showToast(data.message || "Failed.", "error");
+      if (editingSectionValue) {
+        const updated = current.map((s) =>
+          s.key === editingSectionValue ? { key, label } : s
+        );
+        const { data } = await api.put("/admin/footer-sections", { sections: updated });
+        if (data.success) {
+          showToast("Section updated.", "success");
+        } else { showToast(data.message || "Failed.", "error"); setAdding(false); return; }
+      } else {
+        const { data } = await api.put("/admin/footer-sections", { sections: [...current, { key, label }] });
+        if (data.success) {
+          showToast("Section added.", "success");
+        } else { showToast(data.message || "Failed.", "error"); setAdding(false); return; }
+      }
+      setShowAddSection(false);
+      setNewLabel("");
+      setEditingSectionValue(null);
+      const { data: refreshed } = await api.get("/admin/footer-sections");
+      if (refreshed?.success && Array.isArray(refreshed.data)) {
+        setFooterSections(refreshed.data.map((s) => ({ value: s.key, label: s.label })));
+      }
+      handleFieldChange("footerSection", key);
     } catch (err) {
       showToast(err?.response?.data?.message || "Failed.", "error");
     } finally {
@@ -346,7 +363,6 @@ const StaticPagesManager = () => {
 
   const deleteFooterSection = async (value) => {
     const remaining = footerSections.filter((s) => s.value !== value);
-    if (remaining.length < 1) { showToast("Need at least one section.", "error"); return; }
     try {
       const payload = remaining.map((s) => ({ key: s.value, label: s.label }));
       const { data } = await api.put("/admin/footer-sections", { sections: payload });
@@ -587,8 +603,8 @@ const StaticPagesManager = () => {
                   <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2/40 p-3">
                     <Input label="Label" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Resources" />
                     <div className="flex gap-2 justify-end">
-                      <Button type="button" variant="primary" size="sm" loading={adding} onClick={addFooterSection}>Add</Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddSection(false); setNewLabel(""); }}>Cancel</Button>
+                      <Button type="button" variant="primary" size="sm" loading={adding} onClick={addFooterSection}>{editingSectionValue ? "Save" : "Add"}</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddSection(false); setNewLabel(""); setEditingSectionValue(null); }}>Cancel</Button>
                     </div>
                   </div>
                 )}
@@ -597,7 +613,7 @@ const StaticPagesManager = () => {
                     {footerSections.map((s) => (
                       <div key={s.value} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-2/60 px-2 py-1 text-xs">
                         <span className="text-text-primary font-medium">{s.label}</span>
-                        <button type="button" onClick={() => { setShowAddSection(true); setNewLabel(s.label); }} className="text-text-muted hover:text-cyan transition-colors" title="Edit"><PencilLine size={12} /></button>
+                        <button type="button" onClick={() => { setShowAddSection(true); setNewLabel(s.label); setEditingSectionValue(s.value); }} className="text-text-muted hover:text-cyan transition-colors" title="Edit"><PencilLine size={12} /></button>
                         <button type="button" onClick={() => deleteFooterSection(s.value)} className="text-text-muted hover:text-red-400 transition-colors" title="Delete"><Trash2 size={12} /></button>
                       </div>
                     ))}
