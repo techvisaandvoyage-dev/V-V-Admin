@@ -4,6 +4,7 @@ import {
   FilePlus2,
   Globe,
   PencilLine,
+  Plus,
   Search,
   ShieldAlert,
   Trash2,
@@ -18,6 +19,7 @@ import Button from "../ui/Button";
 import Input, { Select, Textarea } from "../ui/Input";
 import Modal from "../ui/Modal";
 import RichTextEditor from "./RichTextEditor";
+import FooterSectionsManager from "./FooterSectionsManager";
 import { api, SERVER_URL } from "../../store/authStore";
 import { useDataStore } from "../../store/dataStore";
 import { useUIStore } from "../../store/uiStore";
@@ -31,7 +33,7 @@ const PAGE_TYPE_OPTIONS = [
   { value: "visa-info", label: "Visa Information" },
 ];
 
-const FOOTER_SECTION_OPTIONS = [
+const DEFAULT_FOOTER_SECTIONS = [
   { value: "company", label: "Company" },
   { value: "services", label: "Services" },
   { value: "support", label: "Support" },
@@ -99,6 +101,26 @@ const StaticPagesManager = () => {
   const [editorMode, setEditorMode] = useState("create");
   const [slugTouched, setSlugTouched] = useState(false);
   const [pageForm, setPageForm] = useState(createEmptyPage());
+  const [footerSections, setFooterSections] = useState(DEFAULT_FOOTER_SECTIONS);
+
+  const footerSectionOptions = useMemo(
+    () => footerSections.map((s) => ({ value: s.value, label: s.label })),
+    [footerSections]
+  );
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await api.get("/admin/footer-sections");
+        if (data?.success && Array.isArray(data.data)) {
+          setFooterSections(data.data.map((s) => ({ value: s.key, label: s.label })));
+        }
+      } catch {
+        // keep defaults
+      }
+    };
+    load();
+  }, []);
 
   const loadPages = async (
     page = currentPage,
@@ -293,7 +315,7 @@ const StaticPagesManager = () => {
         </head>
         <body>
           <main>
-            <div class="eyebrow">${getOptionLabel(FOOTER_SECTION_OPTIONS, pageForm.footerSection, "Company")} / ${pageForm.template.replace("-", " ")}</div>
+            <div class="eyebrow">${getOptionLabel(footerSectionOptions, pageForm.footerSection, "Company")} / ${pageForm.template.replace("-", " ")}</div>
             <h1>${pageForm.title || "Untitled Page"}</h1>
             <p class="summary">${pageForm.summary || description}</p>
             <div class="seo">
@@ -306,191 +328,226 @@ const StaticPagesManager = () => {
       </html>`;
   }, [pageForm, previewTheme]);
 
+  const [staticPageTab, setStaticPageTab] = useState("pages");
+
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
         <Card className="overflow-hidden">
-          <div className="flex flex-col gap-5 border-b border-border/60 pb-5 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan">Content CMS</p>
-              <h2 className="mt-2 text-2xl font-bold text-text-primary">Static Pages</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-                Create, preview, publish, and place pages under the frontend footer headings.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" size="sm" leftIcon={<FilePlus2 size={15} />} onClick={() => openCreateModal()}>
-                Create Page
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStaticPageTab("footer-sections")}
+              className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
+                staticPageTab === "footer-sections"
+                  ? "bg-cyan text-white shadow-cyan-glow"
+                  : "border border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+              }`}
+            >
+              Footer Sections
+            </button>
+            <button
+              type="button"
+              onClick={() => setStaticPageTab("pages")}
+              className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
+                staticPageTab === "pages"
+                  ? "bg-cyan text-white shadow-cyan-glow"
+                  : "border border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
+              }`}
+            >
+              Static Page
+            </button>
           </div>
 
-          <div className="mt-5 grid gap-3 lg:grid-cols-[1.4fr,0.75fr,0.75fr,0.75fr]">
-            <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
-              <Search size={16} className="text-text-muted" />
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search pages by title, slug, or summary"
-                className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
-              />
-            </div>
-            <Select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              options={[
-                { value: "all", label: "All statuses" },
-                { value: "published", label: "Published" },
-                { value: "draft", label: "Draft" },
-              ]}
-            />
-
-            <Select
-              value={sectionFilter}
-              onChange={(event) => setSectionFilter(event.target.value)}
-              options={[
-                { value: "all", label: "All sections" },
-                ...FOOTER_SECTION_OPTIONS,
-              ]}
-            />
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-lg font-semibold text-text-primary">Pages Library</h3>
-              <p className="text-xs text-text-muted mt-1">Published and draft content with live website slugs.</p>
-            </div>
-            <div className="text-xs text-text-muted">
-              {pagesPagination.total} total pages
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="animate-pulse rounded-2xl border border-border bg-surface-2 p-4">
-                  <div className="h-4 w-1/3 rounded bg-surface-3" />
-                  <div className="mt-3 h-3 w-2/3 rounded bg-surface-3" />
-                  <div className="mt-4 h-10 rounded bg-surface-3" />
+          {staticPageTab === "pages" && (
+            <>
+              <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan">Content CMS</p>
+                  <h2 className="mt-2 text-2xl font-bold text-text-primary">Static Pages</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-text-secondary">
+                    Create, preview, publish, and place pages under the frontend footer headings.
+                  </p>
                 </div>
-              ))}
-            </div>
-          ) : pages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-surface-2 px-6 py-12 text-center">
-              <Globe size={28} className="mx-auto text-text-muted" />
-              <p className="mt-3 text-lg font-semibold text-text-primary">No static pages found</p>
-              <p className="mt-2 text-sm text-text-muted">Create a page and choose the footer heading where it should appear.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left">
-                <thead>
-                  <tr className="border-b border-border text-xs uppercase tracking-[0.14em] text-text-muted">
-                    <th className="pb-3 font-medium">Page</th>
-                    <th className="pb-3 font-medium">Footer</th>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="secondary" size="sm" leftIcon={<FilePlus2 size={15} />} onClick={() => openCreateModal()}>
+                    Create Page
+                  </Button>
+                </div>
+              </div>
 
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">SEO</th>
-                    <th className="pb-3 font-medium">Updated</th>
-                    <th className="pb-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {pages.map((page) => (
-                    <tr key={page._id} className="align-top">
-                      <td className="py-4 pr-4">
-                        <p className="font-semibold text-text-primary">{page.title}</p>
-                        <p className="mt-1 text-xs text-cyan">/page/{page.slug}</p>
-                        <p className="mt-2 max-w-md text-sm text-text-secondary line-clamp-2">
-                          {page.summary || "No summary yet."}
-                        </p>
-                      </td>
-                      <td className="py-4 pr-4 text-sm text-text-secondary">
-                        {getOptionLabel(FOOTER_SECTION_OPTIONS, page.footerSection, "Company")}
-                      </td>
+              <div className="mt-5 grid gap-3 lg:grid-cols-[1.4fr,0.75fr,0.75fr,0.75fr]">
+                <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
+                  <Search size={16} className="text-text-muted" />
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search pages by title, slug, or summary"
+                    className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+                  />
+                </div>
+                <Select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                  options={[
+                    { value: "all", label: "All statuses" },
+                    { value: "published", label: "Published" },
+                    { value: "draft", label: "Draft" },
+                  ]}
+                />
 
-                      <td className="py-4 pr-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass[page.status] || statusBadgeClass.draft}`}>
-                            {page.status === "published" ? "Published" : "Draft"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(page)}
-                            className={`relative h-7 w-12 rounded-full transition-colors ${page.status === "published" ? "bg-emerald-500/70" : "bg-zinc-600/40"}`}
-                            aria-label={`Toggle ${page.title} status`}
-                          >
-                            <span
-                              className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${page.status === "published" ? "left-6" : "left-1"}`}
-                            />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-4 pr-4 text-sm text-text-secondary">
-                        <p>{page.seo?.metaTitle ? "Meta ready" : "Needs SEO"}</p>
-                        <p className="mt-1 text-xs text-text-muted">
-                          {page.seo?.keywords?.length || 0} keywords
-                        </p>
-                      </td>
-                      <td className="py-4 pr-4 text-sm text-text-secondary">
-                        <p>{formatDate(page.updatedAt)}</p>
-                        <p className="mt-1 text-xs text-text-muted">Created {formatDate(page.createdAt)}</p>
-                      </td>
-                      <td className="py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(page)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-2 text-text-secondary transition-colors hover:border-cyan/40 hover:text-text-primary"
-                            title="Edit page"
-                          >
-                            <PencilLine size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget(page)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 transition-colors hover:bg-red-500/20"
-                            title="Delete page"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                <Select
+                  value={sectionFilter}
+                  onChange={(event) => setSectionFilter(event.target.value)}
+                  options={[
+                      { value: "all", label: "All sections" },
+                      ...footerSectionOptions,
+                    ]}
+                />
+              </div>
+            </>
           )}
-
-          <div className="mt-5 flex items-center justify-between border-t border-border pt-5">
-            <p className="text-xs text-text-muted">
-              Page {pagesPagination.page} of {pagesPagination.totalPages}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon={<ChevronLeft size={14} />}
-                disabled={pagesPagination.page <= 1}
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              >
-                Prev
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                rightIcon={<ChevronRight size={14} />}
-                disabled={pagesPagination.page >= pagesPagination.totalPages}
-                onClick={() => setCurrentPage((prev) => Math.min(pagesPagination.totalPages, prev + 1))}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
         </Card>
+
+        {staticPageTab === "pages" && (
+          <Card>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-semibold text-text-primary">Pages Library</h3>
+                <p className="text-xs text-text-muted mt-1">Published and draft content with live website slugs.</p>
+              </div>
+              <div className="text-xs text-text-muted">
+                {pagesPagination.total} total pages
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="animate-pulse rounded-2xl border border-border bg-surface-2 p-4">
+                    <div className="h-4 w-1/3 rounded bg-surface-3" />
+                    <div className="mt-3 h-3 w-2/3 rounded bg-surface-3" />
+                    <div className="mt-4 h-10 rounded bg-surface-3" />
+                  </div>
+                ))}
+              </div>
+            ) : pages.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border bg-surface-2 px-6 py-12 text-center">
+                <Globe size={28} className="mx-auto text-text-muted" />
+                <p className="mt-3 text-lg font-semibold text-text-primary">No static pages found</p>
+                <p className="mt-2 text-sm text-text-muted">Create a page and choose the footer heading where it should appear.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[920px] text-left">
+                  <thead>
+                    <tr className="border-b border-border text-xs uppercase tracking-[0.14em] text-text-muted">
+                      <th className="pb-3 font-medium">Page</th>
+                      <th className="pb-3 font-medium">Footer</th>
+
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium">SEO</th>
+                      <th className="pb-3 font-medium">Updated</th>
+                      <th className="pb-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {pages.map((page) => (
+                      <tr key={page._id} className="align-top">
+                        <td className="py-4 pr-4">
+                          <p className="font-semibold text-text-primary">{page.title}</p>
+                          <p className="mt-1 text-xs text-cyan">/page/{page.slug}</p>
+                          <p className="mt-2 max-w-md text-sm text-text-secondary line-clamp-2">
+                            {page.summary || "No summary yet."}
+                          </p>
+                        </td>
+                        <td className="py-4 pr-4 text-sm text-text-secondary">
+                          {getOptionLabel(footerSectionOptions, page.footerSection, "Company")}
+                        </td>
+
+                        <td className="py-4 pr-4">
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass[page.status] || statusBadgeClass.draft}`}>
+                              {page.status === "published" ? "Published" : "Draft"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(page)}
+                              className={`relative h-7 w-12 rounded-full transition-colors ${page.status === "published" ? "bg-emerald-500/70" : "bg-zinc-600/40"}`}
+                              aria-label={`Toggle ${page.title} status`}
+                            >
+                              <span
+                                className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${page.status === "published" ? "left-6" : "left-1"}`}
+                              />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-4 pr-4 text-sm text-text-secondary">
+                          <p>{page.seo?.metaTitle ? "Meta ready" : "Needs SEO"}</p>
+                          <p className="mt-1 text-xs text-text-muted">
+                            {page.seo?.keywords?.length || 0} keywords
+                          </p>
+                        </td>
+                        <td className="py-4 pr-4 text-sm text-text-secondary">
+                          <p>{formatDate(page.updatedAt)}</p>
+                          <p className="mt-1 text-xs text-text-muted">Created {formatDate(page.createdAt)}</p>
+                        </td>
+                        <td className="py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(page)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-2 text-text-secondary transition-colors hover:border-cyan/40 hover:text-text-primary"
+                              title="Edit page"
+                            >
+                              <PencilLine size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(page)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 transition-colors hover:bg-red-500/20"
+                              title="Delete page"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-5 flex items-center justify-between border-t border-border pt-5">
+              <p className="text-xs text-text-muted">
+                Page {pagesPagination.page} of {pagesPagination.totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  leftIcon={<ChevronLeft size={14} />}
+                  disabled={pagesPagination.page <= 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  rightIcon={<ChevronRight size={14} />}
+                  disabled={pagesPagination.page >= pagesPagination.totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(pagesPagination.totalPages, prev + 1))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {staticPageTab === "footer-sections" && <FooterSectionsManager />}
       </motion.div>
 
       <Modal
@@ -537,7 +594,7 @@ const StaticPagesManager = () => {
                 label="Footer Section"
                 value={pageForm.footerSection}
                 onChange={(event) => handleFieldChange("footerSection", event.target.value)}
-                options={FOOTER_SECTION_OPTIONS}
+                options={footerSectionOptions}
               />
 
               <Select

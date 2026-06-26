@@ -2585,6 +2585,7 @@ const Dashboard = () => {
   const [savingFooterSocialIcon, setSavingFooterSocialIcon] = useState(false);
   const [footerSocialIconActionId, setFooterSocialIconActionId] = useState("");
 
+
   const resetFooterSocialIconForm = () => {
     setFooterSocialIconForm(DEFAULT_FOOTER_SOCIAL_ICON_FORM);
     setFooterSocialIconErrors({});
@@ -9612,6 +9613,7 @@ const Dashboard = () => {
                     })}
                   </div>
                 )}
+
               </Card>
               </div>
 
