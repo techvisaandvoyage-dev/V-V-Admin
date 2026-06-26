@@ -83,7 +83,7 @@ const formatDateLabel = (iso) => {
  * Visual preview card. Mirrors the public `BlogListingPage` card so admins
  * see the same layout users will get, with status overlay + quick actions.
  */
-const AdminBlogCard = ({ post, onEdit, onDelete, onToggleFeature }) => {
+const AdminBlogCard = ({ post, onEdit, onDelete, onToggleFeature, onTogglePublish }) => {
   const dateBits = formatDayBadge(post.publishedAt || post.createdAt);
   const thumb = resolveAssetUrl(post.thumbnail) || FALLBACK_THUMB;
   const isPublished = post.status === "published";
@@ -156,6 +156,31 @@ const AdminBlogCard = ({ post, onEdit, onDelete, onToggleFeature }) => {
           <div className="flex items-center gap-1">
             <button
               type="button"
+              onClick={onTogglePublish}
+              className={`inline-flex items-center rounded-full border p-1 transition-colors ${
+                isPublished
+                  ? "border-cyan/40 bg-cyan/10 text-cyan hover:border-cyan/70"
+                  : "border-border bg-surface-3 text-text-muted hover:border-cyan/30"
+              }`}
+              title={isPublished ? "Unpublish" : "Publish"}
+              aria-label={isPublished ? "Unpublish" : "Publish"}
+              aria-pressed={isPublished}
+              id={`blog-card-publish-${post._id}`}
+            >
+              <span
+                className={`relative inline-flex h-4 w-8 rounded-full transition-colors ${
+                  isPublished ? "bg-cyan" : "bg-surface-2 border border-border"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                    isPublished ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </span>
+            </button>
+            <button
+              type="button"
               onClick={onToggleFeature}
               className={`p-1.5 rounded-lg ${
                 post.featured
@@ -223,6 +248,7 @@ const BlogAdminPanel = () => {
 
   const [newCatName, setNewCatName] = useState("");
   const [creatingCat, setCreatingCat] = useState(false);
+  const [showNewCatInput, setShowNewCatInput] = useState(false);
 
   const handleCreateCategory = async (e) => {
     e.preventDefault();
@@ -246,15 +272,17 @@ const BlogAdminPanel = () => {
     }
   };
 
-  const loadCategories = useCallback(async () => {
+  const loadCategories = useCallback(async (selectId) => {
     const { data } = await api.get("/admin/blog-categories");
     if (data.success && Array.isArray(data.data)) {
       setCategories(data.data);
-      setForm((f) => {
-        if (f.category) return f;
-        const first = data.data[0]?._id;
-        return first ? { ...f, category: String(first) } : f;
-      });
+      if (selectId) setForm((f) => ({ ...f, category: String(selectId) }));
+      else
+        setForm((f) => {
+          if (f.category) return f;
+          const first = data.data[0]?._id;
+          return first ? { ...f, category: String(first) } : f;
+        });
     }
   }, []);
 
@@ -347,7 +375,7 @@ const BlogAdminPanel = () => {
     try {
       const fd = new FormData();
       fd.append("image", file);
-      const { data } = await api.post("/admin/pages/upload-image", fd, {
+      const { data } = await api.post("/admin/blog/upload-image", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (data.success && data.url) {
@@ -405,15 +433,17 @@ const BlogAdminPanel = () => {
         const { data } = await api.put(`/blog/${editingId}`, body);
         if (data.success) {
           showToast("Blog updated.", "success");
-          resetForm();
-          await loadPosts();
+          await Promise.all([loadPosts(), loadCategories()]);
         } else showToast(data.message || "Update failed.", "error");
       } else {
         const { data } = await api.post("/blog", body);
         if (data.success) {
           showToast("Blog created.", "success");
-          resetForm();
-          await loadPosts();
+          if (data.data?._id) {
+            setEditingId(String(data.data._id));
+            setEditingSlug(data.data.slug || null);
+          }
+          await Promise.all([loadPosts(), loadCategories()]);
         } else showToast(data.message || "Create failed.", "error");
       }
     } catch (err) {
@@ -434,6 +464,19 @@ const BlogAdminPanel = () => {
       } else showToast(data.message || "Delete failed.", "error");
     } catch (err) {
       showToast(err?.response?.data?.message || "Delete failed.", "error");
+    }
+  };
+
+  const handleTogglePublish = async (id, current) => {
+    const next = current === "published" ? "draft" : "published";
+    try {
+      const { data } = await api.patch(`/admin/blog/${id}/publish`, { status: next });
+      if (data.success) {
+        showToast(next === "published" ? "Published." : "Unpublished.", "success");
+        await loadPosts();
+      } else showToast(data.message || "Failed.", "error");
+    } catch (err) {
+      showToast(err?.response?.data?.message || "Failed to toggle publish status.", "error");
     }
   };
 
@@ -476,28 +519,7 @@ const BlogAdminPanel = () => {
         </Button>
       </div>
 
-      {categories.length === 0 ? (
-        <Card className="border-amber-500/20 bg-amber-500/5">
-          <h3 className="text-sm font-semibold text-amber-200 mb-2">No blog categories yet</h3>
-          <p className="text-xs text-text-muted mb-4">
-            Navbar groups (Visa News, Country Guides, etc.) come from categories. Create one to attach posts.
-          </p>
-          <form onSubmit={handleCreateCategory} className="flex flex-wrap gap-2 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <Input
-                label="New category name"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                placeholder="e.g. Visa News"
-                id="blog-new-category-name"
-              />
-            </div>
-            <Button type="submit" variant="primary" size="sm" loading={creatingCat} id="blog-create-category">
-              Add category
-            </Button>
-          </form>
-        </Card>
-      ) : null}
+
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -521,16 +543,74 @@ const BlogAdminPanel = () => {
               placeholder="e.g. Canada student visa update"
               id="blog-title"
             />
-            <Select
-              label="Category (navbar)"
-              value={form.category}
-              onChange={(e) => setField("category", e.target.value)}
-              options={[
-                { value: "", label: categories.length ? "Select category…" : "No categories — create one via API" },
-                ...categories.map((c) => ({ value: String(c._id), label: `${c.name} (${c.slug})` })),
-              ]}
-              id="blog-category"
-            />
+            <div className="space-y-2">
+              <Select
+                label="Category (navbar)"
+                value={form.category}
+                onChange={(e) => {
+                  if (e.target.value === "__add__") {
+                    setShowNewCatInput(true);
+                    return;
+                  }
+                  setField("category", e.target.value);
+                }}
+                options={[
+                  { value: "", label: categories.length ? "Select category…" : "No categories yet" },
+                  ...categories.map((c) => ({ value: String(c._id), label: `${c.name} (${c.slug})` })),
+                  { value: "__add__", label: "+ Add custom category" },
+                ]}
+                id="blog-category"
+              />
+              {showNewCatInput && (
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Input
+                      label="New category name"
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      placeholder="e.g. Visa News"
+                      id="blog-new-category-name"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    loading={creatingCat}
+                    onClick={async () => {
+                      const name = newCatName.trim();
+                      if (!name) return;
+                      setCreatingCat(true);
+                      try {
+                        const { data } = await api.post("/blog/categories", { name });
+                        if (data.success) {
+                          showToast("Category created.", "success");
+                          setNewCatName("");
+                          setShowNewCatInput(false);
+                          await loadCategories(data.data?._id || data.data?.id);
+                        } else showToast(data.message || "Failed.", "error");
+                      } catch (err) {
+                        showToast(err?.response?.data?.message || "Failed.", "error");
+                      } finally {
+                        setCreatingCat(false);
+                      }
+                    }}
+                  >
+                    Add
+                  </Button>
+                  {!creatingCat && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setShowNewCatInput(false); setNewCatName(""); }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <Textarea
@@ -592,13 +672,13 @@ const BlogAdminPanel = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="SEO title (optional)"
+              label="Blog SEO title"
               value={form.seoTitle}
               onChange={(e) => setField("seoTitle", e.target.value)}
               id="blog-seo-title"
             />
             <Input
-              label="SEO description (optional)"
+              label="Blog SEO description"
               value={form.seoDescription}
               onChange={(e) => setField("seoDescription", e.target.value)}
               id="blog-seo-desc"
@@ -637,6 +717,8 @@ const BlogAdminPanel = () => {
             </Button>
           </div>
         </form>
+
+
       </Card>
 
       <Card>
@@ -684,6 +766,7 @@ const BlogAdminPanel = () => {
                 onEdit={() => startEdit(p)}
                 onDelete={() => handleDelete(p._id)}
                 onToggleFeature={() => handleToggleFeature(p._id, p.featured)}
+                onTogglePublish={() => handleTogglePublish(p._id, p.status)}
               />
             ))}
           </div>

@@ -5,6 +5,7 @@ import {
   Underline,
   Strikethrough,
   Image as ImageIcon,
+  ExternalLink,
   Link as LinkIcon,
   List,
   ListOrdered,
@@ -22,6 +23,7 @@ import {
   Subscript,
   Superscript,
   ChevronDown,
+  ChevronUp,
   Plus,
   Minus,
   Trash2,
@@ -100,6 +102,7 @@ const RichTextEditor = ({
   });
   const [headingValue, setHeadingValue] = useState("p");
   const [imageEditor, setImageEditor] = useState(null); // { top, left, img }
+  const [tableEditor, setTableEditor] = useState(null); // { top, left, table }
 
   /* ── Sync external value into editor without breaking the caret. ── */
   useEffect(() => {
@@ -340,17 +343,47 @@ const RichTextEditor = ({
     setIsUploading(false);
     if (uploadedUrl) {
       focusEditor();
+      const imgHtml = `<img src="${uploadedUrl}" alt="" style="max-width:100%;border-radius:16px;display:inline-block;" />`;
       insertHtml(
-        `<figure style="margin:20px 0;text-align:center;"><img src="${uploadedUrl}" alt="" style="max-width:100%;border-radius:16px;display:inline-block;" /></figure><p><br/></p>`
+        `<figure style="margin:20px 0;text-align:center;">${imgHtml}</figure><p><br/></p>`
       );
     }
   };
 
-  /* ── Image click → resize / align popover ──────────────── */
+  /* ── Insert image from URL ─────────────────────────────── */
+  const handleAddImageUrl = () => {
+    if (disabled) return;
+    const url = window.prompt("Enter image URL (https://…)", "https://");
+    if (!url) return;
+    focusEditor();
+    insertHtml(
+      `<figure style="margin:20px 0;text-align:center;"><img src="${url}" alt="" style="max-width:100%;border-radius:16px;display:inline-block;" /></figure><p><br/></p>`
+    );
+  };
+
+  /* ── Image / Table click → popover ─────────────────────── */
   const handleEditorClick = (event) => {
     const target = event.target;
+    const table = target?.closest?.("table");
+    if (table && editorRef.current?.contains(table)) {
+      event.preventDefault();
+      closeImageEditor();
+      const editorRect = editorRef.current.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      setTableEditor({
+        table,
+        top: tableRect.top - editorRect.top - 44,
+        left: Math.max(0, tableRect.left - editorRect.left),
+      });
+      Array.from(editorRef.current.querySelectorAll("table")).forEach((t) => {
+        t.style.outline = "";
+      });
+      table.style.outline = "2px solid #06b6d4";
+      return;
+    }
     if (target?.tagName === "IMG") {
       event.preventDefault();
+      closeTableEditor();
       const editorRect = editorRef.current.getBoundingClientRect();
       const imgRect = target.getBoundingClientRect();
       setImageEditor({
@@ -358,7 +391,6 @@ const RichTextEditor = ({
         top: imgRect.top - editorRect.top - 44,
         left: Math.max(0, imgRect.left - editorRect.left),
       });
-      /* Visual selection ring */
       Array.from(editorRef.current.querySelectorAll("img")).forEach((img) => {
         img.style.outline = "";
       });
@@ -366,6 +398,7 @@ const RichTextEditor = ({
       target.style.outlineOffset = "2px";
     } else {
       closeImageEditor();
+      closeTableEditor();
     }
   };
 
@@ -375,6 +408,29 @@ const RichTextEditor = ({
       imageEditor.img.style.outlineOffset = "";
     }
     setImageEditor(null);
+  };
+
+  const closeTableEditor = () => {
+    if (tableEditor?.table) {
+      tableEditor.table.style.outline = "";
+    }
+    setTableEditor(null);
+  };
+
+  const moveTable = (direction) => {
+    if (!tableEditor?.table) return;
+    const table = tableEditor.table;
+    const sibling = direction === "up" ? table.previousElementSibling : table.nextElementSibling;
+    if (!sibling) return;
+    if (direction === "up") {
+      table.parentNode?.insertBefore(table, sibling);
+    } else {
+      table.parentNode?.insertBefore(sibling, table);
+    }
+    emitChange();
+    const editorRect = editorRef.current.getBoundingClientRect();
+    const tableRect = table.getBoundingClientRect();
+    setTableEditor((prev) => prev ? { ...prev, top: tableRect.top - editorRect.top - 44, left: Math.max(0, tableRect.left - editorRect.left) } : null);
   };
 
   const setImageWidth = (widthCss) => {
@@ -410,6 +466,40 @@ const RichTextEditor = ({
     emitChange();
   };
 
+  const handleImageLink = () => {
+    if (!imageEditor?.img) return;
+    const img = imageEditor.img;
+    const existingAnchor = img.closest("a");
+    const currentUrl = existingAnchor?.getAttribute("href") || "";
+    const url = window.prompt(
+      "Image link URL (leave blank to remove link)",
+      currentUrl
+    );
+    if (url === null) return;
+    if (!url.trim()) {
+      if (existingAnchor) {
+        const parent = existingAnchor.parentNode;
+        existingAnchor.replaceWith(img);
+        parent?.normalize();
+        emitChange();
+      }
+    } else {
+      if (existingAnchor) {
+        existingAnchor.setAttribute("href", url);
+        existingAnchor.setAttribute("target", "_blank");
+        existingAnchor.setAttribute("rel", "noopener noreferrer");
+      } else {
+        const anchor = document.createElement("a");
+        anchor.setAttribute("href", url);
+        anchor.setAttribute("target", "_blank");
+        anchor.setAttribute("rel", "noopener noreferrer");
+        img.parentNode?.insertBefore(anchor, img);
+        anchor.appendChild(img);
+      }
+      emitChange();
+    }
+  };
+
   const deleteImage = () => {
     if (!imageEditor?.img) return;
     const img = imageEditor.img;
@@ -433,23 +523,6 @@ const RichTextEditor = ({
           <Redo2 size={15} />
         </button>
         <ToolbarDivider />
-
-        {/* Heading style */}
-        <div className="relative">
-          <select
-            value={headingValue}
-            onChange={(e) => applyHeading(e.target.value)}
-            onMouseDown={captureSelection}
-            disabled={disabled}
-            className="appearance-none h-9 pr-7 pl-2.5 rounded-lg border border-border bg-surface-2 text-xs font-semibold text-text-secondary hover:border-cyan/40 focus:outline-none focus:border-cyan/60"
-            title="Paragraph style"
-          >
-            {HEADING_OPTIONS.map((o) => (
-              <option key={o.tag} value={o.tag}>{o.label}</option>
-            ))}
-          </select>
-          <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted" />
-        </div>
 
         {/* Font family */}
         <div className="relative">
@@ -710,6 +783,15 @@ const RichTextEditor = ({
         >
           <ImageIcon size={15} />
         </button>
+        <button
+          type="button"
+          className={toolbarButtonClass}
+          onClick={handleAddImageUrl}
+          disabled={disabled}
+          title="Insert image from URL"
+        >
+          <ExternalLink size={15} />
+        </button>
         <input
           ref={fileInputRef}
           type="file"
@@ -776,11 +858,48 @@ const RichTextEditor = ({
           <span className="w-px h-5 bg-border mx-0.5" />
           <button
             type="button"
+            onClick={handleImageLink}
+            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-2 hover:text-text-primary"
+            title={imageEditor?.img?.closest("a") ? "Edit image link" : "Add link to image"}
+          >
+            <LinkIcon size={13} />
+          </button>
+          <span className="w-px h-5 bg-border mx-0.5" />
+          <button
+            type="button"
             onClick={deleteImage}
             className="p-1.5 rounded-md text-red-400 hover:bg-red-500/10"
             title="Delete image"
           >
             <Trash2 size={13} />
+          </button>
+        </div>
+      ) : null}
+
+      {/* ── Floating table popover ── */}
+      {tableEditor ? (
+        <div
+          className="absolute z-20 flex items-center gap-1 rounded-xl border border-border bg-surface shadow-modal p-1.5"
+          style={{ top: Math.max(0, tableEditor.top), left: tableEditor.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            type="button"
+            onClick={() => moveTable("up")}
+            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-2 hover:text-text-primary disabled:opacity-40"
+            title="Move table up"
+            disabled={!tableEditor.table?.previousElementSibling}
+          >
+            <ChevronUp size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => moveTable("down")}
+            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-2 hover:text-text-primary disabled:opacity-40"
+            title="Move table down"
+            disabled={!tableEditor.table?.nextElementSibling}
+          >
+            <ChevronDown size={14} />
           </button>
         </div>
       ) : null}
