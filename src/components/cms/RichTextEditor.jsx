@@ -83,8 +83,10 @@ const RichTextEditor = ({
   toolbarEnd = null,
 }) => {
   const editorRef = useRef(null);
+  const wrapperRef = useRef(null);
   const fileInputRef = useRef(null);
   const savedRangeRef = useRef(null);
+  const draggedRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [active, setActive] = useState({
     bold: false,
@@ -101,8 +103,9 @@ const RichTextEditor = ({
     alignJustify: false,
   });
   const [headingValue, setHeadingValue] = useState("p");
-  const [imageEditor, setImageEditor] = useState(null); // { top, left, img }
-  const [tableEditor, setTableEditor] = useState(null); // { top, left, table }
+  const [imageEditor, setImageEditor] = useState(null);
+  const [tableEditor, setTableEditor] = useState(null);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
 
   /* ── Sync external value into editor without breaking the caret. ── */
   useEffect(() => {
@@ -155,6 +158,70 @@ const RichTextEditor = ({
     document.addEventListener("selectionchange", refreshState);
     return () => document.removeEventListener("selectionchange", refreshState);
   }, [refreshState]);
+
+  /* ── Make images draggable via MutationObserver ──────────── */
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const markDraggable = () => {
+      el.querySelectorAll("img").forEach((img) => {
+        if (!img.hasAttribute("draggable")) img.setAttribute("draggable", "true");
+      });
+    };
+    markDraggable();
+    const obs = new MutationObserver(markDraggable);
+    obs.observe(el, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, []);
+
+  /* ── Image drag-and-drop ───────────────────────────────── */
+  const handleDragStart = (e) => {
+    const img = e.target.closest("img");
+    if (!img || !editorRef.current?.contains(img)) return;
+    draggedRef.current = img;
+    setIsDraggingImage(true);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", img.outerHTML);
+  };
+
+  const handleDragOver = (e) => {
+    if (!draggedRef.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDragEnd = () => {
+    draggedRef.current = null;
+    setIsDraggingImage(false);
+  };
+
+  const handleDrop = (e) => {
+    const draggedImg = draggedRef.current;
+    draggedRef.current = null;
+    setIsDraggingImage(false);
+    closeImageEditor();
+    closeTableEditor();
+    if (!draggedImg || !editorRef.current?.contains(draggedImg)) return;
+    e.preventDefault();
+    const point = document.caretRangeFromPoint
+      ? document.caretRangeFromPoint(e.clientX, e.clientY)
+      : document.caretPositionFromPoint?.(e.clientX, e.clientY);
+    if (!point) return;
+    const range = point.commonAncestorContainer ? { startContainer: point, startOffset: 0 } : point;
+    const fig = draggedImg.closest("figure") || draggedImg;
+    const parent = fig.parentNode;
+    if (!parent) return;
+    const atNode = range.startContainer;
+    if (fig.contains(atNode) || fig === atNode) return;
+    const refNode = atNode.nodeType === 3 ? atNode.parentNode : atNode;
+    const offset = range.startOffset;
+    const insertBefore = refNode.childNodes[offset] || null;
+    if (insertBefore === fig || insertBefore?.parentNode === fig) return;
+    refNode.insertBefore(fig, insertBefore);
+    parent.normalize();
+    editorRef.current?.focus();
+    emitChange();
+  };
 
   /* ── Helpers ───────────────────────────────────────────── */
 
@@ -368,12 +435,12 @@ const RichTextEditor = ({
     if (table && editorRef.current?.contains(table)) {
       event.preventDefault();
       closeImageEditor();
-      const editorRect = editorRef.current.getBoundingClientRect();
+      const wrapperRect = wrapperRef.current.getBoundingClientRect();
       const tableRect = table.getBoundingClientRect();
       setTableEditor({
         table,
-        top: tableRect.top - editorRect.top - 44,
-        left: Math.max(0, tableRect.left - editorRect.left),
+        top: tableRect.top - wrapperRect.top - 44,
+        left: Math.max(0, tableRect.left - wrapperRect.left),
       });
       Array.from(editorRef.current.querySelectorAll("table")).forEach((t) => {
         t.style.outline = "";
@@ -384,12 +451,12 @@ const RichTextEditor = ({
     if (target?.tagName === "IMG") {
       event.preventDefault();
       closeTableEditor();
-      const editorRect = editorRef.current.getBoundingClientRect();
+      const wrapperRect = wrapperRef.current.getBoundingClientRect();
       const imgRect = target.getBoundingClientRect();
       setImageEditor({
         img: target,
-        top: imgRect.top - editorRect.top - 44,
-        left: Math.max(0, imgRect.left - editorRect.left),
+        top: imgRect.top - wrapperRect.top - 44,
+        left: Math.max(0, imgRect.left - wrapperRect.left),
       });
       Array.from(editorRef.current.querySelectorAll("img")).forEach((img) => {
         img.style.outline = "";
@@ -428,9 +495,9 @@ const RichTextEditor = ({
       table.parentNode?.insertBefore(sibling, table);
     }
     emitChange();
-    const editorRect = editorRef.current.getBoundingClientRect();
+    const wrapperRect = wrapperRef.current.getBoundingClientRect();
     const tableRect = table.getBoundingClientRect();
-    setTableEditor((prev) => prev ? { ...prev, top: tableRect.top - editorRect.top - 44, left: Math.max(0, tableRect.left - editorRect.left) } : null);
+    setTableEditor((prev) => prev ? { ...prev, top: tableRect.top - wrapperRect.top - 44, left: Math.max(0, tableRect.left - wrapperRect.left) } : null);
   };
 
   const setImageWidth = (widthCss) => {
@@ -444,24 +511,30 @@ const RichTextEditor = ({
     if (!imageEditor?.img) return;
     const img = imageEditor.img;
     const fig = img.closest("figure");
+    img.style.display = "inline-block";
+    img.style.margin = "";
+    img.style.float = "";
+    if (fig) {
+      fig.style.float = "";
+      fig.style.margin = "";
+    }
     if (align === "center") {
-      img.style.display = "inline-block";
-      img.style.marginLeft = "auto";
-      img.style.marginRight = "auto";
-      img.style.float = "";
-      if (fig) fig.style.textAlign = "center";
+      if (fig) {
+        fig.style.textAlign = "center";
+        fig.style.margin = "20px 0";
+      }
     } else if (align === "left") {
-      img.style.display = "inline-block";
-      img.style.float = "left";
-      img.style.marginRight = "16px";
-      img.style.marginLeft = "0";
-      if (fig) fig.style.textAlign = "left";
+      if (fig) {
+        fig.style.textAlign = "left";
+        fig.style.float = "left";
+        fig.style.margin = "10px 20px 10px 0";
+      }
     } else if (align === "right") {
-      img.style.display = "inline-block";
-      img.style.float = "right";
-      img.style.marginLeft = "16px";
-      img.style.marginRight = "0";
-      if (fig) fig.style.textAlign = "right";
+      if (fig) {
+        fig.style.textAlign = "right";
+        fig.style.float = "right";
+        fig.style.margin = "10px 0 10px 20px";
+      }
     }
     emitChange();
   };
@@ -512,7 +585,7 @@ const RichTextEditor = ({
   /* ── Render ────────────────────────────────────────────── */
 
   return (
-    <div className="rounded-2xl border border-border bg-background relative">
+    <div ref={wrapperRef} className="rounded-2xl border border-border bg-background relative">
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border p-2 sm:p-3">
         {/* History */}
@@ -914,7 +987,11 @@ const RichTextEditor = ({
         onMouseUp={refreshState}
         onClick={handleEditorClick}
         onBlur={captureSelection}
-        className="min-h-[400px] px-4 py-4 text-sm text-text-primary focus:outline-none
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDrop={handleDrop}
+        className={`min-h-[400px] px-4 py-4 text-sm text-text-primary focus:outline-none
           [&_a]:text-cyan [&_a]:underline
           [&_blockquote]:border-l-4 [&_blockquote]:border-cyan/40 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4
           [&_h1]:mt-6 [&_h1]:text-3xl [&_h1]:font-bold
@@ -924,7 +1001,7 @@ const RichTextEditor = ({
           [&_li]:ml-5 [&_ul]:list-disc [&_ol]:list-decimal [&_p]:mb-3
           [&_table]:w-full [&_table]:border-collapse [&_table]:my-4
           [&_th]:border [&_td]:border [&_th]:border-border [&_td]:border-border [&_th]:px-3 [&_td]:py-2 [&_th]:bg-surface-2 [&_th]:text-left
-          [&_img]:max-w-full [&_img]:rounded-xl [&_img]:cursor-pointer"
+          [&_img]:max-w-full [&_img]:rounded-xl [&_img]:cursor-grab ${isDraggingImage ? "[&_img]:opacity-40" : ""}`}
       />
 
       <div className="px-4 py-2 border-t border-border text-[11px] text-text-muted flex flex-wrap gap-x-4 gap-y-1">

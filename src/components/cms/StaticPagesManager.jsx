@@ -8,7 +8,6 @@ import {
   Search,
   ShieldAlert,
   Trash2,
-  UploadCloud,
   Monitor,
   Smartphone,
   ChevronLeft,
@@ -19,7 +18,6 @@ import Button from "../ui/Button";
 import Input, { Select, Textarea } from "../ui/Input";
 import Modal from "../ui/Modal";
 import RichTextEditor from "./RichTextEditor";
-import FooterSectionsManager from "./FooterSectionsManager";
 import { api, SERVER_URL } from "../../store/authStore";
 import { useDataStore } from "../../store/dataStore";
 import { useUIStore } from "../../store/uiStore";
@@ -33,12 +31,7 @@ const PAGE_TYPE_OPTIONS = [
   { value: "visa-info", label: "Visa Information" },
 ];
 
-const DEFAULT_FOOTER_SECTIONS = [
-  { value: "company", label: "Company" },
-  { value: "services", label: "Services" },
-  { value: "support", label: "Support" },
-  { value: "legal", label: "Legal" },
-];
+const DEFAULT_FOOTER_SECTIONS = [];
 
 const getOptionLabel = (options, value, fallback = "N/A") =>
   options.find((option) => option.value === value)?.label || fallback;
@@ -315,102 +308,112 @@ const StaticPagesManager = () => {
         </head>
         <body>
           <main>
-            <div class="eyebrow">${getOptionLabel(footerSectionOptions, pageForm.footerSection, "Company")} / ${pageForm.template.replace("-", " ")}</div>
-            <h1>${pageForm.title || "Untitled Page"}</h1>
-            <p class="summary">${pageForm.summary || description}</p>
-            <div class="seo">
-              <div class="seo-card"><span>Slug</span>${pageForm.slug || "page-slug"}</div>
-              <div class="seo-card"><span>Status</span>${pageForm.status}</div>
-            </div>
+            <div class="eyebrow">${getOptionLabel(footerSectionOptions, pageForm.footerSection, "")}</div>
             <article>${pageForm.content || "<p>Start writing content.</p>"}</article>
           </main>
         </body>
       </html>`;
   }, [pageForm, previewTheme]);
 
-  const [staticPageTab, setStaticPageTab] = useState("pages");
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const addFooterSection = async () => {
+    const label = newLabel.trim();
+    if (!label) { showToast("Label required.", "error"); return; }
+    const key = label;
+    setAdding(true);
+    try {
+      const current = footerSections.map((s) => ({ key: s.value, label: s.label }));
+      const { data } = await api.put("/admin/footer-sections", { sections: [...current, { key, label }] });
+      if (data.success) {
+        showToast("Section added.", "success");
+        setShowAddSection(false);
+        setNewLabel("");
+        const { data: refreshed } = await api.get("/admin/footer-sections");
+        if (refreshed?.success && Array.isArray(refreshed.data)) {
+          setFooterSections(refreshed.data.map((s) => ({ value: s.key, label: s.label })));
+        }
+        handleFieldChange("footerSection", key);
+      } else showToast(data.message || "Failed.", "error");
+    } catch (err) {
+      showToast(err?.response?.data?.message || "Failed.", "error");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const deleteFooterSection = async (value) => {
+    const remaining = footerSections.filter((s) => s.value !== value);
+    if (remaining.length < 1) { showToast("Need at least one section.", "error"); return; }
+    try {
+      const payload = remaining.map((s) => ({ key: s.value, label: s.label }));
+      const { data } = await api.put("/admin/footer-sections", { sections: payload });
+      if (data.success) {
+        showToast("Section deleted.", "success");
+        const { data: refreshed } = await api.get("/admin/footer-sections");
+        if (refreshed?.success && Array.isArray(refreshed.data)) {
+          setFooterSections(refreshed.data.map((s) => ({ value: s.key, label: s.label })));
+        }
+        if (pageForm.footerSection === value) handleFieldChange("footerSection", remaining[0]?.value || "");
+      } else showToast(data.message || "Failed.", "error");
+    } catch (err) {
+      showToast(err?.response?.data?.message || "Failed.", "error");
+    }
+  };
 
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
         <Card className="overflow-hidden">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setStaticPageTab("footer-sections")}
-              className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
-                staticPageTab === "footer-sections"
-                  ? "bg-cyan text-white shadow-cyan-glow"
-                  : "border border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
-              }`}
-            >
-              Footer Sections
-            </button>
-            <button
-              type="button"
-              onClick={() => setStaticPageTab("pages")}
-              className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition ${
-                staticPageTab === "pages"
-                  ? "bg-cyan text-white shadow-cyan-glow"
-                  : "border border-border bg-surface-2 text-text-secondary hover:border-cyan/40 hover:text-text-primary"
-              }`}
-            >
-              Static Page
-            </button>
+          <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan">Content CMS</p>
+              <h2 className="mt-2 text-2xl font-bold text-text-primary">Static Pages</h2>
+              <p className="mt-2 max-w-2xl text-sm text-text-secondary">
+                Create, preview, publish, and place pages under the frontend footer headings.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" size="sm" leftIcon={<FilePlus2 size={15} />} onClick={() => openCreateModal()}>
+                Create Page
+              </Button>
+            </div>
           </div>
 
-          {staticPageTab === "pages" && (
-            <>
-              <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan">Content CMS</p>
-                  <h2 className="mt-2 text-2xl font-bold text-text-primary">Static Pages</h2>
-                  <p className="mt-2 max-w-2xl text-sm text-text-secondary">
-                    Create, preview, publish, and place pages under the frontend footer headings.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button variant="secondary" size="sm" leftIcon={<FilePlus2 size={15} />} onClick={() => openCreateModal()}>
-                    Create Page
-                  </Button>
-                </div>
-              </div>
+          <div className="mt-5 grid gap-3 lg:grid-cols-[1.4fr,0.75fr,0.75fr,0.75fr]">
+            <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
+              <Search size={16} className="text-text-muted" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search pages by title, slug, or summary"
+                className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "published", label: "Published" },
+                { value: "draft", label: "Draft" },
+              ]}
+            />
 
-              <div className="mt-5 grid gap-3 lg:grid-cols-[1.4fr,0.75fr,0.75fr,0.75fr]">
-                <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-2 px-4 py-3">
-                  <Search size={16} className="text-text-muted" />
-                  <input
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search pages by title, slug, or summary"
-                    className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
-                  />
-                </div>
-                <Select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                  options={[
-                    { value: "all", label: "All statuses" },
-                    { value: "published", label: "Published" },
-                    { value: "draft", label: "Draft" },
-                  ]}
-                />
-
-                <Select
-                  value={sectionFilter}
-                  onChange={(event) => setSectionFilter(event.target.value)}
-                  options={[
-                      { value: "all", label: "All sections" },
-                      ...footerSectionOptions,
-                    ]}
-                />
-              </div>
-            </>
-          )}
+            <Select
+              value={sectionFilter}
+              onChange={(event) => setSectionFilter(event.target.value)}
+              options={[
+                  { value: "all", label: "All sections" },
+                  ...footerSectionOptions,
+                ]}
+            />
+          </div>
         </Card>
 
-        {staticPageTab === "pages" && (
-          <Card>
+        <Card>
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-semibold text-text-primary">Pages Library</h3>
@@ -462,7 +465,7 @@ const StaticPagesManager = () => {
                           </p>
                         </td>
                         <td className="py-4 pr-4 text-sm text-text-secondary">
-                          {getOptionLabel(footerSectionOptions, page.footerSection, "Company")}
+                          {getOptionLabel(footerSectionOptions, page.footerSection, "")}
                         </td>
 
                         <td className="py-4 pr-4">
@@ -545,9 +548,7 @@ const StaticPagesManager = () => {
               </div>
             </div>
           </Card>
-        )}
 
-        {staticPageTab === "footer-sections" && <FooterSectionsManager />}
       </motion.div>
 
       <Modal
@@ -571,6 +572,40 @@ const StaticPagesManager = () => {
       >
         <div className="grid h-full min-h-[calc(100vh-10.5rem)] gap-6 xl:grid-cols-2">
           <div className="min-h-0 space-y-5 overflow-y-auto pr-2">
+            <div className="flex flex-wrap items-start gap-3">
+              <div className="w-full max-w-xs space-y-2">
+                <Select
+                  label="Footer Section"
+                  value={pageForm.footerSection}
+                  onChange={(e) => {
+                    if (e.target.value === "__add__") { setShowAddSection(true); return; }
+                    handleFieldChange("footerSection", e.target.value);
+                  }}
+                  options={[...footerSectionOptions, { value: "__add__", label: "+ Add custom section" }]}
+                />
+                {showAddSection && (
+                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2/40 p-3">
+                    <Input label="Label" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Resources" />
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="primary" size="sm" loading={adding} onClick={addFooterSection}>Add</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddSection(false); setNewLabel(""); }}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+                {footerSections.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {footerSections.map((s) => (
+                      <div key={s.value} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-2/60 px-2 py-1 text-xs">
+                        <span className="text-text-primary font-medium">{s.label}</span>
+                        <button type="button" onClick={() => { setShowAddSection(true); setNewLabel(s.label); }} className="text-text-muted hover:text-cyan transition-colors" title="Edit"><PencilLine size={12} /></button>
+                        <button type="button" onClick={() => deleteFooterSection(s.value)} className="text-text-muted hover:text-red-400 transition-colors" title="Delete"><Trash2 size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <Input
                 label="Page Title"
@@ -579,7 +614,7 @@ const StaticPagesManager = () => {
                 placeholder="About Us"
               />
               <Input
-                label="Slug"
+                label="Page Name"
                 value={pageForm.slug}
                 onChange={(event) => {
                   setSlugTouched(true);
@@ -588,15 +623,7 @@ const StaticPagesManager = () => {
                 placeholder="about-us"
               />
             </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <Select
-                label="Footer Section"
-                value={pageForm.footerSection}
-                onChange={(event) => handleFieldChange("footerSection", event.target.value)}
-                options={footerSectionOptions}
-              />
-
+            <div className="grid gap-4 md:grid-cols-2">
               <Select
                 label="Status"
                 value={pageForm.status}
@@ -613,34 +640,10 @@ const StaticPagesManager = () => {
               />
             </div>
 
-            <Textarea
-              label="Summary"
-              rows={3}
-              value={pageForm.summary}
-              onChange={(event) => handleFieldChange("summary", event.target.value)}
-              placeholder="Short preview text used in listings and page hero."
-            />
-
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className="text-sm font-medium text-text-secondary">Page Content</label>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const url = await handleUploadImage(await new Promise((resolve) => {
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = "image/*";
-                      input.onchange = () => resolve(input.files?.[0] || null);
-                      input.click();
-                    }));
-                    if (url) handleFieldChange("featuredImage", url);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-text-secondary transition-colors hover:border-cyan/40 hover:text-text-primary"
-                >
-                  <UploadCloud size={14} />
-                  Featured image
-                </button>
+                <p className="text-xs text-text-muted">Tables, links, headings, and images are supported.</p>
               </div>
               <RichTextEditor
                 value={pageForm.content}
@@ -652,7 +655,7 @@ const StaticPagesManager = () => {
             <Card className="space-y-4 bg-surface-2">
               <div className="flex items-center gap-2">
                 <ShieldAlert size={16} className="text-cyan" />
-                <h3 className="font-semibold text-text-primary">SEO Settings</h3>
+                <h3 className="font-semibold text-text-primary">Page SEO</h3>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Input
@@ -675,20 +678,12 @@ const StaticPagesManager = () => {
                 onChange={(event) => handleSeoChange("metaDescription", event.target.value)}
                 placeholder="Short SEO summary for search engines and social shares."
               />
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="Keywords"
-                  value={pageForm.seo.keywords}
-                  onChange={(event) => handleSeoChange("keywords", event.target.value)}
-                  placeholder="visa, travel, about us"
-                />
-                <Input
-                  label="OpenGraph Image"
-                  value={pageForm.seo.openGraphImage}
-                  onChange={(event) => handleSeoChange("openGraphImage", event.target.value)}
-                  placeholder="https://example.com/og-image.jpg"
-                />
-              </div>
+              <Input
+                label="Keywords"
+                value={pageForm.seo.keywords}
+                onChange={(event) => handleSeoChange("keywords", event.target.value)}
+                placeholder="visa, travel, about us"
+              />
             </Card>
           </div>
 

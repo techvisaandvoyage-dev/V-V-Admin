@@ -104,7 +104,7 @@ const ADMIN_NAV = [
       { label: "Testimonials", sectionKey: "testimonials" },
     ]
   },
-  { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer",
+  { label: "Footer",           icon: LayoutTemplate,    to: "/footer",       id: "nav-admin-footer", inlineTree: true,
     subItems: [
       {
         label: "left side",
@@ -355,7 +355,7 @@ const Sidebar = () => {
               const hasSubItems = Boolean(subItems && subItems.length > 0);
               const isHovered = hoveredNavItem === id;
               const parentActive = location.pathname === to || hasActiveTreeItem(subItems, to);
-              const inlineExpanded = expandedNavItems[id] !== false;
+              const inlineExpanded = expandedNavItems[id] === true;
               
               return (
                 <li key={id} 
@@ -370,7 +370,7 @@ const Sidebar = () => {
                       if (hasSubItems && inlineTree && sidebarOpen) {
                         event.preventDefault();
                         navigate(to);
-                        setExpandedNavItems((prev) => ({ ...prev, [id]: !inlineExpanded }));
+                        setExpandedNavItems({ [id]: !inlineExpanded });
                       }
                     }}
                     className={({ isActive }) => `
