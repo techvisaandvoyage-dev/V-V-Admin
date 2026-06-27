@@ -19,7 +19,7 @@ import Card from "../ui/Card";
 import Button from "../ui/Button";
 import Input, { Select, Textarea } from "../ui/Input";
 import Modal from "../ui/Modal";
-import RichTextEditor from "../cms/RichTextEditor";
+import BlogEditor from "../editor/BlogEditor";
 import { api, SERVER_URL } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
 import { fmtDate } from "../../utils/formatDate";
@@ -692,7 +692,7 @@ const BlogAdminPanel = () => {
                 Stored as the first paragraph section (HTML). Tables, links, headings, and images are supported.
               </p>
             </div>
-            <RichTextEditor
+            <BlogEditor
               value={form.mainContent}
               onChange={(html) => setField("mainContent", html)}
               onUploadImage={handleBlogImageUpload}
