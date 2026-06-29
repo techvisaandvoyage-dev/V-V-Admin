@@ -133,7 +133,8 @@ const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
       {[
         { label: "Approved", count: liveAnalytics.statusCounts.approved, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
         { label: "Under Review", count: liveAnalytics.statusCounts.review, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-        { label: "Pending", count: liveAnalytics.pendingPayment, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+        { label: "Pending Doc", count: liveAnalytics.statusCounts.doc_pending, color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" },
+        { label: "Pending Payment", count: liveAnalytics.pendingPayment, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
         { label: "Rejected", count: liveAnalytics.statusCounts.rejected, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
       ].map(({ label, count, color, bg, border }) => (
         <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>

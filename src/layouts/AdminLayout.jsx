@@ -13,7 +13,7 @@ const AdminLayout = ({
     <Sidebar />
 
     <main className="flex-1 overflow-auto min-w-0">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className={`${activeTab === "chat" ? "w-full max-w-none px-4 sm:px-6 py-4" : "max-w-7xl mx-auto px-4 sm:px-6 py-8"}`}>
         <Topbar
           title={title}
           description={description}

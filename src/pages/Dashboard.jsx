@@ -1785,7 +1785,7 @@ const SupportChatWorkspace = () => {
   }, []);
 
   return (
-    <div className="flex bg-surface rounded-3xl border border-border overflow-hidden h-[calc(100vh-220px)] min-h-[600px] shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
+    <div className="flex w-full bg-surface rounded-3xl border border-border overflow-hidden h-[calc(100vh-170px)] min-h-[650px] shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
       {/* LEFT COLUMN - CONVERSATION LIST */}
       <div className="w-[380px] border-r border-border flex flex-col bg-surface flex-shrink-0">
         <div className="p-5 border-b border-border space-y-4">
@@ -6712,7 +6712,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Breadcrumb */}
-                <div className="mb-6 flex flex-wrap items-center gap-1.5 pl-1 text-[11px] font-medium uppercase tracking-wider text-text-muted">
+                <div className={`${activeControlSection === "chat-support" ? "hidden" : "mb-6 flex flex-wrap items-center gap-1.5 pl-1 text-[11px] font-medium uppercase tracking-wider text-text-muted"}`}>
                   {["Controls", ...activeControlBreadcrumb].map((item, index, arr) => (
                     <span key={`${item}-${index}`} className="flex items-center gap-1.5">
                       <span className={index === arr.length - 1 ? "font-bold text-cyan" : ""}>
@@ -6724,7 +6724,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Groups rendering */}
-                <div className="mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                <div className={`${activeControlSection === "chat-support" ? "hidden" : "mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2 xl:grid-cols-3"}`}>
                   {activeControlGroup.sections.map((section) => {
                     const SectionIcon = section.icon || FileText;
                     

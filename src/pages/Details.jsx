@@ -85,6 +85,152 @@ const getDocumentLabelFromPath = (path, fallback = "Document") => {
   const docKey = travelerMatch?.[1] || legacyMatch?.[1] || "";
   return docKey ? formatDocumentKeyLabel(docKey) : fallback;
 };
+const DocumentHistoryCard = ({
+  documentLabel,
+  currentPath,
+  historyList,
+  handleOpenDocument,
+  handleDownload,
+}) => {
+  const [showHistory, setShowHistory] = useState(false);
+  const fileName = String(currentPath).split("/").pop();
+  const totalVersions = historyList.length + 1;
+
+  return (
+    <div className="rounded-xl border border-border bg-surface-2/60 overflow-hidden">
+      {/* ── Current Version (always visible) ── */}
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan/10 border border-cyan/20 text-cyan">
+            <FileText size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold text-text-primary truncate">{documentLabel}</h4>
+            <p className="text-[11px] text-text-muted mt-0.5">
+              Version {totalVersions} — Current
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20 shrink-0">
+            Latest
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/50 px-3 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-text-primary truncate font-medium">{fileName}</p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleOpenDocument(currentPath)}
+              className="inline-flex h-8 px-3 items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 text-xs text-text-primary hover:border-cyan/40 hover:text-cyan transition-colors"
+              title="Preview"
+            >
+              <FileText size={13} />
+              Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDownload(currentPath)}
+              className="inline-flex h-8 px-3 items-center justify-center gap-1.5 rounded-md border border-border bg-surface-2 text-xs text-text-primary hover:border-cyan/40 hover:text-cyan transition-colors"
+              title="Download"
+            >
+              <Download size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── History Toggle ── */}
+      <div className="border-t border-border">
+        <button
+          type="button"
+          onClick={() => setShowHistory(!showHistory)}
+          className="flex w-full items-center justify-between px-4 py-2.5 text-xs hover:bg-surface-2/80 transition-colors"
+        >
+          <span className="flex items-center gap-2 font-medium text-text-muted">
+            <Clock size={13} />
+            Previous Versions
+            {historyList.length > 0 && (
+              <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-500/20">
+                {historyList.length}
+              </span>
+            )}
+          </span>
+          <span className="text-text-muted text-[10px]">
+            {showHistory ? "▲ Hide" : "▼ Show"}
+          </span>
+        </button>
+
+        {showHistory && (
+          <div className="px-4 pb-4">
+            {historyList.length === 0 ? (
+              <p className="text-[11px] text-text-muted italic py-2">
+                No previous versions — this document has not been replaced yet.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 border-l-2 border-amber-500/30 pl-3 mt-1">
+                {historyList.slice().reverse().map((entry, idx) => {
+                  const hPath = String(entry?.url || "").trim();
+                  const hFileName = String(entry?.fileName || hPath.split("/").pop() || "document");
+                  const versionNum = historyList.length - idx;
+                  const uploadedByStr = entry?.uploadedBy || "";
+                  const actionStr = entry?.action || "";
+
+                  return (
+                    <div key={idx} className="rounded-lg border border-amber-500/15 bg-amber-500/5 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-xs font-semibold text-amber-400">
+                              V{versionNum}
+                            </span>
+                            <span className="text-[10px] text-text-muted">
+                              {fmtDate(entry?.uploadedAt)}
+                            </span>
+                            {uploadedByStr && (
+                              <span className="text-[10px] text-text-muted">
+                                by {uploadedByStr}
+                              </span>
+                            )}
+                            {actionStr && (
+                              <span className="inline-flex items-center rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-400">
+                                {actionStr}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-text-secondary truncate">{hFileName}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDocument(hPath)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                            title="Preview"
+                          >
+                            <FileText size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(hPath)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                            title="Download"
+                          >
+                            <Download size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 
 const Details = () => {
@@ -655,6 +801,12 @@ const Details = () => {
                     const documentHistory = Array.isArray(traveler.documentHistory)
                       ? traveler.documentHistory.filter((entry) => Boolean(String(entry?.url || "").trim()))
                       : [];
+                    const docHistoryMap = {};
+                    documentHistory.forEach(entry => {
+                      const dt = entry.docType || 'unknown';
+                      if (!docHistoryMap[dt]) docHistoryMap[dt] = [];
+                      docHistoryMap[dt].push(entry);
+                    });
                     const otherDocs = Array.isArray(traveler.otherDocuments)
                       ? traveler.otherDocuments.filter(Boolean)
                       : [];
@@ -696,100 +848,52 @@ const Details = () => {
                           ) : (
                             <div className="space-y-2">
                               {documentEntries.length > 0 && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                                <div className="grid grid-cols-1 gap-4">
                                   {documentEntries.map(([labelKey, path]) => {
-                                    const fileName = String(path).split("/").pop();
                                     const documentLabel = formatDocumentKeyLabel(labelKey);
+                                    const historyForDoc = docHistoryMap[labelKey] || [];
                                     return (
-                                      <div
+                                      <DocumentHistoryCard
                                         key={`${traveler.travelerNo}-${labelKey}`}
-                                        className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-cyan/40 hover:bg-surface-2/70"
-                                        onClick={() => handleOpenDocument(path)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter" || e.key === " ") {
-                                            e.preventDefault();
-                                            handleOpenDocument(path);
-                                          }
-                                        }}
-                                      >
-                                        <div className="flex min-w-0 items-start gap-2">
-                                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
-                                            <FileText size={14} />
-                                          </span>
-                                          <div className="min-w-0">
-                                            <span className="font-medium text-text-primary block truncate mb-0.5">{documentLabel}</span>
-                                            <span className="truncate block">{fileName}</span>
-                                          </div>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDownload(path);
-                                          }}
-                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
-                                          title={`Download ${documentLabel}`}
-                                          aria-label={`Download ${documentLabel}`}
-                                        >
-                                          <Download size={14} />
-                                        </button>
-                                      </div>
+                                        documentLabel={documentLabel}
+                                        currentPath={path}
+                                        historyList={historyForDoc}
+                                        handleOpenDocument={handleOpenDocument}
+                                        handleDownload={handleDownload}
+                                      />
                                     );
                                   })}
                                 </div>
                               )}
-                      {documentHistory.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-[11px] text-text-muted mb-1.5">Previous Versions ({documentHistory.length})</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                            {documentHistory.map((entry, historyIdx) => {
-                              const path = String(entry?.url || "").trim();
-                              const fileName = String(entry?.fileName || path.split("/").pop() || "document");
-                              const documentLabel = formatDocumentKeyLabel(entry?.docType || `Document ${historyIdx + 1}`);
-                              return (
-                                <div
-                                  key={`history-doc-${traveler.travelerNo || idx}-${historyIdx}`}
-                                  className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-amber-500/40 hover:bg-amber-500/10"
-                                  onClick={() => handleOpenDocument(path)}
-                                  role="button"
-                                  tabIndex={0}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      handleOpenDocument(path);
-                                    }
-                                  }}
-                                >
-                                  <div className="flex min-w-0 items-start gap-2">
-                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-300">
-                                      <FileText size={14} />
-                                    </span>
-                                    <div className="min-w-0">
-                                      <span className="font-medium text-text-primary block truncate mb-0.5">{documentLabel}</span>
-                                      <span className="block truncate">{fileName}</span>
-                                      <span className="mt-0.5 inline-block text-[10px] font-medium text-amber-300">Previous upload</span>
+                              {/* Show history-only docs (docType in history but not in current documents Map) */}
+                              {(() => {
+                                const currentDocKeys = new Set(documentEntries.map(([k]) => k));
+                                const orphanEntries = Object.entries(docHistoryMap).filter(([k]) => !currentDocKeys.has(k));
+                                const orphanWithItems = orphanEntries.filter(([, v]) => v && v.length > 0);
+                                if (orphanWithItems.length === 0) return null;
+                                return (
+                                  <div className="mt-4 pt-4 border-t border-border/60">
+                                    <p className="text-[11px] text-text-muted mb-2 font-medium">Archived Documents</p>
+                                    <div className="grid grid-cols-1 gap-4">
+                                      {orphanWithItems.map(([orphanKey, histItems]) => {
+                                        const documentLabel = formatDocumentKeyLabel(orphanKey);
+                                        const latestArchived = histItems[histItems.length - 1];
+                                        return (
+                                          <DocumentHistoryCard
+                                            key={`${traveler.travelerNo}-orphan-${orphanKey}`}
+                                            documentLabel={`${documentLabel} (Archived)`}
+                                            currentPath={latestArchived.url}
+                                            historyList={histItems.slice(0, -1)}
+                                            handleOpenDocument={handleOpenDocument}
+                                            handleDownload={handleDownload}
+                                          />
+                                        );
+                                      })}
                                     </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDownload(path);
-                                    }}
-                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
-                                    title={`Download previous ${documentLabel}`}
-                                    aria-label={`Download previous ${documentLabel}`}
-                                  >
-                                    <Download size={14} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                                );
+                              })()}
+
                       {otherDocs.length > 0 && (
                         <div className="mt-2">
                           <p className="text-[11px] text-text-muted mb-1.5">Optional Documents ({otherDocs.length})</p>
@@ -850,56 +954,7 @@ const Details = () => {
                           </div>
                         </div>
                       )}
-                      {effectiveRootDocs.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-[11px] text-text-muted mb-1.5">Uploaded Documents ({effectiveRootDocs.length})</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                            {effectiveRootDocs.map((path, docIdx) => {
-                              const fileName = String(path).split("/").pop();
-                              const documentLabel =
-                                legacyDocumentLabelsByPath.get(path) ||
-                                getDocumentLabelFromPath(path, `Document ${docIdx + 1}`);
-                              return (
-                                <div
-                                  key={`root-doc-${travelerNo}-${docIdx}`}
-                                  className="flex cursor-pointer items-start justify-between gap-2 rounded-lg border border-border bg-background/40 px-2 py-2 text-[11px] text-text-secondary transition-colors hover:border-cyan/40 hover:bg-surface-2/70"
-                                  onClick={() => handleOpenDocument(path)}
-                                  role="button"
-                                  tabIndex={0}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      handleOpenDocument(path);
-                                    }
-                                  }}
-                                >
-                                  <div className="flex min-w-0 items-start gap-2">
-                                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-cyan">
-                                      <FileText size={14} />
-                                    </span>
-                                    <div className="min-w-0">
-                                      <span className="font-medium text-text-primary block truncate mb-0.5">{documentLabel}</span>
-                                      <span className="truncate block">{fileName}</span>
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDownload(path);
-                                    }}
-                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2 text-text-primary hover:border-cyan/40 hover:text-cyan"
-                                    title={`Download ${documentLabel}`}
-                                    aria-label={`Download ${documentLabel}`}
-                                  >
-                                    <Download size={14} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+
                       {effectiveFurtherInfoLink && (
                         <div className="mt-2 p-2 bg-surface-3 border border-border rounded-lg flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
