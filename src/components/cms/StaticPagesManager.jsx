@@ -12,6 +12,8 @@ import {
   Smartphone,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  RefreshCw,
 } from "lucide-react";
 import Card from "../ui/Card";
 import Button from "../ui/Button";
@@ -91,7 +93,7 @@ const StaticPagesManager = () => {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [previewViewport, setPreviewViewport] = useState("desktop");
@@ -152,13 +154,12 @@ const StaticPagesManager = () => {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  const openCreateModal = () => {
+  const resetForm = () => {
     setPageForm(createEmptyPage());
     setEditorMode("create");
     setSlugTouched(false);
     setPreviewViewport("desktop");
     setPreviewTheme("light");
-    setEditorOpen(true);
   };
 
   const openEditModal = (page) => {
@@ -184,13 +185,7 @@ const StaticPagesManager = () => {
     setSlugTouched(true);
     setPreviewViewport("desktop");
     setPreviewTheme("light");
-    setEditorOpen(true);
-  };
-
-  const closeEditor = () => {
-    setEditorOpen(false);
-    setPageForm(createEmptyPage());
-    setSlugTouched(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleFieldChange = (key, value) => {
@@ -256,7 +251,7 @@ const StaticPagesManager = () => {
     }
 
     showToast(editorMode === "create" ? "Page created." : "Page updated.", "success");
-    closeEditor();
+    resetForm();
     loadPages(currentPage, searchQuery, statusFilter, templateFilter, sectionFilter);
   };
 
@@ -392,8 +387,8 @@ const StaticPagesManager = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" size="sm" leftIcon={<FilePlus2 size={15} />} onClick={() => openCreateModal()}>
-                Create Page
+              <Button variant="secondary" size="sm" leftIcon={<RefreshCw size={15} />} onClick={() => loadPages()}>
+                Refresh
               </Button>
             </div>
           </div>
@@ -427,6 +422,146 @@ const StaticPagesManager = () => {
                 ]}
             />
           </div>
+        </Card>
+
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h3 className="font-semibold text-text-primary">
+              {editorMode === "edit" ? "Edit static page" : "Create static page"}
+            </h3>
+            {editorMode === "edit" ? (
+              <Button type="button" variant="ghost" size="sm" onClick={resetForm}>
+                Cancel edit
+              </Button>
+            ) : null}
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
+            <div className="grid gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <Select
+                  label="Footer Section"
+                  value={pageForm.footerSection}
+                  onChange={(e) => {
+                    if (e.target.value === "__add__") { setShowAddSection(true); return; }
+                    handleFieldChange("footerSection", e.target.value);
+                  }}
+                  options={[...footerSectionOptions, { value: "__add__", label: "+ Add custom section" }]}
+                />
+                {showAddSection && (
+                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2/40 p-3">
+                    <Input label="Label" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Resources" />
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="primary" size="sm" loading={adding} onClick={addFooterSection}>{editingSectionValue ? "Save" : "Add"}</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddSection(false); setNewLabel(""); setEditingSectionValue(null); }}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+                {footerSections.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {footerSections.map((s) => (
+                      <div key={s.value} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-2/60 px-2 py-1 text-xs">
+                        <span className="text-text-primary font-medium">{s.label}</span>
+                        <button type="button" onClick={() => { setShowAddSection(true); setNewLabel(s.label); setEditingSectionValue(s.value); }} className="text-text-muted hover:text-cyan transition-colors" title="Edit"><PencilLine size={12} /></button>
+                        <button type="button" onClick={() => deleteFooterSection(s.value)} className="text-text-muted hover:text-red-400 transition-colors" title="Delete"><Trash2 size={12} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Select
+                label="Status"
+                value={pageForm.status}
+                onChange={(event) => handleFieldChange("status", event.target.value)}
+                options={[
+                  { value: "draft", label: "Draft" },
+                  { value: "published", label: "Published" },
+                ]}
+              />
+
+              <Input
+                label="Page Title"
+                value={pageForm.title}
+                onChange={(event) => handleFieldChange("title", event.target.value)}
+                placeholder="About Us"
+                required
+              />
+              <Input
+                label="Page Name (Slug)"
+                value={pageForm.slug}
+                onChange={(event) => {
+                  setSlugTouched(true);
+                  handleFieldChange("slug", slugify(event.target.value));
+                }}
+                placeholder="about-us"
+                required
+              />
+            </div>
+
+            <div className="space-y-4 rounded-2xl border border-border bg-surface-2 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldAlert size={16} className="text-cyan" />
+                <h3 className="font-semibold text-text-primary">Page SEO</h3>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input
+                  label="Meta Title"
+                  value={pageForm.seo.metaTitle}
+                  onChange={(event) => handleSeoChange("metaTitle", event.target.value)}
+                  placeholder="About Us | Visa & Voyage"
+                />
+                <Input
+                  label="Canonical URL"
+                  value={pageForm.seo.canonicalUrl}
+                  onChange={(event) => handleSeoChange("canonicalUrl", event.target.value)}
+                  placeholder="https://example.com/page/about-us"
+                />
+              </div>
+              <Textarea
+                label="Meta Description"
+                rows={3}
+                value={pageForm.seo.metaDescription}
+                onChange={(event) => handleSeoChange("metaDescription", event.target.value)}
+                placeholder="Short SEO summary for search engines and social shares."
+              />
+              <Input
+                label="Keywords"
+                value={pageForm.seo.keywords}
+                onChange={(event) => handleSeoChange("keywords", event.target.value)}
+                placeholder="visa, travel, about us"
+              />
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-sm font-medium text-text-secondary">Page Content</label>
+                <p className="text-xs text-text-muted">Tables, links, headings, and images are supported.</p>
+              </div>
+              <RichTextEditor
+                value={pageForm.content}
+                onChange={(content) => handleFieldChange("content", content)}
+                onUploadImage={handleUploadImage}
+                toolbarEnd={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Eye size={14} />}
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    Preview
+                  </Button>
+                }
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button type="submit" variant="primary" loading={saving} leftIcon={<Plus size={16} />}>
+                {editorMode === "edit" ? "Save changes" : "Publish / save draft"}
+              </Button>
+            </div>
+          </form>
         </Card>
 
         <Card>
@@ -568,185 +703,57 @@ const StaticPagesManager = () => {
       </motion.div>
 
       <Modal
-        isOpen={editorOpen}
-        onClose={closeEditor}
-        title={editorMode === "create" ? "Create Static Page" : "Edit Static Page"}
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title="Live Preview"
         size="full"
         footer={
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-text-muted">
-              Live preview updates as you edit.
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" onClick={closeEditor}>Cancel</Button>
-              <Button variant="primary" onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : editorMode === "create" ? "Create Page" : "Save Changes"}
-              </Button>
-            </div>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="ghost" onClick={() => setPreviewOpen(false)}>Close Preview</Button>
           </div>
         }
       >
-        <div className="grid h-full min-h-[calc(100vh-10.5rem)] gap-6 xl:grid-cols-2">
-          <div className="min-h-0 space-y-5 overflow-y-auto pr-2">
-            <div className="flex flex-wrap items-start gap-3">
-              <div className="w-full max-w-xs space-y-2">
-                <Select
-                  label="Footer Section"
-                  value={pageForm.footerSection}
-                  onChange={(e) => {
-                    if (e.target.value === "__add__") { setShowAddSection(true); return; }
-                    handleFieldChange("footerSection", e.target.value);
-                  }}
-                  options={[...footerSectionOptions, { value: "__add__", label: "+ Add custom section" }]}
-                />
-                {showAddSection && (
-                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2/40 p-3">
-                    <Input label="Label" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="e.g. Resources" />
-                    <div className="flex gap-2 justify-end">
-                      <Button type="button" variant="primary" size="sm" loading={adding} onClick={addFooterSection}>{editingSectionValue ? "Save" : "Add"}</Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => { setShowAddSection(false); setNewLabel(""); setEditingSectionValue(null); }}>Cancel</Button>
-                    </div>
-                  </div>
-                )}
-                {footerSections.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {footerSections.map((s) => (
-                      <div key={s.value} className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-2/60 px-2 py-1 text-xs">
-                        <span className="text-text-primary font-medium">{s.label}</span>
-                        <button type="button" onClick={() => { setShowAddSection(true); setNewLabel(s.label); setEditingSectionValue(s.value); }} className="text-text-muted hover:text-cyan transition-colors" title="Edit"><PencilLine size={12} /></button>
-                        <button type="button" onClick={() => deleteFooterSection(s.value)} className="text-text-muted hover:text-red-400 transition-colors" title="Delete"><Trash2 size={12} /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Input
-                label="Page Title"
-                value={pageForm.title}
-                onChange={(event) => handleFieldChange("title", event.target.value)}
-                placeholder="About Us"
-              />
-              <Input
-                label="Page Name"
-                value={pageForm.slug}
-                onChange={(event) => {
-                  setSlugTouched(true);
-                  handleFieldChange("slug", slugify(event.target.value));
-                }}
-                placeholder="about-us"
-              />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Select
-                label="Status"
-                value={pageForm.status}
-                onChange={(event) => handleFieldChange("status", event.target.value)}
-                options={[
-                  { value: "draft", label: "Draft" },
-                  { value: "published", label: "Published" },
-                ]}
-              />
-              <Input
-                label="Public URL"
-                value={`/page/${pageForm.slug || "page-slug"}`}
-                disabled
-              />
-            </div>
-
+        <Card className="flex h-full min-h-[42rem] flex-col overflow-hidden bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm font-medium text-text-secondary">Page Content</label>
-                <p className="text-xs text-text-muted">Tables, links, headings, and images are supported.</p>
-              </div>
-              <RichTextEditor
-                value={pageForm.content}
-                onChange={(content) => handleFieldChange("content", content)}
-                onUploadImage={handleUploadImage}
+              <h3 className="font-semibold text-text-primary">Preview mode</h3>
+              <p className="mt-1 text-xs text-text-muted">Preview how the page reads on desktop and mobile.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPreviewViewport("desktop")}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${previewViewport === "desktop" ? "border-cyan bg-cyan/10 text-cyan" : "border-border bg-surface-2 text-text-secondary"}`}
+              >
+                <Monitor size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewViewport("mobile")}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${previewViewport === "mobile" ? "border-cyan bg-cyan/10 text-cyan" : "border-border bg-surface-2 text-text-secondary"}`}
+              >
+                <Smartphone size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewTheme((prev) => (prev === "light" ? "dark" : "light"))}
+                className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:border-cyan/40 hover:text-text-primary"
+              >
+                {previewTheme === "light" ? "Dark preview" : "Light preview"}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-1 justify-center overflow-auto rounded-2xl bg-surface-2 p-4 min-h-0">
+            <div className={`${previewViewport === "mobile" ? "w-[360px] h-[640px] shrink-0" : "w-full h-full"} flex flex-col overflow-hidden rounded-[28px] border border-border bg-white shadow-xl transition-all`}>
+              <iframe
+                title="Static page preview"
+                srcDoc={previewDocument}
+                className="w-full flex-1 border-0 bg-white"
               />
             </div>
-
-            <Card className="space-y-4 bg-surface-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert size={16} className="text-cyan" />
-                <h3 className="font-semibold text-text-primary">Page SEO</h3>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  label="Meta Title"
-                  value={pageForm.seo.metaTitle}
-                  onChange={(event) => handleSeoChange("metaTitle", event.target.value)}
-                  placeholder="About Us | Visa & Voyage"
-                />
-                <Input
-                  label="Canonical URL"
-                  value={pageForm.seo.canonicalUrl}
-                  onChange={(event) => handleSeoChange("canonicalUrl", event.target.value)}
-                  placeholder="https://example.com/page/about-us"
-                />
-              </div>
-              <Textarea
-                label="Meta Description"
-                rows={3}
-                value={pageForm.seo.metaDescription}
-                onChange={(event) => handleSeoChange("metaDescription", event.target.value)}
-                placeholder="Short SEO summary for search engines and social shares."
-              />
-              <Input
-                label="Keywords"
-                value={pageForm.seo.keywords}
-                onChange={(event) => handleSeoChange("keywords", event.target.value)}
-                placeholder="visa, travel, about us"
-              />
-            </Card>
           </div>
-
-          <div className="min-h-0 overflow-y-auto pl-2">
-            <Card className="flex h-full min-h-[42rem] flex-col overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-                <div>
-                  <h3 className="font-semibold text-text-primary">Live Preview</h3>
-                  <p className="mt-1 text-xs text-text-muted">Preview how the page reads on desktop and mobile.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewViewport("desktop")}
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${previewViewport === "desktop" ? "border-cyan bg-cyan/10 text-cyan" : "border-border bg-surface-2 text-text-secondary"}`}
-                  >
-                    <Monitor size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewViewport("mobile")}
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${previewViewport === "mobile" ? "border-cyan bg-cyan/10 text-cyan" : "border-border bg-surface-2 text-text-secondary"}`}
-                  >
-                    <Smartphone size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTheme((prev) => (prev === "light" ? "dark" : "light"))}
-                    className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-text-secondary transition-colors hover:border-cyan/40 hover:text-text-primary"
-                  >
-                    {previewTheme === "light" ? "Dark preview" : "Light preview"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-5 flex flex-1 justify-center overflow-auto rounded-2xl bg-surface-2 p-4 min-h-0">
-                <div className={`${previewViewport === "mobile" ? "w-[360px] h-[640px] shrink-0" : "w-full h-full"} flex flex-col overflow-hidden rounded-[28px] border border-border bg-white shadow-xl`}>
-                  <iframe
-                    title="Static page preview"
-                    srcDoc={previewDocument}
-                    className="w-full flex-1 border-0"
-                  />
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
+        </Card>
       </Modal>
 
       <Modal

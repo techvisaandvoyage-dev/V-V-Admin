@@ -2388,10 +2388,7 @@ const Dashboard = () => {
                 { key: "calendar-manager", label: "Calender" },
                 { key: "traveler-form-manager", label: "Traveler Form" },
                 { key: "upload-methods", label: "Document Upload Methods" },
-                { key: "documents", label: "Documents", children: [
-                  { key: "required-documents", label: "Documents Required" },
-                  { key: "optional-documents", label: "Optional Document" },
-                ] },
+                { key: "application-documents", label: "Documents" },
               ],
             },
           ],
@@ -6929,7 +6926,7 @@ const Dashboard = () => {
                             }))
                           }
                         />
-                        <AuthControlToggle
+                        {/* <AuthControlToggle
                           title="SMS OTP"
                           description="Allow users to login/signup using SMS OTP"
                           checked={otpSettingsForm.authControls.smsOtpEnabled}
@@ -6939,7 +6936,7 @@ const Dashboard = () => {
                               authControls: { ...p.authControls, smsOtpEnabled: checked },
                             }))
                           }
-                        />
+                        /> */}
                         <AuthControlToggle
                           title="Email OTP"
                           description="Allow users to login/signup using email OTP"
@@ -8044,7 +8041,7 @@ const Dashboard = () => {
                 </Card>
               </div>
 
-              <div className={isControlSectionVisible("required-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <div className={isControlSectionVisible("application-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                 <Card>
                   <div className="flex items-center justify-between mb-6">
                     <div>
@@ -8076,7 +8073,7 @@ const Dashboard = () => {
                 </Card>
               </div>
 
-              <div className={isControlSectionVisible("optional-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <div className={isControlSectionVisible("application-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                 <Card>
                   <div className="flex items-center justify-between mb-6">
                     <div>
