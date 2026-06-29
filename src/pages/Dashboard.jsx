@@ -7153,6 +7153,7 @@ const Dashboard = () => {
                     </SettingsSectionCard>
                   </div>
 
+                  {/* Google OAuth Section Hidden 
                   <div className={isControlSectionVisible("register-page") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
                     <SettingsSectionCard
                       title="Google OAuth (optional)"
@@ -7182,6 +7183,7 @@ const Dashboard = () => {
                       </div>
                     </SettingsSectionCard>
                   </div>
+                  */}
 
                   {/* ======================================
               TAB: TRANSACTIONS
@@ -7701,7 +7703,7 @@ const Dashboard = () => {
                         </div>
                       </label>
 
-                      <label className="flex items-center justify-between bg-background p-4 rounded-xl border border-border cursor-pointer hover:border-cyan/30 transition-colors">
+                      <label className="hidden items-center justify-between bg-background p-4 rounded-xl border border-border cursor-pointer hover:border-cyan/30 transition-colors">
                         <div>
                           <p className="text-sm font-medium text-text-primary">Traveler Details Section</p>
                           <p className="text-xs text-text-muted mt-0.5">Show or hide the My Travelers section in the user dashboard</p>

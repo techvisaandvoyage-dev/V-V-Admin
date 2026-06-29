@@ -77,7 +77,7 @@ const DocMultiSelect = ({ selectedKeys = [], catalog = [], onChange, placeholder
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 w-72 rounded-xl border border-border bg-white shadow-xl p-2 max-h-64 overflow-y-auto">
+          <div className="absolute left-0 bottom-full mb-1 z-20 w-72 rounded-xl border border-border bg-white shadow-xl p-2 max-h-64 overflow-y-auto origin-bottom">
             {catalog.length === 0 ? (
               <p className="text-xs text-text-muted p-2">No documents in catalog</p>
             ) : (
@@ -491,7 +491,7 @@ const VisaTypeMultiSelect = ({ selectedNames = [], visaTypes = [], onSelect, onA
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 w-72 rounded-xl border border-border bg-white shadow-xl p-2 max-h-64 overflow-y-auto">
+          <div className="absolute left-0 bottom-full mb-1 z-20 w-72 rounded-xl border border-border bg-white shadow-xl p-2 max-h-64 overflow-y-auto origin-bottom">
             {activeVisaTypes.length === 0 ? (
               <p className="text-xs text-text-muted p-2">No visa types available.</p>
             ) : (
