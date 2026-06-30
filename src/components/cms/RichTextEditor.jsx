@@ -2136,20 +2136,6 @@ const RichTextEditor = ({
           [&_img]:max-w-full [&_img]:!rounded-none [&_img]:cursor-grab ${isDraggingImage ? "[&_img]:opacity-40" : ""}`}
       />
 
-      <div className="px-4 py-2 border-t border-border text-[11px] text-text-muted flex flex-wrap gap-x-4 gap-y-1 items-center justify-between">
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          <span>Tip: select text, then change size, colour, or family.</span>
-          <span>Click any image to resize or align it.</span>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("undo")} disabled={disabled} className="hover:text-text-primary flex items-center gap-1 transition-colors">
-            <Undo2 size={12} /> Undo
-          </button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runCommand("redo")} disabled={disabled} className="hover:text-text-primary flex items-center gap-1 transition-colors">
-            <Redo2 size={12} /> Redo
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

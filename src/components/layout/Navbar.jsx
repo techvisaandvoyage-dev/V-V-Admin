@@ -91,7 +91,7 @@ const Navbar = () => {
               <img
                 src={siteLogo}
                 alt="Visa & Voyage"
-                className="block h-11 w-auto object-contain sm:h-12"
+                className="block h-[54px] w-auto object-contain sm:h-[59px]"
               />
             </Link>
 
