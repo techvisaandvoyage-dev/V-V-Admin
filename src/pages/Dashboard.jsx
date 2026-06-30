@@ -3341,7 +3341,7 @@ const Dashboard = () => {
     const matchStatus =
       statusFilter === "all" ||
       resolvedStatus === statusFilter ||
-      (statusFilter === "pending_payment" && resolvedStatus === "pending");
+      (statusFilter === "pending_payment" && (resolvedStatus === "pending" || resolvedStatus === "drive_link_pending"));
     return matchSearch && matchStatus;
   });
 

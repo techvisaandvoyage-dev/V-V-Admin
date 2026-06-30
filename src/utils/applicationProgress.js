@@ -110,13 +110,18 @@ export const getApplicationProgress = (application, settings = { enableFileUploa
     };
   });
 
+  const allDocsUploaded = missingByTraveler.every((item) => item.complete);
+  const anyDriveLink = Boolean(rootGdrive) || travellers.some((entry) => Boolean(String(entry?.gdriveLink || "").trim()));
+
   return {
     travellerCount,
     requiredDocuments,
     uploadedTravelerCount: missingByTraveler.filter((item) => item.complete).length,
     totalMissingDocuments: missingByTraveler.reduce((sum, item) => sum + item.missingKeys.length, 0),
     missingByTraveler,
-    allDocumentsUploaded: missingByTraveler.every((item) => item.complete),
+    allDocumentsUploaded: allDocsUploaded,
+    gdriveEnabled: settings?.enableGDriveUpload !== false,
+    hasDriveLink: settings?.enableGDriveUpload !== false && anyDriveLink,
   };
 };
 
@@ -156,6 +161,10 @@ export const resolveApplicationStatus = (application, progress) => {
 
   if (isPaymentCompleted) {
     return progress?.allDocumentsUploaded ? "review" : "doc_pending";
+  }
+
+  if (progress?.allDocumentsUploaded && progress?.gdriveEnabled && progress?.hasDriveLink === false) {
+    return "drive_link_pending";
   }
 
   return progress?.allDocumentsUploaded ? "pending_payment" : "pending";
