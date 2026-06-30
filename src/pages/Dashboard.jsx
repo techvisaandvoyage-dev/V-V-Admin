@@ -3338,7 +3338,10 @@ const Dashboard = () => {
       txnStr.includes(q);
     const progress = getApplicationProgress(b, settingsForm);
     const resolvedStatus = resolveApplicationStatus(b, progress);
-    const matchStatus = statusFilter === "all" || resolvedStatus === statusFilter;
+    const matchStatus =
+      statusFilter === "all" ||
+      resolvedStatus === statusFilter ||
+      (statusFilter === "pending_payment" && resolvedStatus === "pending");
     return matchSearch && matchStatus;
   });
 
