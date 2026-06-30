@@ -12,7 +12,7 @@ import {
   Bar,
 } from "recharts";
 import Card from "../../components/ui/Card";
-import { MONTHLY_REVENUE } from "../../data/bookings";
+import { useMemo } from "react";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -29,13 +29,46 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
+const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics, bookings = [] }) => {
+  const chartData = useMemo(() => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const result = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      let m = currentMonth - i;
+      if (m < 0) m += 12;
+      result.push({ month: months[m], revenue: 0, bookings: 0, mIndex: m });
+    }
+
+    if (Array.isArray(bookings)) {
+      bookings.forEach((b) => {
+        if (!b.createdAt) return;
+        const d = new Date(b.createdAt);
+        const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
+        if (diffMonths >= 0 && diffMonths < 6) {
+          const bucket = result.find((r) => r.mIndex === d.getMonth());
+          if (bucket) {
+            bucket.bookings += 1;
+            const isPaid = b?.paymentStatus === "completed" || b?.isPaid === true;
+            if (isPaid) {
+              bucket.revenue += Number(b?.fee || 0);
+            }
+          }
+        }
+      });
+    }
+    
+    return result;
+  }, [bookings]);
+
+  return (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {[
         { label: "Total Bookings", value: liveAnalytics.total, icon: FileText, color: "text-cyan", bg: "bg-cyan/10", suffix: "" },
         { label: "Total Revenue", value: `₹${liveAnalytics.revenue}`, icon: IndianRupee, color: "text-gold", bg: "bg-gold/10", suffix: "" },
-        { label: "Pending Review", value: liveAnalytics.pendingReview, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10", suffix: "" },
         { label: "Approval Rate", value: liveAnalytics.approvalRate, icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10", suffix: "%" },
       ].map(({ label, value, icon: Icon, color, bg, suffix }, index) => (
         <motion.div
@@ -90,7 +123,7 @@ const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           {activeChart === "revenue" ? (
-            <LineChart data={MONTHLY_REVENUE}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
               <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value}`} />
@@ -109,7 +142,7 @@ const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
               />
             </LineChart>
           ) : (
-            <BarChart data={MONTHLY_REVENUE}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
               <XAxis dataKey="month" tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "#9ca3af", fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -144,6 +177,7 @@ const AnalyticsPage = ({ activeChart, setActiveChart, liveAnalytics }) => (
       ))}
     </div>
   </motion.div>
-);
+  );
+};
 
 export default AnalyticsPage;

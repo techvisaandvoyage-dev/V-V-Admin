@@ -955,8 +955,8 @@ const Details = () => {
                         </div>
                       )}
 
-                      {effectiveFurtherInfoLink && (
-                        <div className="mt-2 p-2 bg-surface-3 border border-border rounded-lg flex items-center justify-between gap-2">
+                      {uploadSettings.enableGDriveUpload && effectiveFurtherInfoLink && (
+                        <div className="mt-3 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <Link size={16} className="text-text-secondary shrink-0" />
                             <div className="text-[11px] text-text-primary font-medium truncate">
@@ -973,7 +973,7 @@ const Details = () => {
                           </Button>
                         </div>
                       )}
-                      {travelerDriveLinkHistory.length > 0 && (
+                      {uploadSettings.enableGDriveUpload && travelerDriveLinkHistory.length > 0 && (
                         <div className="mt-2">
                           <p className="text-[11px] text-text-muted mb-1.5">Previous Drive Links ({travelerDriveLinkHistory.length})</p>
                           <div className="space-y-2">
@@ -1015,8 +1015,8 @@ const Details = () => {
                 </div>
               )}
 
-              {(sharedTravelerDriveLink || sharedDriveLinkHistory.length > 0) && (
-                <div className="mb-5 rounded-xl border border-cyan/30 bg-cyan/10 p-3">
+              {uploadSettings.enableGDriveUpload && (sharedTravelerDriveLink || sharedDriveLinkHistory.length > 0) && (
+                <div className="mt-6 rounded-xl border border-cyan/20 bg-cyan/5 p-5 shadow-inner">
                   <p className="text-xs font-semibold uppercase tracking-wide text-cyan">
                     Shared Google Drive Link
                   </p>
