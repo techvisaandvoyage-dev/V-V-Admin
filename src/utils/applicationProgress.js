@@ -130,8 +130,18 @@ export const resolveApplicationStatus = (application, progress) => {
   ) {
     return application.status;
   }
+
   if (application.status === "review") {
-    return "review";
+    const normalizedPaymentStatus = String(
+      application.paymentStatus ||
+      application.payment?.status ||
+      application.razorpayPaymentStatus ||
+      ""
+    ).trim().toLowerCase();
+    const isPaid =
+      application.isPaid === true ||
+      ["paid", "completed", "success", "captured"].includes(normalizedPaymentStatus);
+    return isPaid ? "review" : "pending_payment";
   }
 
   const normalizedPaymentStatus = String(
@@ -148,5 +158,5 @@ export const resolveApplicationStatus = (application, progress) => {
     return progress?.allDocumentsUploaded ? "review" : "doc_pending";
   }
 
-  return "pending";
+  return progress?.allDocumentsUploaded ? "pending_payment" : "pending";
 };

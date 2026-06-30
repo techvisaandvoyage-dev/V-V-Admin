@@ -7398,7 +7398,8 @@ const Dashboard = () => {
                       id="admin-status-filter"
                     >
                       <option value="all">All Status</option>
-                      <option value="dash">Not Paid</option>
+                      <option value="pending_payment">Not Paid</option>
+                      <option value="drive_link_pending">Upload Drive Link</option>
                       <option value="doc_pending">Pending Review</option>
                       <option value="review">Under Review</option>
                       <option value="approved">Approved</option>
