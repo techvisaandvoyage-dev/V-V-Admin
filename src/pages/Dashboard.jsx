@@ -1924,7 +1924,7 @@ const SupportChatWorkspace = () => {
                     <span className="text-border/60">·</span>
                     <span>{activeConversation.phone}</span>
                     <span className="text-border/60">·</span>
-                    <a href="#profile" className="text-cyan font-bold hover:underline">View Profile</a>
+                    <span className="text-text-muted font-medium text-xs italic">Profile is coming soon</span>
                   </p>
                 </div>
               </div>
@@ -2071,7 +2071,7 @@ const Dashboard = () => {
   // -- Route & State Navigation ------------------------------
   const navigate       = useNavigate();
   const { activeTab: tabParam } = useParams();
-  const activeTab      = tabParam || "analytics";
+  const activeTab      = tabParam || "activity";
   const [searchParams] = useSearchParams();
   const isControlsTab = ["controls", "landing-page", "cards", "footer", "settings", "activity", "chat"].includes(activeTab);
   const validAdminTabIds = useMemo(() => new Set(ADMIN_DASHBOARD_TABS.map((tab) => tab.id)), []);
@@ -2135,8 +2135,8 @@ const Dashboard = () => {
     smtpEmailPass: "",
     smtpFromEmail: "",
     smtpEmailService: "gmail",
-    enableGDriveUpload: true,
-    enableFileUpload: true,
+    enableGDriveUpload: false,
+    enableFileUpload: false,
     showTravelerDetails: true,
     allowedFileFormats: ["pdf", "jpg", "jpeg", "png"],
     unsplashApplicationId: "",
@@ -2371,7 +2371,7 @@ const Dashboard = () => {
               children: [
                 { key: "calendar-manager", label: "Calender" },
                 { key: "traveler-form-manager", label: "Traveler Form" },
-                { key: "upload-methods", label: "Document Upload Methods" },
+                { key: "upload-methods", label: "Document Uploads" },
                 { key: "application-documents", label: "Documents" },
               ],
             },
@@ -3071,7 +3071,7 @@ const Dashboard = () => {
   const [isSmtpConfigured, setIsSmtpConfigured] = useState(false);
   const [isSms91Configured, setIsSms91Configured] = useState(false);
   const [isUnsplashConfigured, setIsUnsplashConfigured] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", reEnterPassword: "" });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const { changeAdminPassword, logout } = useAuthStore();
 
@@ -6279,8 +6279,11 @@ const Dashboard = () => {
   };
 
   const handleChangePassword = async () => {
-    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.reEnterPassword) {
       return showToast("Please fill all password fields", "error");
+    }
+    if (passwordForm.newPassword !== passwordForm.reEnterPassword) {
+      return showToast("New passwords do not match", "error");
     }
     if (passwordForm.newPassword.length < 8) {
       return showToast("New password must be at least 8 characters", "error");
@@ -6289,7 +6292,7 @@ const Dashboard = () => {
     const { success, message } = await changeAdminPassword(passwordForm.currentPassword, passwordForm.newPassword);
     if (success) {
       showToast("Password changed successfully", "success");
-      setPasswordForm({ currentPassword: "", newPassword: "" });
+      setPasswordForm({ currentPassword: "", newPassword: "", reEnterPassword: "" });
     } else {
       showToast(message || "Failed to change password", "error");
     }
@@ -7623,7 +7626,7 @@ const Dashboard = () => {
                   <Card className={isControlSectionVisible("upload-methods") ? "" : "hidden"}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h2 className="font-semibold text-text-primary">System Controls</h2>
+                        <h2 className="font-semibold text-text-primary">Document Uploads</h2>
                         <p className="text-xs text-text-muted">Manage active features and modules</p>
                       </div>
                       <Button
@@ -7652,7 +7655,7 @@ const Dashboard = () => {
                   <div className="bg-surface-2 border border-border rounded-xl p-5">
                     <h3 className="text-sm font-semibold text-text-primary border-b border-border pb-3 mb-4 flex items-center gap-2">
                       <UploadCloud size={18} className="text-cyan" />
-                      Document Upload Methods
+                      Document Upload methods
                     </h3>
                     <p className="text-xs text-text-muted mb-6">
                       Turn on one or both options. With both on, applicants see file uploads and Google Drive on the same screen-they can use either method (all files or one Drive link per traveler). Turn both upload methods off to hide document uploads until you enable at least one. Use <span className="text-text-primary font-medium">Save upload options</span> at the top when you are done - only that section is saved.
@@ -8018,17 +8021,6 @@ const Dashboard = () => {
               </div>
 
               <div className={isControlSectionVisible("upload-methods") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
-                <Card>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="font-semibold text-text-primary">Document Upload Methods</h2>
-                      <p className="text-xs text-text-muted">Manage methods for document uploading.</p>
-                    </div>
-                  </div>
-                  <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
-                    Document Upload Methods coming soon!
-                  </div>
-                </Card>
               </div>
 
               <div className={isControlSectionVisible("application-documents") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
@@ -9412,7 +9404,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="bg-surface-2 border border-border rounded-xl p-8 text-center text-text-muted">
-                    Dynamic Page management coming soon!
+                    Dynamic Page management coming soon! Ex-Blogs / Careers / FAQs / Testimonials / Reviews
                   </div>
                 </Card>
               </div>
@@ -9621,6 +9613,14 @@ const Dashboard = () => {
                         onChange={(e) => setPasswordForm(p => ({ ...p, newPassword: e.target.value }))}
                         id="admin-new-password" 
                         placeholder="Enter new password"
+                      />
+                      <Input 
+                        label="Re-enter New Password" 
+                        type="password" 
+                        value={passwordForm.reEnterPassword} 
+                        onChange={(e) => setPasswordForm(p => ({ ...p, reEnterPassword: e.target.value }))}
+                        id="admin-reenter-password" 
+                        placeholder="Re-enter new password"
                       />
                       <div className="flex justify-start mt-4">
                         <Button 

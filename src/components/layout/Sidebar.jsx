@@ -95,7 +95,7 @@ const ADMIN_NAV = [
             children: [
               { label: "Calender ", sectionKey: "calendar-manager" },
               { label: "Traveler Form ", sectionKey: "traveler-form-manager" },
-              { label: "Document Upload Methods", sectionKey: "upload-methods" },
+              { label: "Document Upload", sectionKey: "upload-methods" },
               { label: "Documents", sectionKey: "application-documents" },
             ],
           },

@@ -663,7 +663,7 @@ const Details = () => {
         <div className="flex flex-col sm:flex-row justify-between gap-4 mb-8">
           <div>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/applications")}
               className="flex items-center gap-2 text-sm text-text-muted hover:text-text-primary transition-colors mb-4"
             >
               <ArrowLeft size={16} /> Back to Dashboard

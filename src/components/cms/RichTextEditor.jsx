@@ -68,6 +68,70 @@ const HEADING_OPTIONS = [
   { label: "Quote", tag: "blockquote" },
 ];
 
+const CustomPromptModal = ({ config }) => {
+  const [value, setValue] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (config) {
+      setValue(config.defaultValue || "");
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [config]);
+
+  if (!config) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    config.onResolve(value);
+  };
+
+  const handleCancel = () => {
+    config.onResolve(null);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+      <div className="bg-white border border-gray-200 shadow-2xl rounded-2xl w-full max-w-sm overflow-hidden flex flex-col">
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">{config.title}</h3>
+          <div className="space-y-4">
+            <input
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  config.onResolve(value);
+                }
+              }}
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm text-gray-900 mb-6"
+            />
+            <div className="flex justify-between items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-semibold transition-colors flex-1 shadow-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => config.onResolve(value)}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors flex-1 shadow-sm"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /**
  * Word-style rich HTML editor (contentEditable + execCommand + range wrappers).
  *
@@ -94,6 +158,23 @@ const RichTextEditor = ({
   const savedRangeRef = useRef(null);
   const draggedRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  const [promptConfig, setPromptConfig] = useState(null);
+  const promptAsync = useCallback((title, defaultValue = "") => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        setPromptConfig({
+          title,
+          defaultValue,
+          onResolve: (val) => {
+            setPromptConfig(null);
+            resolve(val);
+          },
+        });
+      }, 0);
+    });
+  }, []);
+
   const [active, setActive] = useState({
     bold: false,
     italic: false,
@@ -396,23 +477,41 @@ const RichTextEditor = ({
   };
 
   /* ── Link ──────────────────────────────────────────────── */
-  const handleLink = () => {
+  const handleLink = async () => {
     const sel = window.getSelection();
     const hasSelection = sel && !sel.isCollapsed && editorRef.current?.contains(sel.anchorNode);
-    const url = window.prompt("Enter link URL (https://…)", "https://");
+    let savedRange = null;
+    if (hasSelection) savedRange = sel.getRangeAt(0);
+
+    const url = await promptAsync("Enter link URL (https://…)", "https://");
     if (!url) return;
+    
+    focusEditor();
+    if (savedRange) {
+      const s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(savedRange);
+    }
+
     if (hasSelection) {
       runCommand("createLink", url);
     } else {
-      const label = window.prompt("Link text", "Click here") || url;
+      const label = await promptAsync("Link text", "Click here") || url;
+      if (!label) return;
+      focusEditor();
       insertHtml(`<a href="${url}">${label}</a>`);
     }
   };
 
   /* ── Table / CTA / Image ───────────────────────────────── */
-  const handleAddTable = () => {
-    const cols = Math.max(1, Math.min(8, Number(window.prompt("Number of columns?", "3")) || 3));
-    const rows = Math.max(1, Math.min(20, Number(window.prompt("Number of rows?", "3")) || 3));
+  const handleAddTable = async () => {
+    const colsStr = await promptAsync("Number of columns?", "3");
+    if (!colsStr) return;
+    const cols = Math.max(1, Math.min(8, Number(colsStr) || 3));
+    
+    const rowsStr = await promptAsync("Number of rows?", "3");
+    if (!rowsStr) return;
+    const rows = Math.max(1, Math.min(20, Number(rowsStr) || 3));
 
     const th = Array.from({ length: cols })
       .map(
@@ -431,16 +530,18 @@ const RichTextEditor = ({
       )
       .join("");
 
+    focusEditor();
     insertHtml(
       `<table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr>${th}</tr></thead><tbody>${bodyRows}</tbody></table><p><br/></p>`
     );
   };
 
-  const handleAddCta = () => {
-    const label = window.prompt("Button label", "Start Application");
+  const handleAddCta = async () => {
+    const label = await promptAsync("Button label", "Start Application");
     if (!label) return;
-    const href = window.prompt("Button link", "/apply");
+    const href = await promptAsync("Button link", "/apply");
     if (!href) return;
+    focusEditor();
     insertHtml(
       `<p><a href="${href}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#0284c7;color:#ffffff;text-decoration:none;font-weight:600;">${label}</a></p><p><br/></p>`
     );
@@ -463,8 +564,8 @@ const RichTextEditor = ({
   };
 
   /* ── Insert image from URL ─────────────────────────────── */
-  const handleAddImageUrl = () => {
-    const url = window.prompt("Enter image URL (https://…)", "https://");
+  const handleAddImageUrl = async () => {
+    const url = await promptAsync("Enter image URL (https://…)", "https://");
     if (!url) return;
     focusEditor();
     insertHtml(
@@ -1303,15 +1404,12 @@ const RichTextEditor = ({
     emitChange();
   };
 
-  const handleImageLink = () => {
+  const handleImageLink = async () => {
     if (!imageEditor?.img) return;
     const img = imageEditor.img;
     const existingAnchor = img.closest("a");
     const currentUrl = existingAnchor?.getAttribute("href") || "";
-    const url = window.prompt(
-      "Image link URL (leave blank to remove link)",
-      currentUrl
-    );
+    const url = await promptAsync("Image link URL (leave blank to remove link)", currentUrl);
     if (url === null) return;
     if (!url.trim()) {
       if (existingAnchor) {
@@ -2136,6 +2234,7 @@ const RichTextEditor = ({
           [&_img]:max-w-full [&_img]:!rounded-none [&_img]:cursor-grab ${isDraggingImage ? "[&_img]:opacity-40" : ""}`}
       />
 
+      <CustomPromptModal config={promptConfig} />
     </div>
   );
 };
