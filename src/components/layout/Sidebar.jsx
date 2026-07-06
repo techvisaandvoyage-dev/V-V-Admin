@@ -110,7 +110,9 @@ const ADMIN_NAV = [
         label: "left side",
         isGroup: true,
         children: [
-          { label: "Footer Controls", sectionKey: "footer-social-icons" },
+          { label: "Description", sectionKey: "footer-description" },
+          { label: "Social", sectionKey: "footer-social-icons" },
+          { label: "Legal", sectionKey: "footer-legal" },
         ]
       },
       { label: "Static Pages", sectionKey: "static-pages" },
