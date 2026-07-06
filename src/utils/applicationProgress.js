@@ -131,7 +131,8 @@ export const resolveApplicationStatus = (application, progress) => {
   if (
     application.status === "approved" ||
     application.status === "rejected" ||
-    application.status === "cancelled"
+    application.status === "cancelled" ||
+    application.status === "submitted"
   ) {
     return application.status;
   }

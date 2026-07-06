@@ -45,6 +45,7 @@ import { ANALYTICS, MONTHLY_REVENUE } from "../data/bookings";
 import { getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
 import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 import { fmtDate } from "../utils/formatDate";
+import GoogleSheetsSyncModal from "../components/GoogleSheetsSyncModal";
 
 /**
  * Icon mapping for every built-in document key (mirrors `DOCUMENT_META` on the
@@ -2113,6 +2114,39 @@ const Dashboard = () => {
 
   // -- Local state ------------------------------------------
   const [searchQuery, setSearchQuery]        = useState("");
+
+  
+  const [selectedApplicationIds, setSelectedApplicationIds] = useState([]);
+  const [columnFilters, setColumnFilters] = useState({
+    id: "",
+    applicant: "",
+    destination: "",
+    travelDate: "",
+    fee: "",
+    payment: "",
+    documents: "",
+    status: ""
+  });
+const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const handleExportToGoogleSheets = async () => {
+    setIsExporting(true);
+    try {
+      const response = await api.post('/google-sheets/export', {
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        applicationIds: selectedApplicationIds.length > 0 ? selectedApplicationIds : undefined,
+      });
+      if (response.data.success) {
+        alert(`Exported successfully! ${response.data.exportedCount} rows.`);
+        window.open(`https://docs.google.com/spreadsheets/d/${response.data.spreadsheetId}`, '_blank');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
   const [statusFilter, setStatusFilter]      = useState("all");
   const [activeChart, setActiveChart]        = useState("revenue"); // "revenue"|"bookings"
@@ -2160,6 +2194,9 @@ const Dashboard = () => {
     customerChatHeaderSubtitle: "We typically reply in a few minutes",
     footerLogo: "",
     footerDescription: "",
+    footerShowSupportedBy: true,
+    footerSupportedByText: "Supported by Krishna Agarwal & Associates",
+    footerSupportedByLink: "https://krishnaagarwalassociates.co.in/",
     seoWebsiteTitle: "Visa & Voyage",
     seoMetaDescription: "",
     seoMetaKeywords: "",
@@ -2171,9 +2208,9 @@ const Dashboard = () => {
     whatsappTemplate: "",
   });
   const [otpSettingsForm, setOtpSettingsForm] = useState(DEFAULT_OTP_SETTINGS);
-  /** Which settings subsection is currently saving (null = idle). */
   const [savingSettingsKey, setSavingSettingsKey] = useState(null);
-  /**
+
+  /*
    * Universal control system - admin sets a single global Visa Type / Validity that
    * applies to every country card and detail page unless an individual country edit
    * carries a per-country override. `defaults` mirrors the server state, while the
@@ -2399,6 +2436,7 @@ const Dashboard = () => {
           children: [
             { key: "footer-description", label: "Description" },
             { key: "footer-social-icons", label: "Social" },
+            { key: "footer-legal", label: "Legal" },
           ],
         },
         { key: "static-pages", label: "Static Pages" },
@@ -3345,7 +3383,25 @@ const Dashboard = () => {
       statusFilter === "all" ||
       resolvedStatus === statusFilter ||
       (statusFilter === "pending_payment" && (resolvedStatus === "pending" || resolvedStatus === "drive_link_pending"));
-    return matchSearch && matchStatus;
+    
+    const idVal = String(b.applicationId || b._id || b.id || "").toLowerCase();
+    const applicantVal = `${b.firstName || ""} ${b.lastName || ""} ${b.email || b.userEmail || ""} ${b.user?.phone || ""}`.toLowerCase();
+    const destinationVal = String(b.countryName || "").toLowerCase();
+    const dateVal = String(b.travelDate || "").toLowerCase();
+    const feeVal = String(b.fee || "").toLowerCase();
+    const paymentVal = String(b.paymentStatus || "").toLowerCase();
+    const statusVal = String(resolvedStatus || "").toLowerCase();
+
+    const matchCols = 
+      (columnFilters.id === "" || idVal.includes(columnFilters.id.toLowerCase())) &&
+      (columnFilters.applicant === "" || applicantVal.includes(columnFilters.applicant.toLowerCase())) &&
+      (columnFilters.destination === "" || destinationVal.includes(columnFilters.destination.toLowerCase())) &&
+      (columnFilters.travelDate === "" || dateVal.includes(columnFilters.travelDate.toLowerCase())) &&
+      (columnFilters.fee === "" || feeVal.includes(columnFilters.fee.toLowerCase())) &&
+      (columnFilters.payment === "" || paymentVal.includes(columnFilters.payment.toLowerCase())) &&
+      (columnFilters.status === "" || statusVal.includes(columnFilters.status.toLowerCase()));
+
+    return matchSearch && matchStatus && matchCols;
   });
 
   const [geocodeCountryMatches, setGeocodeCountryMatches] = useState([]);
@@ -7346,7 +7402,7 @@ const Dashboard = () => {
               </Card>
 
               {/* Status breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
                 {[
                   { label: "Approved",    count: bookings.filter(b=>b.status==="approved").length,  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
                   { label: "Under Review",count: bookings.filter(b=>{
@@ -7362,6 +7418,10 @@ const Dashboard = () => {
                       const status = resolveApplicationStatus(b, progress);
                       return status === "dash" || status === "pending";
                     }).length, color: "text-zinc-400", bg: "bg-zinc-500/10", border: "border-zinc-500/20" },
+                  { label: "Submitted", count: bookings.filter(b=>{
+                      const progress = getApplicationProgress(b, settingsForm);
+                      return resolveApplicationStatus(b, progress) === "submitted";
+                    }).length, color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20" },
                   { label: "Rejected",    count: bookings.filter(b=>b.status==="rejected").length,  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20" },
                 ].map(({ label, count, color, bg, border }) => (
                   <div key={label} className={`${bg} border ${border} rounded-xl p-4 text-center`}>
@@ -7382,6 +7442,16 @@ const Dashboard = () => {
                 {/* Toolbar */}
                 <div className="flex flex-wrap items-center gap-3 mb-6">
                   <h2 className="font-semibold text-text-primary flex-1">All Applications</h2>
+
+                  {/* Google Sheets Actions */}
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExportToGoogleSheets} disabled={isExporting}>
+                      {isExporting ? 'Exporting...' : 'Export to Sheets'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsGoogleSheetsModalOpen(true)}>
+                      Sync from Sheets
+                    </Button>
+                  </div>
 
                   {/* Search */}
                   <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-xl px-3 py-2">
@@ -7407,6 +7477,7 @@ const Dashboard = () => {
                       id="admin-status-filter"
                     >
                       <option value="all">All Status</option>
+                      <option value="submitted">Submitted</option>
                       <option value="pending_payment">Not Paid</option>
                       <option value="drive_link_pending">Upload Drive Link</option>
                       <option value="doc_pending">Pending Review</option>
@@ -7423,11 +7494,40 @@ const Dashboard = () => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border">
+                        <th className="text-left text-xs font-semibold text-text-muted pb-3 pl-4 pr-2">
+                          <input 
+                            type="checkbox" 
+                            checked={filteredBookings.length > 0 && selectedApplicationIds.length === filteredBookings.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedApplicationIds(filteredBookings.map(b => b.applicationId || b._id || b.id));
+                              } else {
+                                setSelectedApplicationIds([]);
+                              }
+                            }}
+                          />
+                        </th>
                         {["Application ID","Applicant","Destination","Travel Date","Fee","Payment","Documents","Status","Details"].map((h) => (
                           <th key={h} className="text-left text-xs font-semibold text-text-muted pb-3 pr-6 whitespace-nowrap">
                             {h}
                           </th>
                         ))}
+                      </tr>
+                      <tr className="border-b border-border bg-surface-2/50">
+                        <th className="p-2"></th>
+                        {["id","applicant","destination","travelDate","fee","payment","documents","status"].map((col) => (
+                          <th key={col} className="p-2 pr-6">
+                            <input
+                              type="text"
+                              placeholder="Filter..."
+                              className="w-full bg-surface-3 border border-border rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-cyan"
+                              value={columnFilters[col]}
+                              onChange={(e) => setColumnFilters({...columnFilters, [col]: e.target.value})}
+                              disabled={col === "documents"}
+                            />
+                          </th>
+                        ))}
+                        <th className="p-2"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/40">
@@ -7437,6 +7537,20 @@ const Dashboard = () => {
                           b.transactionId && b.transactionId !== "pending" ? b.transactionId : "";
                         return (
                           <tr key={b._id || b.id} className="hover:bg-surface-3/50 transition-colors group">
+                          <td className="py-3 pl-4 pr-2">
+                            <input 
+                              type="checkbox"
+                              checked={selectedApplicationIds.includes(b.applicationId || b._id || b.id)}
+                              onChange={(e) => {
+                                const id = b.applicationId || b._id || b.id;
+                                if (e.target.checked) {
+                                  setSelectedApplicationIds([...selectedApplicationIds, id]);
+                                } else {
+                                  setSelectedApplicationIds(selectedApplicationIds.filter(i => i !== id));
+                                }
+                              }}
+                            />
+                          </td>
                           <td className="py-3 pr-6 font-mono text-xs text-text-muted whitespace-nowrap">
                             {b.applicationId || b._id || b.id}
                           </td>
@@ -9599,6 +9713,7 @@ const Dashboard = () => {
                   <div className="flex items-center gap-4 bg-surface-2 p-4 rounded-xl border border-border">
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-text-primary">Show Legal Text</h3>
+                      <p className="text-xs text-text-muted mt-1">Toggle whether the "Supported by" text appears in the website footer.</p>
                     </div>
                     <DisplayToggle
                       active={settingsForm.footerShowSupportedBy}
@@ -12604,6 +12719,15 @@ const Dashboard = () => {
           <option key={icon} value={icon} />
         ))}
       </datalist>
+      {/* Google Sheets Sync Modal */}
+      <GoogleSheetsSyncModal 
+        isOpen={isGoogleSheetsModalOpen}
+        onClose={() => setIsGoogleSheetsModalOpen(false)}
+        onSyncComplete={(data) => {
+          alert(`Sync complete! Updated: ${data.updatedCount}, Skipped: ${data.skippedCount}`);
+          fetchAllApplications();
+        }}
+      />
     </AdminLayout>
   );
 };
