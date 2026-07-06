@@ -1324,6 +1324,9 @@ const mapApiSettingsToFormState = (s, activeCountryIds = []) => ({
   customerChatHeaderSubtitle: s.customerChatHeaderSubtitle || "We typically reply in a few minutes",
   footerLogo: s.footerLogo || "",
   footerDescription: s.footerDescription || "",
+  footerShowSupportedBy: s.footerShowSupportedBy !== false,
+  footerSupportedByText: s.footerSupportedByText || "Supported by Krishna Agarwal & Associates",
+  footerSupportedByLink: s.footerSupportedByLink || "https://krishnaagarwalassociates.co.in/",
   seoWebsiteTitle: s.seoWebsiteTitle || "Visa & Voyage",
   seoMetaDescription: s.seoMetaDescription || "",
   seoMetaKeywords: s.seoMetaKeywords || "",
@@ -9584,6 +9587,92 @@ const Dashboard = () => {
                   </div>
                 )}
 
+              </Card>
+              </div>
+
+              <div className={isControlSectionVisible("footer-legal") ? "w-full max-w-none flex-1 xl:col-span-2 self-stretch" : "hidden"}>
+              <Card
+                title="Legal Footer Info"
+                description="Manage the legal/supported-by text at the bottom left of your website footer."
+              >
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 bg-surface-2 p-4 rounded-xl border border-border">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-text-primary">Show Legal Text</h3>
+                    </div>
+                    <DisplayToggle
+                      active={settingsForm.footerShowSupportedBy}
+                      busy={savingSettingsKey === "footer-legal"}
+                      onClick={() => {
+                        const nextValue = !settingsForm.footerShowSupportedBy;
+                        setSettingsForm((prev) => ({
+                          ...prev,
+                          footerShowSupportedBy: nextValue,
+                        }));
+                        saveSettingsPartial(
+                          "footer-legal",
+                          {
+                            footerShowSupportedBy: nextValue,
+                            footerSupportedByText: settingsForm.footerSupportedByText,
+                            footerSupportedByLink: settingsForm.footerSupportedByLink,
+                          },
+                          `Legal text is now ${nextValue ? "visible" : "hidden"}`
+                        );
+                      }}
+                      labelOn="Visible"
+                      labelOff="Hidden"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Input
+                      label="Legal Text"
+                      value={settingsForm.footerSupportedByText}
+                      onChange={(e) =>
+                        setSettingsForm((prev) => ({
+                          ...prev,
+                          footerSupportedByText: e.target.value,
+                        }))
+                      }
+                      placeholder="Supported by Krishna Agarwal & Associates"
+                      helper="This is the full text shown on the left side of the footer."
+                    />
+                    <Input
+                      label="Link URL"
+                      value={settingsForm.footerSupportedByLink}
+                      onChange={(e) =>
+                        setSettingsForm((prev) => ({
+                          ...prev,
+                          footerSupportedByLink: e.target.value,
+                        }))
+                      }
+                      placeholder="https://example.com"
+                      helper="Optional link to wrap the legal text in. Leave empty for text-only."
+                    />
+                  </div>
+
+                  <div className="flex justify-end border-t border-border pt-4">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Save size={15} />}
+                      loading={savingSettingsKey === "footer-legal"}
+                      onClick={() =>
+                        saveSettingsPartial(
+                          "footer-legal",
+                          {
+                            footerShowSupportedBy: settingsForm.footerShowSupportedBy,
+                            footerSupportedByText: settingsForm.footerSupportedByText,
+                            footerSupportedByLink: settingsForm.footerSupportedByLink,
+                          },
+                          "Legal footer settings updated successfully."
+                        )
+                      }
+                    >
+                      Save Legal Settings
+                    </Button>
+                  </div>
+                </div>
               </Card>
               </div>
 
