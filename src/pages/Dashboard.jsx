@@ -45,7 +45,6 @@ import { ANALYTICS, MONTHLY_REVENUE } from "../data/bookings";
 import { getCountrySearchHint, matchesCountrySearch } from "../utils/countrySearch";
 import { getApplicationProgress, resolveApplicationStatus } from "../utils/applicationProgress";
 import { fmtDate } from "../utils/formatDate";
-import GoogleSheetsSyncModal from "../components/GoogleSheetsSyncModal";
 
 /**
  * Icon mapping for every built-in document key (mirrors `DOCUMENT_META` on the
@@ -2127,26 +2126,7 @@ const Dashboard = () => {
     documents: "",
     status: ""
   });
-const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  
-  const handleExportToGoogleSheets = async () => {
-    setIsExporting(true);
-    try {
-      const response = await api.post('/google-sheets/export', {
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        applicationIds: selectedApplicationIds.length > 0 ? selectedApplicationIds : undefined,
-      });
-      if (response.data.success) {
-        alert(`Exported successfully! ${response.data.exportedCount} rows.`);
-        window.open(`https://docs.google.com/spreadsheets/d/${response.data.spreadsheetId}`, '_blank');
-      }
-    } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Export failed');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+
   const [countrySearchQuery, setCountrySearchQuery] = useState("");
   const [statusFilter, setStatusFilter]      = useState("all");
   const [activeChart, setActiveChart]        = useState("revenue"); // "revenue"|"bookings"
@@ -7443,15 +7423,7 @@ const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState(false);
                 <div className="flex flex-wrap items-center gap-3 mb-6">
                   <h2 className="font-semibold text-text-primary flex-1">All Applications</h2>
 
-                  {/* Google Sheets Actions */}
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleExportToGoogleSheets} disabled={isExporting}>
-                      {isExporting ? 'Exporting...' : 'Export to Sheets'}
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsGoogleSheetsModalOpen(true)}>
-                      Sync from Sheets
-                    </Button>
-                  </div>
+                  {/* Google Sheets Actions Removed - fully automated */}
 
                   {/* Search */}
                   <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-xl px-3 py-2">
@@ -12719,15 +12691,6 @@ const [isGoogleSheetsModalOpen, setIsGoogleSheetsModalOpen] = useState(false);
           <option key={icon} value={icon} />
         ))}
       </datalist>
-      {/* Google Sheets Sync Modal */}
-      <GoogleSheetsSyncModal 
-        isOpen={isGoogleSheetsModalOpen}
-        onClose={() => setIsGoogleSheetsModalOpen(false)}
-        onSyncComplete={(data) => {
-          alert(`Sync complete! Updated: ${data.updatedCount}, Skipped: ${data.skippedCount}`);
-          fetchAllApplications();
-        }}
-      />
     </AdminLayout>
   );
 };
