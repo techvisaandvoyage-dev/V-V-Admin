@@ -1723,18 +1723,15 @@ const SupportChatWorkspace = () => {
     }
   };
 
-  const handleMarkResolved = async () => {
+  const handleUpdateStatus = async (status) => {
     if (!activeConversation) return;
     try {
-      const newActive = !activeConversation.active;
-      const { data } = await api.post(`/support/conversations/${activeConversation.id}`, {
-        active: newActive
-      });
+      const { data } = await api.post(`/admin/chat/conversations/${activeConversation.id}/status`, { status });
       if (data?.success && data?.conversation) {
         setConversations(prev => prev.map(c => c.id === activeConversation.id ? data.conversation : c));
       }
     } catch (err) {
-      console.error("Failed to update resolved status:", err);
+      console.error("Failed to update conversation status:", err);
     }
   };
 
@@ -1920,26 +1917,65 @@ const SupportChatWorkspace = () => {
                 <div>
                   <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
                     {activeConversation.name}
-                    {activeConversation.active && <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Online</span>}
+                    {activeConversation.status === 'AI_PENDING' && <span className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider bg-blue-500/10 px-1.5 py-0.5 rounded">AI Handled</span>}
+                    {activeConversation.status === 'HUMAN_PENDING' && <span className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider bg-orange-500/10 px-1.5 py-0.5 rounded animate-pulse">Human Requested</span>}
+                    {activeConversation.status === 'HUMAN_CONNECTED' && <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded">Agent Active</span>}
+                    {activeConversation.status === 'RESOLVED' && <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider bg-slate-500/10 px-1.5 py-0.5 rounded">Resolved</span>}
                   </h3>
                   <p className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
                     <span className="truncate max-w-[150px] sm:max-w-[200px]">{activeConversation.email}</span>
                     <span className="text-border/60">·</span>
                     <span>{activeConversation.phone}</span>
-                    <span className="text-border/60">·</span>
-                    <span className="text-text-muted font-medium text-xs italic">Profile is coming soon</span>
                   </p>
+                  {activeConversation.escalationReason && (
+                    <p className="text-xs text-orange-600 mt-1 font-medium flex items-center gap-1">
+                      <Zap className="h-3 w-3" /> {activeConversation.escalationReason}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleMarkResolved}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${activeConversation.active ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10" : "border-border bg-surface-2 text-text-secondary hover:bg-surface-3"}`}
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  {activeConversation.active ? "Mark as Resolved" : "Reopen Conversation"}
-                </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {activeConversation.status === 'AI_PENDING' && (
+                  <button
+                    onClick={() => handleUpdateStatus('HUMAN_CONNECTED')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/20 bg-blue-500/5 text-blue-600 hover:bg-blue-500/10 text-xs font-bold transition-all"
+                  >
+                    <MessageSquare className="h-4 w-4" /> Take Over
+                  </button>
+                )}
+                {activeConversation.status === 'HUMAN_PENDING' && (
+                  <button
+                    onClick={() => handleUpdateStatus('HUMAN_CONNECTED')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 text-xs font-bold transition-all shadow-md"
+                  >
+                    <Zap className="h-4 w-4" /> Accept Request
+                  </button>
+                )}
+                {activeConversation.status === 'HUMAN_CONNECTED' && (
+                  <button
+                    onClick={() => handleUpdateStatus('AI_PENDING')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all"
+                  >
+                    <RotateCcw className="h-4 w-4" /> Return to AI
+                  </button>
+                )}
+                {activeConversation.status !== 'RESOLVED' && (
+                  <button
+                    onClick={() => handleUpdateStatus('RESOLVED')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 text-xs font-bold transition-all"
+                  >
+                    <CheckCircle className="h-4 w-4" /> Mark Resolved
+                  </button>
+                )}
+                {activeConversation.status === 'RESOLVED' && (
+                  <button
+                    onClick={() => handleUpdateStatus('AI_PENDING')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-surface-2 text-text-secondary hover:bg-surface-3 text-xs font-bold transition-all"
+                  >
+                    <RotateCcw className="h-4 w-4" /> Reopen to AI
+                  </button>
+                )}
                 <button className="p-1.5 rounded-lg border border-border hover:bg-surface-2 text-text-secondary transition-colors">
                   <MoreVertical className="h-4 w-4" />
                 </button>
@@ -1974,6 +2010,18 @@ const SupportChatWorkspace = () => {
                         >
                           {m.text}
                         </div>
+                        {m.type === "chips" && m.options && m.options.length > 0 && (
+                          <div className={`mt-1 flex flex-wrap gap-1 px-1 ${isAdmin ? "justify-end" : "justify-start"}`}>
+                            {m.options.map((opt, idx) => (
+                              <span key={idx} className="rounded-full bg-surface border border-border px-2 py-0.5 text-[9px] text-text-muted">{opt}</span>
+                            ))}
+                          </div>
+                        )}
+                        {m.type === "human_escalation" && (
+                          <div className={`mt-1 flex px-1 ${isAdmin ? "justify-end" : "justify-start"}`}>
+                            <span className="rounded-full bg-orange-500/10 text-orange-600 px-2 py-0.5 text-[9px] font-bold">Bot escalated to human</span>
+                          </div>
+                        )}
                         <div className={`flex items-center gap-1.5 mt-1 text-[10px] text-text-muted ${isAdmin ? "justify-end" : "justify-start"}`}>
                           <span>{m.time}</span>
                           {isAdmin && <CheckCheck className="h-3.5 w-3.5 text-blue-500" />}
